@@ -1,0 +1,49 @@
+# Efinity generated outputs
+**/outflow/
+**/work_syn/
+**/work_pnr/
+**/work_pt/
+**/work_dbg/
+**/work_sim/
+
+# Simulation caches and waveforms
+**/sim/work/
+**/src/**/work/
+**/sim/wlft*
+**/sim/modelsim.ini*
+**/sim/transcript
+*.wlf
+*.vcd
+*.qpg
+*.qtl
+
+# Logs and temporary files
+*.log
+*.log.*
+*.bak
+*~
+*.tmp
+
+# Generated FPGA/program images
+*.bit
+*.hex
+**/debug_top.v
+
+# Vendor archives and installers
+*.run
+*.exe
+*.msi
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.zip
+
+# IDE workspace metadata (project metadata remains tracked)
+.metadata/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
