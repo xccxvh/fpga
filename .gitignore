@@ -39,6 +39,9 @@
 *.tar.gz
 *.zip
 
+# Vendor document copied with the HDMI bring-up worktree
+03_bringup/06_hdmi_test/hdmi_tx_colorbar_v2/rtl/color_bar_v3.0/video IP说明.docx
+
 # IDE workspace metadata (project metadata remains tracked)
 .metadata/
 
