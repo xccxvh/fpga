@@ -191,6 +191,20 @@ parameter FREQ = 200;			// default is 100 MHz.  Redefine as needed.
   wire                              s_axi_rlast;
   wire                              s_axi_rvalid;
 
+  wire [7:0] cpu_ddr_awid; wire [31:0] cpu_ddr_awaddr; wire [7:0] cpu_ddr_awlen;
+  wire [2:0] cpu_ddr_awsize; wire [1:0] cpu_ddr_awburst; wire cpu_ddr_awlock;
+  wire [3:0] cpu_ddr_awcache; wire [2:0] cpu_ddr_awprot; wire cpu_ddr_awvalid, cpu_ddr_awready;
+  wire [127:0] cpu_ddr_wdata; wire [15:0] cpu_ddr_wstrb; wire cpu_ddr_wlast, cpu_ddr_wvalid, cpu_ddr_wready;
+  wire [7:0] cpu_ddr_bid; wire [1:0] cpu_ddr_bresp; wire cpu_ddr_bvalid, cpu_ddr_bready;
+  wire bitblt_start, bitblt_busy, bitblt_done, bitblt_error;
+  wire [31:0] bitblt_dst_addr, bitblt_width, bitblt_height, bitblt_dst_stride, bitblt_color, bitblt_operation;
+  wire [7:0] bitblt_awid, bitblt_awlen, bitblt_bid;
+  wire [31:0] bitblt_awaddr; wire [2:0] bitblt_awsize; wire [1:0] bitblt_awburst, bitblt_bresp;
+  wire bitblt_awlock, bitblt_awvalid, bitblt_awready;
+  wire [3:0] bitblt_awcache; wire [2:0] bitblt_awprot;
+  wire [127:0] bitblt_wdata; wire [15:0] bitblt_wstrb;
+  wire bitblt_wlast, bitblt_wvalid, bitblt_wready, bitblt_bvalid, bitblt_bready;
+
   // Sapphire AXI-A master -> local 4 KiB RAM slave
   wire [7:0]                        axiA_awid;
   wire [31:0]                       axiA_awaddr;
@@ -466,30 +480,30 @@ soc u_sapphire_soc(
     .axiAInterrupt                      (axiA_interrupt                     ),
 
     //External Memory AXI4 Interface
-    .io_ddrA_aw_payload_prot            (                                  ),//(                                  ),
+    .io_ddrA_aw_payload_prot            (cpu_ddr_awprot                    ),
     .io_ddrA_aw_payload_qos             (                                  ),//(                                  ),
-    .io_ddrA_aw_payload_cache           (                                  ),//(                                  ),
-    .io_ddrA_aw_payload_lock            (s_axi_awlock                     ),//(m1_axi_awlock                     ),
-    .io_ddrA_aw_payload_burst           (s_axi_awburst                    ),//(m1_axi_awburst                    ),
-    .io_ddrA_aw_payload_size            (s_axi_awsize                     ),//(m1_axi_awsize                     ),
-    .io_ddrA_aw_payload_len             (s_axi_awlen                      ),//(m1_axi_awlen                      ),
+    .io_ddrA_aw_payload_cache           (cpu_ddr_awcache                   ),
+    .io_ddrA_aw_payload_lock            (cpu_ddr_awlock                    ),
+    .io_ddrA_aw_payload_burst           (cpu_ddr_awburst                   ),
+    .io_ddrA_aw_payload_size            (cpu_ddr_awsize                    ),
+    .io_ddrA_aw_payload_len             (cpu_ddr_awlen                     ),
     .io_ddrA_aw_payload_region          (                                 ),//(                                  ),
-    .io_ddrA_aw_payload_id              (s_axi_awid                       ),//(m1_axi_awid                       ),
-    .io_ddrA_aw_payload_addr            (s_axi_awaddr                     ),//(m1_axi_awaddr                     ),
-    .io_ddrA_aw_ready                   (s_axi_awready                    ),//(m1_axi_awready                    ),
-    .io_ddrA_aw_valid                   (s_axi_awvalid                    ),//(m1_axi_awvalid                    ),
-    .io_ddrA_w_payload_last             (s_axi_wlast                      ),//(m1_axi_wlast                      ),
-    .io_ddrA_w_ready                    (s_axi_wready                     ),//(m1_axi_wready                     ),
-    .io_ddrA_w_valid                    (s_axi_wvalid                     ),  //(m1_axi_wvalid                     ),    
-    .io_ddrA_w_payload_strb             (s_axi_wstrb                      ),//(m1_axi_wstrb                      ),
-    .io_ddrA_w_payload_data             (s_axi_wdata                      ),//(m1_axi_wdata                      ),
-    .io_ddrA_b_payload_resp             (                                 ),//(                                  ),
-    .io_ddrA_b_payload_id               (s_axi_bid                        ),//(m1_axi_bid                        ),
-    .io_ddrA_b_ready                    (s_axi_bready                     ),//(m1_axi_bready                     ),
-    .io_ddrA_b_valid                    (s_axi_bvalid                     ),//(m1_axi_bvalid                     ),
-    .io_ddrA_ar_payload_prot            (                                 ),//(                                  ),
+    .io_ddrA_aw_payload_id              (cpu_ddr_awid                      ),
+    .io_ddrA_aw_payload_addr            (cpu_ddr_awaddr                    ),
+    .io_ddrA_aw_ready                   (cpu_ddr_awready                   ),
+    .io_ddrA_aw_valid                   (cpu_ddr_awvalid                   ),
+    .io_ddrA_w_payload_last             (cpu_ddr_wlast                     ),
+    .io_ddrA_w_ready                    (cpu_ddr_wready                    ),
+    .io_ddrA_w_valid                    (cpu_ddr_wvalid                    ),
+    .io_ddrA_w_payload_strb             (cpu_ddr_wstrb                     ),
+    .io_ddrA_w_payload_data             (cpu_ddr_wdata                     ),
+    .io_ddrA_b_payload_resp             (cpu_ddr_bresp                     ),
+    .io_ddrA_b_payload_id               (cpu_ddr_bid                       ),
+    .io_ddrA_b_ready                    (cpu_ddr_bready                    ),
+    .io_ddrA_b_valid                    (cpu_ddr_bvalid                    ),
+    .io_ddrA_ar_payload_prot            (s_axi_arprot                     ),
     .io_ddrA_ar_payload_qos             (                                 ),//(                                  ),
-    .io_ddrA_ar_payload_cache           (                                 ),//(                                  ),
+    .io_ddrA_ar_payload_cache           (s_axi_arcache                    ),
     .io_ddrA_ar_payload_region          (                                 ),//(                                  ),
     .io_ddrA_ar_payload_lock            (s_axi_arlock                     ),//(m1_axi_arlock                     ),
     .io_ddrA_ar_payload_burst           (s_axi_arburst                    ),//(m1_axi_arburst                    ),
@@ -547,6 +561,37 @@ soc u_sapphire_soc(
 
 );
 
+axi_write_arbiter_2to1 u_ddr_write_arbiter (
+    .clk(user_clk), .resetn(ddr_rstn),
+    .s0_awid(cpu_ddr_awid), .s0_awaddr(cpu_ddr_awaddr), .s0_awlen(cpu_ddr_awlen),
+    .s0_awsize(cpu_ddr_awsize), .s0_awburst(cpu_ddr_awburst), .s0_awlock(cpu_ddr_awlock),
+    .s0_awcache(cpu_ddr_awcache), .s0_awprot(cpu_ddr_awprot), .s0_awvalid(cpu_ddr_awvalid), .s0_awready(cpu_ddr_awready),
+    .s0_wdata(cpu_ddr_wdata), .s0_wstrb(cpu_ddr_wstrb), .s0_wlast(cpu_ddr_wlast), .s0_wvalid(cpu_ddr_wvalid), .s0_wready(cpu_ddr_wready),
+    .s0_bid(cpu_ddr_bid), .s0_bresp(cpu_ddr_bresp), .s0_bvalid(cpu_ddr_bvalid), .s0_bready(cpu_ddr_bready),
+    .s1_awid(bitblt_awid), .s1_awaddr(bitblt_awaddr), .s1_awlen(bitblt_awlen),
+    .s1_awsize(bitblt_awsize), .s1_awburst(bitblt_awburst), .s1_awlock(bitblt_awlock),
+    .s1_awcache(bitblt_awcache), .s1_awprot(bitblt_awprot), .s1_awvalid(bitblt_awvalid), .s1_awready(bitblt_awready),
+    .s1_wdata(bitblt_wdata), .s1_wstrb(bitblt_wstrb), .s1_wlast(bitblt_wlast), .s1_wvalid(bitblt_wvalid), .s1_wready(bitblt_wready),
+    .s1_bid(bitblt_bid), .s1_bresp(bitblt_bresp), .s1_bvalid(bitblt_bvalid), .s1_bready(bitblt_bready),
+    .m_awid(s_axi_awid), .m_awaddr(s_axi_awaddr), .m_awlen(s_axi_awlen), .m_awsize(s_axi_awsize),
+    .m_awburst(s_axi_awburst), .m_awlock(s_axi_awlock), .m_awcache(s_axi_awcache), .m_awprot(s_axi_awprot),
+    .m_awvalid(s_axi_awvalid), .m_awready(s_axi_awready),
+    .m_wdata(s_axi_wdata), .m_wstrb(s_axi_wstrb), .m_wlast(s_axi_wlast), .m_wvalid(s_axi_wvalid), .m_wready(s_axi_wready),
+    .m_bid(s_axi_bid), .m_bresp(s_axi_bresp), .m_bvalid(s_axi_bvalid), .m_bready(s_axi_bready)
+);
+
+bitblt_fill_engine u_bitblt_fill_engine (
+    .clk(user_clk), .resetn(ddr_rstn), .start(bitblt_start),
+    .dst_addr(bitblt_dst_addr), .width(bitblt_width), .height(bitblt_height),
+    .dst_stride(bitblt_dst_stride), .color(bitblt_color), .operation(bitblt_operation),
+    .busy(bitblt_busy), .done(bitblt_done), .error(bitblt_error),
+    .m_awid(bitblt_awid), .m_awaddr(bitblt_awaddr), .m_awlen(bitblt_awlen),
+    .m_awsize(bitblt_awsize), .m_awburst(bitblt_awburst), .m_awlock(bitblt_awlock),
+    .m_awcache(bitblt_awcache), .m_awprot(bitblt_awprot), .m_awvalid(bitblt_awvalid), .m_awready(bitblt_awready),
+    .m_wdata(bitblt_wdata), .m_wstrb(bitblt_wstrb), .m_wlast(bitblt_wlast), .m_wvalid(bitblt_wvalid), .m_wready(bitblt_wready),
+    .m_bid(bitblt_bid), .m_bresp(bitblt_bresp), .m_bvalid(bitblt_bvalid), .m_bready(bitblt_bready)
+);
+
 
 bitblt_ctrl_axi #(
     .ADDR_WIDTH                         (32                                 ),
@@ -593,7 +638,11 @@ bitblt_ctrl_axi #(
     .axi_rresp                          (axiA_rresp                         ),
     .axi_rlast                          (axiA_rlast                         ),
     .axi_rvalid                         (axiA_rvalid                        ),
-    .axi_rready                         (axiA_rready                        )
+    .axi_rready                         (axiA_rready                        ),
+    .start_pulse(bitblt_start), .cfg_dst_addr(bitblt_dst_addr), .cfg_width(bitblt_width),
+    .cfg_height(bitblt_height), .cfg_dst_stride(bitblt_dst_stride), .cfg_color(bitblt_color),
+    .cfg_operation(bitblt_operation), .engine_busy(bitblt_busy),
+    .engine_done(bitblt_done), .engine_error(bitblt_error)
 );
 
 

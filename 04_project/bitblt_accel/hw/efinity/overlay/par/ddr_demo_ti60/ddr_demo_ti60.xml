@@ -9,6 +9,8 @@
         <efx:design_file name="debug_top.v" version="default" library="default" />
         <efx:design_file name="../../rtl/ddr3_example_top.v" version="default" library="default" />
         <efx:design_file name="../../rtl/bitblt_ctrl_axi.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/bitblt_fill_engine.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/axi_write_arbiter_2to1.v" version="default" library="default" />
         <efx:design_file name="../../rtl/ddr3_controller/ddr3_parameter.vh" version="default" library="default" />
         <efx:design_file name="../../rtl/ddr3_controller/ddr3_top.v" version="default" library="default" />
         <efx:design_file name="../../rtl/ddr3_controller/local_bus_ctl/local_bus_ctl.v" version="default" library="default" />
