@@ -30,13 +30,13 @@ static void interrupt_init(void) {
     csr_write(mstatus, csr_read(mstatus) | MSTATUS_MPP | MSTATUS_MIE);
 }
 void main(void) {
-    const uint32_t dst = 0x01200000u, width = 64u, height = 4u;
-    const uint32_t stride = width * 4u, color = 0xA5C3F00Du;
+    const uint32_t dst = 0x01200000u, width = 80u, height = 3u;
+    const uint32_t stride = 384u, color = 0xA5C3F00Du;
     volatile uint32_t *frame = (volatile uint32_t *)dst;
     uint32_t timeout, status, x, y;
     bsp_init();
     bsp_printf("*** BitBlt DDR Fill MVP ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != 0x00010001u) fail("version register");
+    if (bitblt_read(BITBLT_VERSION) != 0x00010002u) fail("version register");
     bitblt_write(BITBLT_SRC_ADDR, 0x01000000u);
     bitblt_write(BITBLT_DST_ADDR, dst);
     bitblt_write(BITBLT_WIDTH, width);
@@ -68,7 +68,7 @@ void main(void) {
     for (y = 0; y < height; ++y)
         for (x = 0; x < width; ++x)
             if (frame[y * (stride / 4u) + x] != color) fail("DDR pixel mismatch");
-    bsp_printf("DDR Fill readback: PASSED (256 pixels)\r\n");
+    bsp_printf("DDR Fill burst readback: PASSED (240 pixels)\r\n");
     bsp_printf("*** BitBlt DDR Fill MVP PASSED ***\r\n");
     while (1) {}
 }

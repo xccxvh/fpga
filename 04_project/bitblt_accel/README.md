@@ -14,11 +14,12 @@ SRC_STRIDE `0x18`、DST_STRIDE `0x1C`、COLOR `0x20`、OPERATION `0x24`
 
 - RISC-V 软件编译：通过，使用片上 RAM 6336 B。
 - Efinity 2026.1 Map、Interface、PnR、位流生成：通过。
-- 最差 Setup 余量：约 0.323 ns。
+- 最差 Setup 余量：约 0.321 ns。
 - 最差 Hold 余量：约 0.026 ns。
-- 寄存器读回、BUSY 到 DONE、完成中断，以及 DDR 中 256 个像素逐项读回：板测通过。
+- 寄存器读回、BUSY 到 DONE、完成中断，以及 DDR 中 240 个像素逐项读回：板测通过。
 
-当前 Fill 引擎每次 AXI 事务写入 4 个 32 位像素，支持二维高度和目标行跨度。
+当前 Fill 引擎每个 AXI Burst 最多连续写入 16 个 128 位拍（64 个 32 位像素），
+支持自动拆分长行、避免跨越 4 KiB 边界，并支持二维高度和目标行跨度。
 第一版要求目标地址与行跨度按 16 字节对齐、宽度为 4 像素的整数倍；Copy
 数据通路尚未实现。CPU 与加速器的 DDR 写通道由单事务仲裁器共享，DDR 读
 通道仍由 CPU 直接使用。
@@ -30,7 +31,7 @@ SRC_STRIDE `0x18`、DST_STRIDE `0x1C`、COLOR `0x20`、OPERATION `0x24`
 Register readback: PASSED
 Status transition: PASSED
 Completion IRQ: PASSED
-DDR Fill readback: PASSED (256 pixels)
+DDR Fill burst readback: PASSED (240 pixels)
 *** BitBlt DDR Fill MVP PASSED ***
 ```
 
@@ -57,6 +58,7 @@ efx_run --prj -f compile ddr_demo_ti60
 
 软件测试需要把 `sw/driver` 和 `sw/tests/bitbltCtrlDemo` 放到 BSP 的同一
 `bitblt/` 目录下，再使用 RISC-V IDE 工具链编译。板测使用的目标区域为
-`0x01200000`，写入 64×4 个 32 位像素，颜色值为 `0xA5C3F00D`。
+`0x01200000`，写入 80×3 个 32 位像素，行跨度为 384 字节，颜色值为
+`0xA5C3F00D`。每行 20 个 128 位拍会拆分成 `16 + 4` 两个 Burst。
 
-下一版本应把单拍写升级为 AXI burst，并加入 Copy 的 DDR 读通道。
+下一版本加入 Copy 的 DDR 读通道，并进一步测量吞吐率。

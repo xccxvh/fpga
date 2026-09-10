@@ -38,7 +38,7 @@ module bitblt_ctrl_axi #(
     input engine_error
 );
 
-    localparam [31:0] VERSION = 32'h0001_0001;
+    localparam [31:0] VERSION = 32'h0001_0002;
     reg aw_pending, bvalid_reg, rvalid_reg;
     reg [ADDR_WIDTH-1:0] awaddr_reg;
     reg [7:0] awid_reg, bid_reg, rid_reg;
