@@ -19,6 +19,7 @@
 | RISC-V 基础功能 | 已验证 | GPIO、CLINT、DDR 16 MiB、UART Echo、FreeRTOS 已运行 |
 | RISC-V AXI4 | 已验证（补全硬件） | 接入 2 KiB AXI RAM 后，官方读写比较与中断测试均通过 |
 | RISC-V APB3 | 待修正硬件设计 | 官方软件已运行，厂家 Hard-JTAG 位流缺少示例要求的 LFSR 外设 |
+| BitBlt 控制 MVP | 已验证 | 配置寄存器、状态转换及 PLIC 完成中断均已通过板测 |
 
 ## 协作规则
 
