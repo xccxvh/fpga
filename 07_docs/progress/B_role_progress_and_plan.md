@@ -29,12 +29,14 @@
 - Burst 自动按行和4 KiB边界拆分。
 - 检查零尺寸、非法操作、对齐、stride以及AXI响应/ID/RLAST错误。
 - Solid Fill 与 Block Copy 均已通过真实 DDR 写入和 CPU 逐像素回读。
+- 已建立 Icarus Verilog 自检回归，覆盖 Fill/Copy、Burst、4 KiB 边界、
+  backpressure、非法参数、AXI错误以及读写仲裁。
 
 ## 2. 当前阶段判断
 
 | 阶段 | B 组状态 | 尚缺内容 |
 |---|---|---|
-| M1 接口和骨架 | 基本完成 | A/C确认像素格式、内存布局、驱动API；补最小自动化RTL测试 |
+| M1 接口和骨架 | B部分完成 | A/C确认像素格式、内存布局和驱动API |
 | M2 Solid Fill | B 数据面完成 | 与 A 的Framebuffer/HDMI链路联调；补目标区外哨兵检查 |
 | M3 Block Copy | 核心链路完成 | 命令FIFO、双缓冲、显示换帧、性能对比和并发压力测试 |
 | M4 Color Key | 未开始 | 等M3接口稳定后实现 |
@@ -59,9 +61,10 @@
 2. 测试 1/2/4/15/16/17 beat、跨行、跨4 KiB边界和不同stride。
 3. 测试非法操作、零宽高、未对齐地址、过小stride和忙时再次START。
 4. 注入读写backpressure及错误响应，确认不会死锁且ERROR正确。
-5. 增加RTL Testbench，使关键测试不依赖每次手工上板。
+5. 持续扩展现有RTL Testbench，使关键测试不依赖每次手工上板。
 
-验收：自动测试全部通过；板级抽查通过；失败用例不会破坏保护区。
+当前结果：首轮自动回归全部通过。下一轮补命令控制Slave测试、随机长时间压力和
+板级保护区抽查。
 
 ### P2：完成M2/M3系统联调
 

@@ -66,3 +66,30 @@ DDR Copy burst readback: PASSED (240 pixels)
 - 当前只完成小矩形/小块实板回读，没有完成保护区哨兵、实际跨4 KiB地址、
   backpressure、CPU/BitBlt/显示并发和整帧吞吐测试。
 - Framebuffer、HDMI扫描、Double Buffer和VSync换帧不属于本次板测范围。
+
+## RTL自动回归
+
+新增 `04_project/bitblt_accel/hw/sim/` 自检环境，使用 Icarus Verilog 11.0。
+
+覆盖内容：
+
+- Fill：1、2、4、15、16、17 beat。
+- Copy：80×3二维stride以及源/目标跨4 KiB边界。
+- 所有测试均施加确定性的AW/W/AR/R backpressure。
+- 非法操作、零宽高、地址未对齐、宽度不满足要求、stride过小。
+- BRESP、RRESP和提前RLAST错误。
+- AXI读写仲裁器的加速器优先级、所有权保持和响应路由。
+- 参考内存逐字节比较，可检查目标区外的意外写入。
+
+2026-09-16首轮结果：
+
+```text
+Fill burst tests: PASSED
+Copy/stride/boundary tests: PASSED
+Invalid parameter tests: PASSED
+AXI error tests: PASSED
+BitBlt engine regression: PASSED (16 AW, 10 AR)
+Write arbiter tests: PASSED
+Read arbiter tests: PASSED
+AXI arbiter regression: PASSED
+```

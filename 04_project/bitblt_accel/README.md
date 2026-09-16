@@ -16,6 +16,8 @@ Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI 仲裁器共享 DDR �
 - Solid Fill：寄存器、BUSY/DONE、PLIC 中断和 240 像素 DDR 回读通过。
 - Block Copy：80×3 像素、源 stride 384 B、目标 stride 416 B，240 像素逐项回读通过。
 - 每次 AXI Burst 最多 16 个 128-bit beat，并自动避免跨越 4 KiB 边界。
+- `hw/sim` 自检回归已覆盖 Fill/Copy、Burst边界、backpressure、非法参数、
+  AXI错误响应和读写仲裁。
 
 Block Copy 板测串口输出：
 

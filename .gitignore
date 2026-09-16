@@ -5,6 +5,7 @@
 **/work_pt/
 **/work_dbg/
 **/work_sim/
+**/sim/build/
 
 # Simulation caches and waveforms
 **/sim/work/
