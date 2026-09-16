@@ -2,6 +2,7 @@
 #include "bsp.h"
 #include "riscv.h"
 #include "plic.h"
+#include "vexriscv.h"
 #include "bitblt_regs.h"
 
 static volatile uint32_t irq_seen;
@@ -30,28 +31,39 @@ static void interrupt_init(void) {
     csr_write(mstatus, csr_read(mstatus) | MSTATUS_MPP | MSTATUS_MIE);
 }
 void main(void) {
-    const uint32_t dst = 0x01200000u, width = 80u, height = 3u;
-    const uint32_t stride = 384u, color = 0xA5C3F00Du;
-    volatile uint32_t *frame = (volatile uint32_t *)dst;
-    uint32_t timeout, status, x, y;
+    const uint32_t src = 0x01100000u;
+    const uint32_t dst = 0x01200000u;
+    const uint32_t width = 80u;
+    const uint32_t height = 3u;
+    const uint32_t src_stride = 384u;
+    const uint32_t dst_stride = 416u;
+    volatile uint32_t *source = (volatile uint32_t *)src;
+    volatile uint32_t *destination = (volatile uint32_t *)dst;
+    uint32_t timeout, status, x, y, expected;
     bsp_init();
-    bsp_printf("*** BitBlt DDR Fill MVP ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != 0x00010002u) fail("version register");
-    bitblt_write(BITBLT_SRC_ADDR, 0x01000000u);
+    bsp_printf("*** BitBlt Block Copy MVP ***\r\n");
+    if (bitblt_read(BITBLT_VERSION) != 0x00010003u) fail("version register");
+    for (y = 0; y < height; ++y) {
+        for (x = 0; x < width; ++x)
+            source[y * (src_stride / 4u) + x] = 0x5A000000u | (y << 16) | x;
+    }
+    bsp_printf("CPU DDR writes: ISSUED\r\n");
+    __asm__ volatile ("fence rw,rw" ::: "memory");
+    bsp_printf("Source pattern: PREPARED\r\n");
+    bitblt_write(BITBLT_SRC_ADDR, src);
     bitblt_write(BITBLT_DST_ADDR, dst);
     bitblt_write(BITBLT_WIDTH, width);
     bitblt_write(BITBLT_HEIGHT, height);
-    bitblt_write(BITBLT_SRC_STRIDE, stride);
-    bitblt_write(BITBLT_DST_STRIDE, stride);
-    bitblt_write(BITBLT_COLOR, color);
-    bitblt_write(BITBLT_OPERATION, BITBLT_OP_FILL);
-    if (bitblt_read(BITBLT_SRC_ADDR) != 0x01000000u ||
+    bitblt_write(BITBLT_SRC_STRIDE, src_stride);
+    bitblt_write(BITBLT_DST_STRIDE, dst_stride);
+    bitblt_write(BITBLT_COLOR, 0u);
+    bitblt_write(BITBLT_OPERATION, BITBLT_OP_COPY);
+    if (bitblt_read(BITBLT_SRC_ADDR) != src ||
         bitblt_read(BITBLT_DST_ADDR) != dst ||
         bitblt_read(BITBLT_WIDTH) != width || bitblt_read(BITBLT_HEIGHT) != height ||
-        bitblt_read(BITBLT_SRC_STRIDE) != stride ||
-        bitblt_read(BITBLT_DST_STRIDE) != stride ||
-        bitblt_read(BITBLT_COLOR) != color ||
-        bitblt_read(BITBLT_OPERATION) != BITBLT_OP_FILL) fail("register readback");
+        bitblt_read(BITBLT_SRC_STRIDE) != src_stride ||
+        bitblt_read(BITBLT_DST_STRIDE) != dst_stride ||
+        bitblt_read(BITBLT_OPERATION) != BITBLT_OP_COPY) fail("register readback");
     bsp_printf("Register readback: PASSED\r\n");
     irq_seen = 0; interrupt_init();
     bitblt_write(BITBLT_CONTROL, BITBLT_CONTROL_CLEAR);
@@ -65,10 +77,15 @@ void main(void) {
     bsp_printf("Status transition: PASSED\r\n");
     bsp_printf("Completion IRQ: PASSED\r\n");
     __asm__ volatile ("fence rw,rw" ::: "memory");
-    for (y = 0; y < height; ++y)
-        for (x = 0; x < width; ++x)
-            if (frame[y * (stride / 4u) + x] != color) fail("DDR pixel mismatch");
-    bsp_printf("DDR Fill burst readback: PASSED (240 pixels)\r\n");
-    bsp_printf("*** BitBlt DDR Fill MVP PASSED ***\r\n");
+    for (y = 0; y < height; ++y) {
+        for (x = 0; x < width; ++x) {
+            data_cache_invalidate_address(&destination[y * (dst_stride / 4u) + x]);
+            expected = 0x5A000000u | (y << 16) | x;
+            if (destination[y * (dst_stride / 4u) + x] != expected)
+                fail("DDR copy mismatch");
+        }
+    }
+    bsp_printf("DDR Copy burst readback: PASSED (240 pixels)\r\n");
+    bsp_printf("*** BitBlt Block Copy MVP PASSED ***\r\n");
     while (1) {}
 }

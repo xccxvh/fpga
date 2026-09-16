@@ -27,9 +27,11 @@ module bitblt_ctrl_axi #(
     output [1:0] axi_rresp, output axi_rlast,
     output axi_rvalid, input axi_rready,
     output reg start_pulse,
+    output [31:0] cfg_src_addr,
     output [31:0] cfg_dst_addr,
     output [31:0] cfg_width,
     output [31:0] cfg_height,
+    output [31:0] cfg_src_stride,
     output [31:0] cfg_dst_stride,
     output [31:0] cfg_color,
     output [31:0] cfg_operation,
@@ -38,7 +40,7 @@ module bitblt_ctrl_axi #(
     input engine_error
 );
 
-    localparam [31:0] VERSION = 32'h0001_0002;
+    localparam [31:0] VERSION = 32'h0001_0003;
     reg aw_pending, bvalid_reg, rvalid_reg;
     reg [ADDR_WIDTH-1:0] awaddr_reg;
     reg [7:0] awid_reg, bid_reg, rid_reg;
@@ -59,9 +61,11 @@ module bitblt_ctrl_axi #(
     assign axi_rlast = 1'b1;
     assign axi_rvalid = rvalid_reg;
     assign axi_interrupt = interrupt_reg;
+    assign cfg_src_addr = src_addr_reg;
     assign cfg_dst_addr = dst_addr_reg;
     assign cfg_width = width_reg;
     assign cfg_height = height_reg;
+    assign cfg_src_stride = src_stride_reg;
     assign cfg_dst_stride = dst_stride_reg;
     assign cfg_color = color_reg;
     assign cfg_operation = operation_reg;

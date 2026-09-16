@@ -19,7 +19,8 @@
 | RISC-V 基础功能 | 已验证 | GPIO、CLINT、DDR 16 MiB、UART Echo、FreeRTOS 已运行 |
 | RISC-V AXI4 | 已验证（补全硬件） | 接入 2 KiB AXI RAM 后，官方读写比较与中断测试均通过 |
 | RISC-V APB3 | 待修正硬件设计 | 官方软件已运行，厂家 Hard-JTAG 位流缺少示例要求的 LFSR 外设 |
-| BitBlt 控制 MVP | 已验证 | 配置寄存器、状态转换及 PLIC 完成中断均已通过板测 |
+| BitBlt 控制与 Solid Fill | 已验证 | 配置寄存器、状态转换、PLIC 中断及 DDR Burst 写入均通过板测 |
+| BitBlt Block Copy | 已验证（核心链路） | 128-bit AXI Burst 读写、二维 stride 和 240 像素逐项回读通过；显示/双缓冲尚未集成 |
 
 ## 协作规则
 
@@ -31,3 +32,6 @@
 6. 合并前必须记录编译结果、WNS/WHS 和板上测试现象。
 
 详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
+
+赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.1.md`，B 组当前进度与计划见
+`07_docs/progress/B_role_progress_and_plan.md`。
