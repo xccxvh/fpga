@@ -27,8 +27,8 @@
     <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.openocd.otherInitCommands" value=""/>
     <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.openocd.otherRunCommands" value="monitor targets tap1.cpu0&#13;&#10;monitor reg pc 0x00001000&#13;&#10;"/>
     <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.openocd.secondResetType" value="halt"/>
-    <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.openocd.targetRegFile" value="/home/jzy/下载/Ti60F225_DemoBoard_v4完整资料包（赛题1~3直接使用））/Ti60F225_DemoBoard_v4/08_ti60f225_soc_demo/09_Ti60F225_co_debug_demo/par/ddr_demo_ti60/embedded_sw/soc/bsp/efinix/EfxSapphireSoc/openocd/sapphire_soc_32bit-reg.xml"/>
-    <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.svdPath" value="/home/jzy/下载/Ti60F225_DemoBoard_v4完整资料包（赛题1~3直接使用））/Ti60F225_DemoBoard_v4/08_ti60f225_soc_demo/09_Ti60F225_co_debug_demo/par/ddr_demo_ti60/embedded_sw/soc/bsp/efinix/EfxSapphireSoc/openocd/sapphire_soc_xsvd.json"/>
+    <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.openocd.targetRegFile" value="/home/jzy/code/fpga/jzy/ddr_demo_ti60_2026/embedded_sw/soc/bsp/efinix/EfxSapphireSoc/openocd/sapphire_soc_32bit-reg.xml"/>
+    <stringAttribute key="ilg.gnumcueclipse.debug.gdbjtag.svdPath" value="/home/jzy/code/fpga/jzy/ddr_demo_ti60_2026/embedded_sw/soc/bsp/efinix/EfxSapphireSoc/openocd/sapphire_soc_xsvd.json"/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.imageFileName" value=""/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.imageOffset" value=""/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.ipAddress" value="localhost"/>

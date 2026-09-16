@@ -26,7 +26,7 @@ void main() {
 
     bsp_init();
     
-    bsp_printf("***Starting Uart Echo Demo*** \r\n");
+    bsp_printf("***FPGA Game RISC-V Ready*** \r\n");
     bsp_printf("Start typing on terminal to send character... \r\n");
     while(1)
     {
