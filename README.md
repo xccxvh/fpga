@@ -14,8 +14,13 @@
 | 模块 | 状态 | 说明 |
 |---|---|---|
 | LED/按键 Demo | 已验证 | Efinity 2026.1 编译、JTAG SRAM 下载及板上现象通过 |
-| HDMI RX→TX | 排查中 | Efinity 2026.1 编译和 JTAG 下载通过，显示与 LED 指示仍需和厂家原始位流对照 |
-| RISC-V | 未开始 | IDE 已安装，BSP Demo 尚未验证 |
+| HDMI RX→TX | 已验证 | Efinity 2026.1 编译、JTAG 下载及 HDMI 环回显示通过 |
+| HDMI TX 彩条 | 已验证（兼容修改） | 厂家异常时序在测试屏黑屏；修改为 1080p60 后显示通过 |
+| RISC-V 基础功能 | 已验证 | GPIO、CLINT、DDR 16 MiB、UART Echo、FreeRTOS 已运行 |
+| RISC-V AXI4 | 已验证（补全硬件） | 接入 2 KiB AXI RAM 后，官方读写比较与中断测试均通过 |
+| RISC-V APB3 | 待修正硬件设计 | 官方软件已运行，厂家 Hard-JTAG 位流缺少示例要求的 LFSR 外设 |
+| BitBlt 控制与 Solid Fill | 已验证 | 配置寄存器、状态转换、PLIC 中断及 DDR Burst 写入均通过板测 |
+| BitBlt Block Copy | 已验证（核心链路） | 128-bit AXI Burst 读写、二维 stride 和 240 像素逐项回读通过；显示/双缓冲尚未集成 |
 
 ## 协作规则
 
@@ -27,3 +32,6 @@
 6. 合并前必须记录编译结果、WNS/WHS 和板上测试现象。
 
 详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
+
+赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.1.md`，B 组当前进度与计划见
+`07_docs/progress/B_role_progress_and_plan.md`。
