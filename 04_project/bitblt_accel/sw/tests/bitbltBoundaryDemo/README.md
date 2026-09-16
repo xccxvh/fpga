@@ -39,5 +39,22 @@ Large Copy bytes=1228800 ticks=<实测值> throughput=<实测值> KiB/s
 *** BitBlt Board Boundary Regression PASSED ***
 ```
 
-任一 `FAILED:`、程序停住或 OpenOCD 报错都不能记为通过。当前仓库只记录了
-构建通过；实际开发板结果需要连接 USB 后补录。
+任一 `FAILED:`、程序停住或 OpenOCD 报错都不能记为通过。
+
+## 2026-09-17 实测结果
+
+Ti60F225 通过 JTAG 加载接口版本 `0x00010003` 位流和本测试 ELF，四项测试
+全部通过：
+
+```text
+*** BitBlt Board Boundary Regression ***
+Fill guard test: PASSED
+Copy guard/stride test: PASSED
+4KiB boundary test: PASSED
+Large Copy 640x480: PASSED
+Large Copy bytes=1228800 ticks=331769 throughput=361697 KiB/s
+*** BitBlt Board Boundary Regression PASSED ***
+```
+
+吞吐率约为 353.2 MiB/s，计时范围是写 START 到硬件 DONE，不包含 CPU 准备
+源图、逐像素校验和串口输出时间。

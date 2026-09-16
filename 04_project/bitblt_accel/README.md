@@ -15,6 +15,8 @@ Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI 仲裁器共享 DDR �
 - 最差 Setup 余量约 0.306 ns，最差 Hold 余量约 0.026 ns。
 - Solid Fill：寄存器、BUSY/DONE、PLIC 中断和 240 像素 DDR 回读通过。
 - Block Copy：80×3 像素、源 stride 384 B、目标 stride 416 B，240 像素逐项回读通过。
+- 板级边界回归：Fill/Copy 护栏、不同 stride、实际跨 4 KiB 地址以及
+  640×480 整帧 Copy 全部通过；整帧 Copy 实测约 353.2 MiB/s。
 - 每次 AXI Burst 最多 16 个 128-bit beat，并自动避免跨越 4 KiB 边界。
 - `hw/sim` 自检回归已覆盖 Fill/Copy、Burst边界、backpressure、非法参数、
   AXI错误响应和读写仲裁。
@@ -68,5 +70,5 @@ efx_run --prj -f compile ddr_demo_ti60
 不是最终 Framebuffer 内存布局。
 
 更完整的板级保护区、跨 4 KiB 和 640×480 吞吐回归位于
-`sw/tests/bitbltBoundaryDemo`。该程序已编译通过，实际板测尚待开发板 USB
-重新连接；运行方法和预期串口输出见其 `README.md`。
+`sw/tests/bitbltBoundaryDemo`。该程序已于 2026-09-17 实板通过；运行方法、
+实测数据和预期串口输出见其 `README.md`。

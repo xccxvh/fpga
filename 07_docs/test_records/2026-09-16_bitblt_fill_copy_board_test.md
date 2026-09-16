@@ -103,13 +103,14 @@ Read arbiter tests: PASSED
 AXI arbiter regression: PASSED
 ```
 
-## 后续板级回归准备状态
+## 后续板级回归结果
 
 已新增 `sw/tests/bitbltBoundaryDemo`，用于补测目标区前后哨兵、行尾 padding、
 不同 stride、实际跨4 KiB地址以及640×480整帧Copy和CLINT吞吐计时。
 
 - 2026-09-16：GCC 13.4 构建通过，10,864 B / 124 KiB（8.56%）。
-- 本次未登记板测结果：执行时系统未检测到 `0403:6011` USB设备和
-  `/dev/ttyUSB*`，需重新连接开发板后加载 ELF。
-- 板测通过条件和完整预期输出见
+- 2026-09-17：Ti60F225 实板通过全部四项测试；640×480、1,228,800 B Copy
+  用时331,769个100 MHz CLINT tick，程序计算为361,697 KiB/s（约353.2 MiB/s）。
+- 计时只覆盖START到DONE，不包含CPU准备源数据、校验和串口输出。
+- 完整测试方法和串口输出见
   `04_project/bitblt_accel/sw/tests/bitbltBoundaryDemo/README.md`。
