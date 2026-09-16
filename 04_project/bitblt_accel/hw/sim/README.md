@@ -4,6 +4,8 @@
 
 - `tb_bitblt_engine.sv`：Solid Fill、Block Copy、Burst 长度、二维 stride、
   4 KiB 边界、随机式 backpressure、非法参数及 AXI 错误响应。
+- `tb_bitblt_ctrl_axi.sv`：寄存器复位/读写、START/BUSY/DONE/ERROR、完成中断、
+  CLEAR、WSTRB、非法地址、非单拍访问及AW/W独立握手。
 - `tb_axi_arbiters.sv`：读写仲裁优先级、事务所有权保持和响应路由。
 
 Ubuntu 可安装 `iverilog` 后执行：
@@ -17,6 +19,7 @@ make test
 
 ```text
 BitBlt engine regression: PASSED
+BitBlt control regression: PASSED
 AXI arbiter regression: PASSED
 ```
 

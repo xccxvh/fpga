@@ -31,6 +31,8 @@
 - Solid Fill 与 Block Copy 均已通过真实 DDR 写入和 CPU 逐像素回读。
 - 已建立 Icarus Verilog 自检回归，覆盖 Fill/Copy、Burst、4 KiB 边界、
   backpressure、非法参数、AXI错误以及读写仲裁。
+- 控制接口自检覆盖寄存器复位/读写、START/BUSY/DONE/ERROR、中断、CLEAR、
+  WSTRB、非法地址、非单拍访问以及AW/W不同到达顺序，全部通过。
 
 ## 2. 当前阶段判断
 
@@ -63,8 +65,8 @@
 4. 注入读写backpressure及错误响应，确认不会死锁且ERROR正确。
 5. 持续扩展现有RTL Testbench，使关键测试不依赖每次手工上板。
 
-当前结果：首轮自动回归全部通过。下一轮补命令控制Slave测试、随机长时间压力和
-板级保护区抽查。
+当前结果：引擎、控制Slave和读写仲裁器自动回归全部通过。下一轮补随机长时间
+压力和板级保护区抽查。
 
 ### P2：完成M2/M3系统联调
 

@@ -79,6 +79,8 @@ DDR Copy burst readback: PASSED (240 pixels)
 - 非法操作、零宽高、地址未对齐、宽度不满足要求、stride过小。
 - BRESP、RRESP和提前RLAST错误。
 - AXI读写仲裁器的加速器优先级、所有权保持和响应路由。
+- 控制Slave寄存器复位/读写、START/BUSY/DONE/ERROR、完成中断和CLEAR。
+- 非完整WSTRB、非法寄存器、非单拍访问、AW/W同时或W先到达。
 - 参考内存逐字节比较，可检查目标区外的意外写入。
 
 2026-09-16首轮结果：
@@ -89,6 +91,13 @@ Copy/stride/boundary tests: PASSED
 Invalid parameter tests: PASSED
 AXI error tests: PASSED
 BitBlt engine regression: PASSED (16 AW, 10 AR)
+Register reset tests: PASSED
+Register read/write tests: PASSED
+START/BUSY tests: PASSED
+DONE/ERROR/interrupt tests: PASSED
+Control error handling tests: PASSED
+AXI channel ordering tests: PASSED
+BitBlt control regression: PASSED
 Write arbiter tests: PASSED
 Read arbiter tests: PASSED
 AXI arbiter regression: PASSED
