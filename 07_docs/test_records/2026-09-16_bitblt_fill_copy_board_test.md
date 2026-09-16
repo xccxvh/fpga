@@ -102,3 +102,14 @@ Write arbiter tests: PASSED
 Read arbiter tests: PASSED
 AXI arbiter regression: PASSED
 ```
+
+## 后续板级回归准备状态
+
+已新增 `sw/tests/bitbltBoundaryDemo`，用于补测目标区前后哨兵、行尾 padding、
+不同 stride、实际跨4 KiB地址以及640×480整帧Copy和CLINT吞吐计时。
+
+- 2026-09-16：GCC 13.4 构建通过，10,864 B / 124 KiB（8.56%）。
+- 本次未登记板测结果：执行时系统未检测到 `0403:6011` USB设备和
+  `/dev/ttyUSB*`，需重新连接开发板后加载 ELF。
+- 板测通过条件和完整预期输出见
+  `04_project/bitblt_accel/sw/tests/bitbltBoundaryDemo/README.md`。

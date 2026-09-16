@@ -66,3 +66,7 @@ efx_run --prj -f compile ddr_demo_ti60
 软件测试需要把 `sw/driver` 和 `sw/tests/bitbltCtrlDemo` 放入 BSP 工程。
 测试源区域为 `0x01100000`，目标区域为 `0x01200000`；这些仅是测试地址，
 不是最终 Framebuffer 内存布局。
+
+更完整的板级保护区、跨 4 KiB 和 640×480 吞吐回归位于
+`sw/tests/bitbltBoundaryDemo`。该程序已编译通过，实际板测尚待开发板 USB
+重新连接；运行方法和预期串口输出见其 `README.md`。
