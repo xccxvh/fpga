@@ -3,11 +3,14 @@ VVP ?= vvp
 BUILD := build
 RTL := ../rtl
 
-.PHONY: test engine arbiters clean
+.PHONY: test engine control arbiters clean
 
-test: engine arbiters
+test: engine control arbiters
 
 engine: $(BUILD)/tb_bitblt_engine.vvp
+	$(VVP) $<
+
+control: $(BUILD)/tb_bitblt_ctrl_axi.vvp
 	$(VVP) $<
 
 arbiters: $(BUILD)/tb_axi_arbiters.vvp
@@ -18,6 +21,9 @@ $(BUILD):
 
 $(BUILD)/tb_bitblt_engine.vvp: tb_bitblt_engine.sv $(RTL)/bitblt_engine.v | $(BUILD)
 	$(IVERILOG) -g2012 -Wall -s tb_bitblt_engine -o $@ $^
+
+$(BUILD)/tb_bitblt_ctrl_axi.vvp: tb_bitblt_ctrl_axi.sv $(RTL)/bitblt_ctrl_axi.v | $(BUILD)
+	$(IVERILOG) -g2012 -Wall -s tb_bitblt_ctrl_axi -o $@ $^
 
 $(BUILD)/tb_axi_arbiters.vvp: tb_axi_arbiters.sv \
 	$(RTL)/axi_write_arbiter_2to1.v $(RTL)/axi_read_arbiter_2to1.v | $(BUILD)
