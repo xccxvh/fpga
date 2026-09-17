@@ -56,9 +56,19 @@ DDR Copy burst readback: PASSED (240 pixels)
 - `framebufferSmokeDemo` 已编译通过，用于绘制两组彩条、启动扫描输出并验证
   VBlank 双缓冲切换。
 
-组合 bitstream 已通过 JTAG SRAM 下载且能识别 RISC-V Debug TAP。第一次软件
-联调期间开发板的 FTDI USB 整体断连，因此 HDMI 图像、串口 PASS 和换帧效果
-仍需在重新连接开发板后复测，当前不能标记为 HDMI 板测通过。
+组合 bitstream 已通过 JTAG SRAM 下载且能识别 RISC-V Debug TAP。重新连接
+开发板后，`framebufferSmokeDemo` 完成寄存器译码、Framebuffer A 扫描、
+Framebuffer B 绘制及 VBlank A→B 换帧验证，串口全部返回 `PASSED`。
+
+```text
+*** BitBlt Framebuffer Smoke Demo ***
+Register decode: PASSED
+Framebuffer A horizontal bars: READY
+Framebuffer A scanout: PASSED
+Framebuffer B vertical bars: READY
+VBlank A->B swap: PASSED
+*** FRAMEBUFFER SMOKE DEMO PASSED ***
+```
 
 ## 当前限制
 
@@ -68,7 +78,8 @@ DDR Copy burst readback: PASSED (240 pixels)
 - stride 单位为字节，且不得小于 `WIDTH * 4`。
 - Copy 不提供重叠区域的 `memmove` 语义。
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
-- HDMI TX 与 DDR/RISC-V 已完成联合编译，但尚未完成端到端板测确认。
+- HDMI TX 与 DDR/RISC-V 已完成联合编译和寄存器/DMA/VBlank 板测；显示器
+  最终彩条画面仍应由测试人员目视确认。
 - 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比。
 
 ## 创建 FPGA 工作副本
@@ -117,3 +128,12 @@ efx_run --prj -f compile ddr_demo_ti60
 
 本次生成的 JTAG bitstream SHA-256 为
 `5a35cc4b6d058adf20f8d413ff2bf74ec055b8a0470ee6a3c9df574c07300154`。
+
+命令行通过 OpenOCD 装载软件时，必须先执行 `soft_reset_halt`；只使用
+`halt` 会使 VexRiscv 停在 `PC=0x8`，程序不会进入 `main()`：
+
+```text
+soft_reset_halt
+load_image build/framebufferSmokeDemo.bin 0x1000 bin
+resume 0x1000
+```
