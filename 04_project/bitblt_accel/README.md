@@ -32,6 +32,22 @@ DDR Copy burst readback: PASSED (240 pixels)
 *** BitBlt Block Copy MVP PASSED ***
 ```
 
+## Framebuffer 显示集成进度
+
+第一阶段 RTL 已完成并通过独立仿真：
+
+- `SYSTEM_AXI_A` 按 `0xE100_0000` / `0xE110_0000` 隔离 BitBlt 与显示控制；
+  未映射访问返回 `DECERR`。
+- 显示控制器实现双缓冲、VBlank 原子换帧、帧计数、欠载计数和中断。
+- 128-bit DDR 读 DMA 支持二维 stride、最多 16 beat Burst、4 KiB 边界拆包。
+- 512×128-bit 异步 FIFO 可缓存 2048 像素，跨越 100 MHz DDR 与
+  25.2 MHz 像素时钟域。
+- 640×480p60 负极性同步时序和 little-endian XRGB8888 像素拆包已完成。
+- `framebuffer_display.v` 已把控制、DMA、FIFO、时序和像素通路封装；下一阶段
+  是并入厂家 DDR 顶层、增加第三路 DDR 读仲裁并合并 HDMI TX PLL/LVDS 外设。
+
+以上目前是仿真通过状态，尚不能标记为 HDMI 板测通过。
+
 ## 当前限制
 
 - 一个像素固定为 32 bit；颜色通道顺序由显示集成接口另行冻结。
@@ -40,7 +56,8 @@ DDR Copy burst readback: PASSED (240 pixels)
 - stride 单位为字节，且不得小于 `WIDTH * 4`。
 - Copy 不提供重叠区域的 `memmove` 语义。
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
-- Framebuffer、双缓冲、VSync 换帧和 CPU/FPGA 性能对比尚未集成。
+- HDMI TX PLL/LVDS 引脚与 DDR/RISC-V 工程尚未完成联合编译和板测。
+- 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比。
 
 ## 创建 FPGA 工作副本
 
@@ -49,10 +66,7 @@ cp -a local/vendor_original/Ti60F225_DemoBoard_v4/08_ti60f225_soc_demo/09_Ti60F2
       local/riscv_work/bitblt_mvp
 cp -a project/04_project/bitblt_accel/hw/efinity/overlay/. \
       local/riscv_work/bitblt_mvp/
-cp project/04_project/bitblt_accel/hw/rtl/bitblt_ctrl_axi.v \
-   project/04_project/bitblt_accel/hw/rtl/bitblt_engine.v \
-   project/04_project/bitblt_accel/hw/rtl/axi_write_arbiter_2to1.v \
-   project/04_project/bitblt_accel/hw/rtl/axi_read_arbiter_2to1.v \
+cp project/04_project/bitblt_accel/hw/rtl/*.v \
    local/riscv_work/bitblt_mvp/rtl/
 ```
 

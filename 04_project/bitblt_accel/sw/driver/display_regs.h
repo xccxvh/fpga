@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-/* V0.2 frozen contract. The display controller RTL is not implemented yet. */
+/* V0.2 frozen contract, implemented by display_ctrl_axi.v. */
 #define DISPLAY_BASE               0xE1100000u
 
 #define DISPLAY_CONTROL            0x00u
@@ -31,9 +31,10 @@
 
 #define DISPLAY_IRQ_SWAP_DONE        (1u << 0)
 #define DISPLAY_IRQ_UNDERFLOW        (1u << 1)
+#define DISPLAY_IRQ_ERROR            (1u << 2)
 
 #define DISPLAY_FORMAT_XRGB8888      0u
-#define DISPLAY_VERSION_V0_1         0x00010000u
+#define DISPLAY_VERSION_V0_2         0x00020000u
 
 static inline void display_write(uint32_t offset, uint32_t value) {
     *(volatile uint32_t *)(DISPLAY_BASE + offset) = value;
