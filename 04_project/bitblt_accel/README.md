@@ -34,7 +34,7 @@ DDR Copy burst readback: PASSED (240 pixels)
 
 ## Framebuffer 显示集成进度
 
-第一阶段 RTL 已完成并通过独立仿真：
+显示 RTL、DDR/RISC-V 顶层和 HDMI TX 已完成第一次联合集成：
 
 - `SYSTEM_AXI_A` 按 `0xE100_0000` / `0xE110_0000` 隔离 BitBlt 与显示控制；
   未映射访问返回 `DECERR`。
@@ -43,10 +43,22 @@ DDR Copy burst readback: PASSED (240 pixels)
 - 512×128-bit 异步 FIFO 可缓存 2048 像素，跨越 100 MHz DDR 与
   25.2 MHz 像素时钟域。
 - 640×480p60 负极性同步时序和 little-endian XRGB8888 像素拆包已完成。
-- `framebuffer_display.v` 已把控制、DMA、FIFO、时序和像素通路封装；下一阶段
-  是并入厂家 DDR 顶层、增加第三路 DDR 读仲裁并合并 HDMI TX PLL/LVDS 外设。
+- `framebuffer_display.v` 已把控制、DMA、FIFO、时序和像素通路封装。
+- `bitblt_display_subsystem.v` 统一完成 `SYSTEM_AXI_A` 地址分发以及 BitBlt、
+  显示寄存器控制。
+- 厂家 DDR/RISC-V 顶层已加入第三路 DDR 读仲裁；显示 DMA 具有最高读优先级，
+  BitBlt 和 CPU 共用另一输入。
+- 已合并官方 HDMI TX 的 DVI Encoder、25.2/126 MHz PLL 和 LVDS 引脚定义。
+- 隔离工作副本位于 `local/riscv_work/bitblt_display_mvp`，不修改稳定的
+  `bitblt_mvp` 和厂家原始 Demo。
+- Efinity 2026.1 Map、Interface、PnR、PGM 全流程通过；HDMI 25.2 MHz 时钟域
+  Setup/Hold 余量分别为 +35.481 ns / +0.090 ns，DDR 相关时钟域也全部为正。
+- `framebufferSmokeDemo` 已编译通过，用于绘制两组彩条、启动扫描输出并验证
+  VBlank 双缓冲切换。
 
-以上目前是仿真通过状态，尚不能标记为 HDMI 板测通过。
+组合 bitstream 已通过 JTAG SRAM 下载且能识别 RISC-V Debug TAP。第一次软件
+联调期间开发板的 FTDI USB 整体断连，因此 HDMI 图像、串口 PASS 和换帧效果
+仍需在重新连接开发板后复测，当前不能标记为 HDMI 板测通过。
 
 ## 当前限制
 
@@ -56,7 +68,7 @@ DDR Copy burst readback: PASSED (240 pixels)
 - stride 单位为字节，且不得小于 `WIDTH * 4`。
 - Copy 不提供重叠区域的 `memmove` 语义。
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
-- HDMI TX PLL/LVDS 引脚与 DDR/RISC-V 工程尚未完成联合编译和板测。
+- HDMI TX 与 DDR/RISC-V 已完成联合编译，但尚未完成端到端板测确认。
 - 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比。
 
 ## 创建 FPGA 工作副本
@@ -80,3 +92,28 @@ efx_run --prj -f compile ddr_demo_ti60
 软件测试需要把 `sw/driver` 和 `sw/tests/bitbltCtrlDemo` 放入 BSP 工程。
 测试源区域为 `0x01100000`，目标区域为 `0x01200000`；这些仅是测试地址，
 不是最终 Framebuffer 内存布局。
+
+## 创建显示集成副本
+
+显示集成在新的 `bitblt_display_mvp` 副本中进行，不覆盖已经板测通过的
+`bitblt_mvp`：
+
+```bash
+cp -a local/riscv_work/bitblt_mvp \
+      local/riscv_work/bitblt_display_mvp
+cp -a project/04_project/bitblt_accel/hw/efinity/overlay/. \
+      local/riscv_work/bitblt_display_mvp/
+cp project/04_project/bitblt_accel/hw/rtl/*.v \
+   local/riscv_work/bitblt_display_mvp/rtl/
+```
+
+然后复制官方 HDMI TX Demo 的 `dvi_encoder.v`、`encode.v` 及其依赖文件，
+使用 `hw/efinity/merge_hdmi_peri.py` 把 HDMI PLL/LVDS 定义合入 DDR 工程的
+`.peri.xml`，并把 `hw/efinity/display_constraints.sdc` 追加到工程 SDC 后执行：
+
+```bash
+efx_run --prj -f compile ddr_demo_ti60
+```
+
+本次生成的 JTAG bitstream SHA-256 为
+`5a35cc4b6d058adf20f8d413ff2bf74ec055b8a0470ee6a3c9df574c07300154`。
