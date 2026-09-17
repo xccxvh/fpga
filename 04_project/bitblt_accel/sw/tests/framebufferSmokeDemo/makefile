@@ -1,4 +1,4 @@
-PROJ_NAME=bitbltCtrlDemo
+PROJ_NAME=framebufferSmokeDemo
 STANDALONE = ../..
 SRCS = $(wildcard src/*.c) \
        ${STANDALONE}/common/start.S \

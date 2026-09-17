@@ -35,5 +35,5 @@
 
 详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
 
-赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.1.md`，B 组当前进度与计划见
+赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.2.md`，B 组当前进度与计划见
 `07_docs/progress/B_role_progress_and_plan.md`。

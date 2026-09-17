@@ -10,6 +10,17 @@
         <efx:design_file name="../../rtl/ddr3_example_top.v" version="default" library="default" />
         <efx:design_file name="../../rtl/bitblt_ctrl_axi.v" version="default" library="default" />
         <efx:design_file name="../../rtl/bitblt_engine.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/bitblt_display_subsystem.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/axi_ctrl_demux_1to2.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/display_ctrl_axi.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/display_dma_axi.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/framebuffer_display.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/async_fifo.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/pulse_cdc.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/video_timing_1920x1080.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/pixel_unpack_xrgb8888.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/hdmi_tx/dvi_encoder.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/hdmi_tx/encode.v" version="default" library="default" />
         <efx:design_file name="../../rtl/axi_write_arbiter_2to1.v" version="default" library="default" />
         <efx:design_file name="../../rtl/axi_read_arbiter_2to1.v" version="default" library="default" />
         <efx:design_file name="../../rtl/ddr3_controller/ddr3_parameter.vh" version="default" library="default" />
