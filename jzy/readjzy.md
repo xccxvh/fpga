@@ -175,6 +175,26 @@ make clean
 交叉编译到板上时同样适用：不要把 `NDEBUG` 加进 BSP 的 `CFLAGS`。
 （已确认 2026.1 BSP 的 `software/` 目录内没有任何地方定义 `NDEBUG`。）
 
+### 板端 smoke test
+
+`tests/test_render_board.c` 是在真实 Ti60F225 / RV32 上跑的 smoke test，
+覆盖 `pixel_t` 宽度、CPU 后端分发、Solid Fill、Block Copy、stride 与裁剪共 13 项。
+**完全不访问 FPGA BitBlt**，不填任何真实地址，不用 `assert` 判定，只用 `bsp_printf`。
+
+它**不替代** host 测试，两者互补：host 侧直接调 `sw_*`，覆盖其全部裁剪分支；
+板端只走 `render_*`，因此 `sw_*` 自身的裁剪容错在板上测不出来（统一层已先裁剪，
+那是空操作）。
+
+BSP 工程位置与完整说明见：
+
+```
+jzy/co_debug_2026/par/ddr_demo_ti60_2026/embedded_sw/soc/software/
+    standalone/renderer/rendererM1Demo/README.md
+```
+
+基于官方 `uartEchoDemo` 新建，未改动原件。编译需要显式给定
+`BSP=efinix/EfxSapphireSoc`（`BSP` 无默认值，且值含 `efinix/` 前缀）。
+
 ---
 
 ## 像素格式：XRGB8888（CPU 侧迁移已完成）
