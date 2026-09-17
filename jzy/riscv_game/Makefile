@@ -8,6 +8,9 @@
 #   make check              静态约束检查（寄存器引用隔离、无硬编码地址）
 #   make clean
 #
+# 完整回归请统一从 scripts/regress.sh {quick|contract|full} 进入；
+# 下面的目标保留为该脚本的可组合基础步骤。
+#
 # 注意：测试依赖 assert 判定，构建时禁止定义 NDEBUG。
 #       源码里各有 #error 兜底，误加会直接编译失败。
 #
@@ -24,6 +27,8 @@ API_BUILD  := $(TESTS_DIR)/build/api
 LIB_SRCS    := $(wildcard $(RENDER_DIR)/*.c) $(wildcard $(DRIVER_DIR)/*.c)
 TEST_API    := $(TESTS_DIR)/test_render_api.c
 TEST_BITBLT := $(TESTS_DIR)/test_bitblt_api.c
+TEST_CONTRACT := $(TESTS_DIR)/test_contract.c
+MUTATION_TEST := $(TESTS_DIR)/run_mutation_tests.sh
 
 
 # ---- B 组权威头文件 ----
@@ -63,7 +68,8 @@ RV_ABI  ?= ilp32
 CROSS_CFLAGS := -std=c99 -Os -g $(WARNFLAGS) -march=$(RV_ARCH) -mabi=$(RV_ABI) $(INCFLAGS)
 
 
-.PHONY: all test native-test api-test riscv-build riscv-build-api riscv-build-hw \
+.PHONY: all test native-test api-test mutation-test contract-test FORCE \
+        riscv-build riscv-build-api riscv-build-hw \
         check check-hw-isolation check-no-addresses check-cross clean
 
 # 交叉编译器存在性检查；所有交叉编译目标都依赖它
@@ -89,6 +95,11 @@ api-test: $(API_BUILD)/test_render_api $(API_BUILD)/test_bitblt_api
 	@echo "== 运行 BitBlt 驱动 / 适配层测试 =="
 	@$(API_BUILD)/test_bitblt_api
 	@echo "== 统一层与 BitBlt 适配层测试通过 =="
+
+# 将 CPU 参考实现中的两个关键语义做变异，确认现有测试会拒绝错误实现。
+# 变异只发生在 mktemp 目录，不会改动工作树。
+mutation-test:
+	@CC="$(CC)" WERROR="$(WERROR)" $(MUTATION_TEST)
 
 $(API_BUILD)/test_render_api: $(TEST_API) $(LIB_SRCS)
 	@mkdir -p $(API_BUILD)
@@ -132,6 +143,26 @@ riscv-build-hw: check-cross
 	cd $(API_BUILD)/hw && $(CROSS_CC) $(CROSS_CFLAGS) \
 	  -DBITBLT_ENABLE_HW_ACCESS -c $(abspath $(LIB_SRCS))
 	@echo "== 硬件分支编译检查通过（BITBLT_ENABLE_HW_ACCESS）=="
+
+
+# ---- B/C 编译期接口契约 ----
+#
+# 这个翻译单元直接 include B 组的三份权威头文件，并固定 C 组已接入的
+# 寄存器偏移、错误码、函数类型、像素格式与 framebuffer 布局。只编译不运行，
+# 因此可以用目标编译器同时检查 RV32 ABI。
+CONTRACT_HEADERS := $(BITBLT_INC_DIR)/bitblt_regs.h \
+                    $(BITBLT_INC_DIR)/bitblt_api.h \
+                    $(BITBLT_INC_DIR)/framebuffer_layout.h
+
+contract-test: $(API_BUILD)/test_contract.o
+	@echo "== BitBlt / framebuffer API 契约测试通过 =="
+
+$(API_BUILD)/test_contract.o: $(TEST_CONTRACT) $(CONTRACT_HEADERS) check-cross FORCE
+	@echo "== 检查权威接口：$(BITBLT_INC_DIR) =="
+	@mkdir -p $(API_BUILD)
+	$(CROSS_CC) $(CROSS_CFLAGS) -c $(TEST_CONTRACT) -o $@
+
+FORCE:
 
 
 # ---- 静态约束检查 ----
