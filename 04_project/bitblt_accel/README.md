@@ -6,7 +6,7 @@
 当前版本 `0x00010003` 已实现 Solid Fill 和带内部 16×128-bit 缓冲的 Block
 Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI 仲裁器共享 DDR 数据通路。
 
-完整软硬件约定见 `../../07_docs/interfaces/bitblt_interface_v0.1.md`。
+完整软硬件约定见 `../../07_docs/interfaces/bitblt_interface_v0.2.md`。
 
 ## 当前板测结果
 
