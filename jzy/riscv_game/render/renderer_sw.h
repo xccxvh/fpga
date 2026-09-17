@@ -4,14 +4,19 @@
 #include <stdint.h>
 
 /*
- * M1阶段暂定：
- * 一个像素用16bit表示。
+ * M1：一个像素用 32 bit 表示，格式为 XRGB8888。
  *
- * 注意：
- * 这里只是CPU参考实现的数据类型，
- * 最终是否采用RGB565，要等三人接口约定正式确定。
+ * 该格式已于 2026-09-17 确认，与 BitBlt 硬件数据面一致：
+ *   - DDR AXI 数据宽度 128 bit，每 beat 4 个像素
+ *   - stride = width × 4 Byte
+ *   - Solid Fill 的 color 就是 1 个 32-bit XRGB8888 像素
+ *   - Block Copy 按 32-bit 像素搬运
+ *
+ * 统一渲染层据此认为 FPGA 后端可用（见 render/renderer.h 的 RENDER_PIXEL_BYTES）。
+ * 改这里必须同步改 RENDER_PIXEL_BYTES，否则统一层编译不过——
+ * renderer.h 里有一行静态断言专门盯这件事。
  */
-typedef uint16_t pixel_t;
+typedef uint32_t pixel_t;
 
 
 /*

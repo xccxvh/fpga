@@ -4,6 +4,11 @@
  * 本文件是项目 CPU 渲染结果的判定基准，后续 RTL 加速器（BitBlt）的
  * 回读结果，按这里覆盖的行为逐条对齐。
  *
+ * 像素格式：XRGB8888，1 pixel = 32 bit = 4 Byte（2026-09-17 确认）。
+ * 本文件随 CPU 参考实现一起从 16-bit 迁移到 32-bit；
+ * 迁移后备忘：改 pixel_t 宽度必须同步改 render/renderer.h 的
+ * RENDER_PIXEL_BYTES，那里的静态断言会强制两处一致。
+ *
  * 覆盖范围：
  *   1. 基础绘制：完全落在屏幕内的填充与拷贝
  *   2. 裁剪：负坐标、右下越界、完全在屏幕外、宽高 <= 0
@@ -20,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <assert.h>
 
@@ -48,7 +54,10 @@
  */
 #define GUARD_STRIDE 20
 #define GUARD_ROWS   16
-#define GUARD_VALUE  0xDEAD
+
+/* 保护区的哨兵值。它只是个"没被写过"的标记，不代表任何合法颜色，
+   用例里也不会写入这个值。 */
+#define GUARD_VALUE  0xDEADu
 
 
 /* 基础用例用的画布：stride == width */
@@ -78,7 +87,9 @@ static void check_fb(const char *tag, int x, int y, pixel_t want)
 
     if (got != want)
     {
-        printf("  [FAIL] %s: framebuffer(%d,%d) 期望 0x%04X，实际 0x%04X\n",
+        /* 用 PRIX32 而不是硬写 %X：rv32 上 uint32_t 是 unsigned long，
+           写 %X 会与 unsigned int 不匹配，-Werror=format 会直接编译失败 */
+        printf("  [FAIL] %s: framebuffer(%d,%d) 期望 0x%08" PRIX32 "，实际 0x%08" PRIX32 "\n",
                tag, x, y, want, got);
     }
 
@@ -93,7 +104,7 @@ static void check_guarded(const char *tag, int x, int y, pixel_t want)
 
     if (got != want)
     {
-        printf("  [FAIL] %s: guarded(%d,%d) 期望 0x%04X，实际 0x%04X\n",
+        printf("  [FAIL] %s: guarded(%d,%d) 期望 0x%08" PRIX32 "，实际 0x%08" PRIX32 "\n",
                tag, x, y, want, got);
     }
 
@@ -134,7 +145,8 @@ static void test_fill_rect(void)
 {
     clear_fb();
 
-    const pixel_t RED = 0xF800;
+    /* XRGB8888 的纯红：高 8 位空，红 8 位全 1 */
+    const pixel_t RED = 0x00FF0000u;
 
     sw_fill_rect(
         framebuffer,
@@ -171,6 +183,7 @@ static void test_blit(void)
 {
     clear_fb();
 
+    /* 6 个互不相同的标记值，只用于检验"哪个像素搬到了哪里"，不表示真实颜色 */
     pixel_t sprite[3 * 2] =
     {
         1, 2, 3,
