@@ -82,3 +82,75 @@ Memory region         Used Size  Region Size  %age Used
 | BSP 目录 | `~/code/fpga/jzy/ddr_demo_ti60_2026/embedded_sw/soc/bsp/` |
 
 > **注意**：README 中所有后续编译、驱动开发和运行说明，统一按 **2026.1 工程结构**编写，**禁止继续引用旧版 2025 BSP 路径**。
+
+---
+
+## jzy/riscv_game — CPU 渲染器（M1）
+
+M1 阶段的 CPU 参考实现，作为后续 RTL 渲染加速器（BitBlt）的比对基准。
+
+### 目录结构
+
+| 目录 | 内容 |
+|---|---|
+| `render/` | CPU 参考实现：`renderer_sw.h`、`renderer_sw.c`（Solid Fill + Block Copy） |
+| `tests/` | 正确性基线测试与 Makefile |
+| `driver/` | AXI / BitBlt 寄存器驱动（待填） |
+| `input/` | 输入处理（待填） |
+| `game/` | 游戏逻辑（待填） |
+| `perf/` | 性能对比测试（待填） |
+
+### 测试与构建
+
+```bash
+cd jzy/riscv_game/tests
+make native-test    # 本机编译（严格警告 + ASan/UBSan）并运行全部测试
+make riscv-build    # RISC-V 交叉编译验证（rv32im_zicsr_zifencei / ilp32）
+make clean          # 删除构建产物
+```
+
+- `make native-test` 用 `-Wall -Wextra -Wpedantic -Werror`，并固定开启
+  ASan + UBSan（`-fno-sanitize-recover=all`，UBSan 命中直接终止而不是打完警告继续跑）。
+- `make riscv-build` 的 `-march/-mabi` 取自 2026.1 BSP 实际产物的
+  `Tag_RISCV_arch`（`rv32i2p1_m2p0_zicsr2p0_zifencei2p0_zmmul1p0`，ABI `ilp32`）。
+  换 BSP 时可用 `make riscv-build RV_ARCH=... RV_ABI=...` 覆盖。
+  这个目标只证明能编能链，产物不在本机运行。
+
+### 测试覆盖范围
+
+`test_renderer.c` 是本项目 CPU 渲染结果的判定基准，覆盖：
+
+1. 基础绘制：完全落在屏幕内的填充与拷贝
+2. 裁剪：负坐标、右下越界、完全在屏幕外、宽高 <= 0、正好贴合画布边界
+3. `stride != width`：画布行尾 padding、源图行尾 padding、源与目标 stride 三方都不同
+4. 越界保护：画布四周预留保护区，任何越界写都会被检出
+5. 空指针：不得崩溃，也不得写内存
+
+越界检测分两层，缺一不可：
+
+- **保护区**：画布 stride 故意取 20（比有效宽度 16 大），底部多留 4 行，
+  padding 区全部填 `0xDEAD`。它只能发现**落在数组内部**的越界写。
+- **ASan**：负责发现写到**数组之外**的越界。保护区覆盖不到这部分。
+
+### 构建约束：测试构建禁止定义 NDEBUG
+
+**测试依赖 `assert` 判定结果，任何测试构建都不得定义 `NDEBUG`。**
+
+定义了 `NDEBUG` 时，`assert` 会被展开成空语句，所有断言被整体移除。
+此时测试一条都不检查，却仍然打印 `All renderer tests passed.` 并返回退出码 0
+——属于**假通过**，比直接报错危险得多。
+
+`test_renderer.c` 顶部已经加了兜底，把这种误用变成编译错误：
+
+```c
+#ifdef NDEBUG
+#error "测试依赖 assert 判定，禁止定义 NDEBUG：断言会被移除导致假通过"
+#endif
+```
+
+注意：断言被移除时，`check_fb()` / `check_guarded()` 里的 `printf("[FAIL] ...")`
+**仍然会打印**，只是不再中止程序。所以看到 `[FAIL]` 和 `All renderer tests passed.`
+同时出现，就是踩到了这个坑，而不是"有失败但无伤大雅"。
+
+交叉编译到板上时同样适用：不要把 `NDEBUG` 加进 BSP 的 `CFLAGS`。
+（已确认 2026.1 BSP 的 `software/` 目录内没有任何地方定义 `NDEBUG`。）

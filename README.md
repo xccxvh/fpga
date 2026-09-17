@@ -30,6 +30,8 @@
 4. Efinity 的 `.xml`、`.peri.xml` 修改容易冲突，同一时间由一名成员负责同一工程配置。
 5. 每个功能使用独立分支，例如 `feature/uart`、`feature/bitblt-fill`。
 6. 合并前必须记录编译结果、WNS/WHS 和板上测试现象。
+7. 测试代码依赖 `assert` 判定，测试构建禁止定义 `NDEBUG`——断言会被整体移除，测试将假通过
+   （打印 `[FAIL]` 但不中止，退出码仍为 0）。CPU 渲染器测试见 `jzy/riscv_game/tests/`。
 
 详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
 

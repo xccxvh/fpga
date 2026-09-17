@@ -46,6 +46,9 @@
 # IDE workspace metadata (project metadata remains tracked)
 .metadata/
 
+# CPU 渲染器测试构建产物
+jzy/riscv_game/tests/build/
+
 # Editors and OS
 .DS_Store
 Thumbs.db
