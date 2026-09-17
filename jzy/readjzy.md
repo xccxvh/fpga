@@ -269,3 +269,262 @@ BitBlt V0.1 的硬件约束**，还没有冻结成最终游戏规则。
 倍数这一限制，从而不再约束字体字宽、精灵宽度和 UI 面板位置。
 
 在 B 组确认之前，`gpu_validate.c` 继续按 V0.1 的严格口径拒绝，不要放松。
+
+---
+
+## M1 真板验证记录与环境踩坑
+
+### M1 真板最终结果
+
+| 项 | 值 |
+|---|---|
+| 日期 | 2026-09-17 |
+| 平台 | Ti60F225 + Sapphire RV32 |
+| 软件 | Efinity 2026.1 / Efinity RISC-V IDE 2026.1 |
+| 板端原始串口输出 | `jzy/riscv_game/logs/m1_renderer_board_smoke_2026-09-17_uart.log` |
+
+结果：
+
+```
+PASS = 13
+FAIL = 0
+M1 BOARD TEST PASSED
+```
+
+因此 **M1 CPU Renderer 已通过三层验证**：
+
+1. Host 单元测试 + ASan/UBSan
+2. RISC-V 交叉编译
+3. Ti60F225 Sapphire 真实板端运行
+
+### 版本基准
+
+后续统一使用：
+
+- **Efinity 2026.1**
+- **riscv-none-elf-gcc 13.4.0**
+- **2026.1 重新生成的 Sapphire BSP**
+
+**禁止重新混用原资料包 2025.x BSP。** 旧 BSP 曾导致：
+
+```
+riscv-none-embed-gcc: not found
+extension `zicsr' required
+```
+
+（背景与重新生成过程见本文开头「RISC-V 开发环境与 BSP 版本说明」一节。）
+
+### 工程路径坑
+
+`ddr_demo_ti60.xml` 里使用 `../../rtl/...` 这样的**相对路径**，
+因此**不能只复制 `ddr_demo_ti60` 子目录**。必须保留完整的：
+
+```
+co_debug_2026/
+├── rtl/
+└── par/
+    └── ddr_demo_ti60_2026/
+```
+
+当前基准硬件工程：
+
+```
+~/code/fpga/jzy/co_debug_2026/par/ddr_demo_ti60_2026/
+```
+
+### FTDI / OpenOCD 坑
+
+本机实际 USB Product 字符串是：
+
+```
+Quad RS232-HS
+```
+
+但生成 BSP 时 `ftdi_ti.cfg` 里写的是厂家默认值：
+
+```
+Titanium Ti60F225 Development Kit
+```
+
+导致 OpenOCD 报：
+
+```
+Error: no device found
+```
+
+需要修改的文件：
+
+```
+embedded_sw/soc/bsp/efinix/EfxSapphireSoc/openocd/ftdi_ti.cfg
+```
+
+**两处**设备描述都改成 `Quad RS232-HS` 之后，OpenOCD 成功识别：
+
+```
+Target successfully examined.
+Listening on port 3333 for gdb connections
+```
+
+### FT4232H 通道记录
+
+一根 USB 会枚举出四个串口：
+
+| 接口 | 设备节点 |
+|---|---|
+| if00 | `/dev/ttyUSB0` |
+| if01 | `/dev/ttyUSB1` |
+| if02 | `/dev/ttyUSB2` |
+| if03 | `/dev/ttyUSB3` |
+
+本次实测 Sapphire UART 落在 `/dev/ttyUSB2`，对应稳定别名：
+
+```
+usb-FTDI_Quad_RS232-HS-if02-port0
+```
+
+**后续不要永久依赖 `ttyUSB2` 这个编号**（换 USB 口或插拔顺序变化都会变），
+应优先使用 `/dev/serial/by-id/`。
+
+### GDB 启动坑
+
+只执行：
+
+```
+set $pc = _start
+continue
+```
+
+曾导致 CPU 停在 `PC=0x4`。
+
+正确顺序是先复位、加载、在 main 下临时断点：
+
+```
+monitor reset halt
+load
+tbreak main
+set $pc = _start
+continue
+```
+
+到 `main()` 之后再继续运行。
+
+注意用 `tbreak main`（临时断点），避免重复执行 `break main` 后留下多个断点。
+
+### 串口访问权限（dialout）
+
+`/dev/ttyUSB*` 的属主是 `root:dialout`、权限 `crw-rw----`。
+默认用户不在 `dialout` 组里，因此**不打 sudo 打不开串口**：
+
+```
+$ exec 3<>/dev/ttyUSB2
+bash: /dev/ttyUSB2: 权限不够
+$ stty -F /dev/ttyUSB2
+stty: /dev/ttyUSB2: 权限不够
+```
+
+一次性修复（需要 root，执行后**必须重新登录或重启**才在会话里生效）：
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+不重启先验证（`sg` 会重新读取组数据库）：
+
+```bash
+sg dialout -c 'test -r /dev/ttyUSB2 && test -w /dev/ttyUSB2 && echo OK'
+```
+
+重启后确认：
+
+```bash
+id | grep -o dialout
+exec 3<>/dev/ttyUSB2 && echo "无需 sudo 即可打开"
+```
+
+> 不要用 `MODE="0666"` 的 udev 规则来"修"这个问题——那等于把串口对全机开放。
+> 加组是标准做法。
+
+已核查：本机装了 `brltty`（Ubuntu 上常见的 FTDI 串口抢占者），但其 udev 规则
+`85-brltty.rules` 里 vendor `0403` 匹配的 product ID 是 `fe70`–`fe77`、`de58`/`de59`、
+`f208`，**不含 FT4232H 的 `6011`**，因此不会抢占本板串口。
+
+### 验收日志目录与命名约定
+
+`jzy/riscv_game/logs/` 是**验收证据目录**，整目录对 git 可见
+（`.gitignore` 里有 `!jzy/riscv_game/logs/*.log` 例外，因为默认 `*.log` 被忽略）。
+
+命名统一为：
+
+```
+<阶段>_<测试名>_<日期>_<类型>.log
+```
+
+例如：
+
+```
+m1_renderer_board_smoke_2026-09-17_uart.log
+m2_solid_fill_2026-09-xx_uart.log
+m2_solid_fill_2026-09-xx_openocd.log
+```
+
+M2/M3 继续沿用；答辩或严格复现时再补存 OpenOCD 连接、GDB load/continue、
+UART 功能输出三份即可。
+
+### Programmer CLI 环境
+
+GUI 之外可以用命令行烧 FPGA。必要环境至少为：
+
+```bash
+unset PYTHONHOME
+unset PYTHONPATH
+
+export EFINITY_HOME=$HOME/efinity/2026.1
+export EFXPGM_HOME=$EFINITY_HOME/pgm
+export EFXDBG_HOME=$EFINITY_HOME/debugger
+export EFINITY_USER_DIR_INI=$HOME/.local/share/efinity/user_dir.ini
+
+export PATH=$EFINITY_HOME/bin:$EFINITY_HOME/scripts:$EFXPGM_HOME/bin:$EFXDBG_HOME/bin:$PATH
+```
+
+枚举设备：
+
+```bash
+bash $EFINITY_HOME/pgm/bin/ftdi_pgm.sh --list_usb
+```
+
+JTAG 下载：
+
+```bash
+bash $EFINITY_HOME/pgm/bin/ftdi_pgm.sh \
+  ~/code/fpga/jzy/co_debug_2026/par/ddr_demo_ti60_2026/outflow/ddr_demo_ti60.bit \
+  -m jtag
+```
+
+### 当前尚未确定的真实地址
+
+M1 板测**完全没有访问真正的 BitBlt**。以下内容当前仍不得猜值或硬编码：
+
+- `GPU_BASE`
+- Framebuffer A
+- Framebuffer B
+- BitBlt AXI 基地址
+- 最终 DDR 内存布局
+
+这些由 A/B 在 **M2 接口冻结后**填写。
+
+当前 `gpu_fill()` / `gpu_copy()` **仍不是实际硬件操作**，这是有意设计，不是未完成。
+
+代码层面由 `make check` 机械保证：`render/` 与 `driver/` 里不出现任何硬编码真实地址。
+
+### 当前格式
+
+当前正式格式：
+
+- XRGB8888
+- 32 bit / pixel
+- 4 Byte / pixel
+- DDR AXI 128 bit
+- 4 pixels / beat
+
+当前 B 的对齐要求（16 Byte 对齐、`WIDTH % 4 == 0`）**仍属于 BitBlt V0.1 硬件限制，
+不冻结成最终游戏规则**，后续要和 B 组单独确认是否需要在硬件侧放宽。

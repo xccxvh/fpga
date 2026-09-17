@@ -25,6 +25,9 @@
 *~
 *.tmp
 
+# 例外：板端验证的原始串口日志是验收证据，必须进仓库
+!jzy/riscv_game/logs/*.log
+
 # Generated FPGA/program images
 *.bit
 *.hex

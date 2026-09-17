@@ -1,0 +1,22 @@
+=== M1 Renderer Board Smoke Test ===
+pixel_t = 4 bytes (expect 4), RENDER_PIXEL_BYTES = 4
+canvas 16x12 stride_px=20 (4 guard cols) rows=16 (4 guard rows)
+backend = CPU only; no BitBlt register access in this build
+
+[PASS] T1_pixel_t_is_4_bytes
+[PASS] T2_default_backend_is_cpu
+[PASS] T3_fill_rect_normal
+[PASS] T4a_fill_clip_left_top
+[PASS] T4b_fill_clip_right_bottom
+[PASS] T5_blit_normal
+[PASS] T6a_blit_clip_left_top
+[PASS] T6b_blit_clip_right_bottom
+[PASS] T6c_blit_fully_outside
+[PASS] T7_stride_not_equal_width
+[PASS] T8_padding_intact_after_mixed_ops
+[PASS] T9_fpga_backend_inert
+[PASS] T10_clip_rect_geometry
+
+PASS = 13
+FAIL = 0
+M1 BOARD TEST PASSED
