@@ -63,6 +63,10 @@ DDR Copy burst readback: PASSED (240 pixels)
 VBlank A→B换帧验证，串口全部返回`PASSED`。最初16-beat显示读Burst在1080p
 下发生欠流；改为64 beat后持续扫描1561帧，`UNDERFLOW_COUNT=0`。目标屏已
 目视确认显示Framebuffer B的8条竖向彩条。
+- BitBlt与显示控制共享PLIC源30的判源通过：16次BitBlt完成中断及VBlank换帧
+  中断均由同一ISR正确识别和清除。
+- 32帧并发压力通过：HDMI持续扫描前台、BitBlt整帧写后台、CPU读取Scratch
+  DDR并逐帧中断换页；测试后`UNDERFLOW_COUNT=0`，最终恢复8条竖向彩条。
 
 ```text
 *** BitBlt Framebuffer Smoke Demo ***
@@ -70,7 +74,11 @@ Register decode: PASSED
 Framebuffer A horizontal bars: READY
 Framebuffer A scanout: PASSED
 Framebuffer B vertical bars: READY
+Shared IRQ BitBlt source: PASSED (16 interrupts)
 VBlank A->B swap: PASSED
+Shared IRQ display source: PASSED
+Concurrent DDR/display stress: PASSED (32 frames)
+Vertical color bars restored: PASSED
 *** FRAMEBUFFER SMOKE DEMO PASSED ***
 ```
 
@@ -84,7 +92,7 @@ VBlank A->B swap: PASSED
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
 - HDMI TX 与 DDR/RISC-V 已完成联合编译、寄存器/DMA/VBlank 板测及目标屏
   8条竖向彩条目视确认。
-- 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比。
+- 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比和长时间老化测试。
 
 ## 创建 FPGA 工作副本
 
@@ -141,3 +149,6 @@ soft_reset_halt
 load_image build/framebufferSmokeDemo.bin 0x1000 bin
 resume 0x1000
 ```
+
+共享中断测试前应重新JTAG下载bitstream，使SoC和PLIC从干净状态启动；
+`soft_reset_halt`只复位CPU，不会复位PLIC及显示外设的历史状态。

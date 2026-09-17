@@ -23,7 +23,7 @@
 | BitBlt数据接口 | 128-bit AXI4 Master，INCR Burst，`ARSIZE/AWSIZE=4`；每beat 16 B | 已验证 |
 | Burst/缓冲 | BitBlt单Burst最多16 beat（256 B）；显示DMA最多64 beat（1024 B）；均自动按行和4 KiB边界拆分；Copy内部缓冲为16×128 bit | 已验证 |
 | Double Buffer | BitBlt只写后台Buffer；DONE且ERROR=0后软件提交NEXT_ADDR；显示只在VBlank切换；SWAP_DONE后旧前台才可复用 | 已验证 |
-| 中断 | BitBlt与显示共享PLIC源30；顶层OR，ISR读取两组STATUS判源 | BitBlt已验证；显示IRQ待联调 |
+| 中断 | BitBlt与显示共享PLIC源30；顶层OR，ISR读取两组STATUS判源 | BitBlt与显示共享判源已验证 |
 | 时钟/复位 | DDR主机和控制接口位于100 MHz `user_clk`域，低有效`ddr_rstn`；显示数据通过异步FIFO跨到约148.75 MHz像素域 | 已联合编译并通过板端自动测试 |
 | 素材格式 | 与Framebuffer相同的XRGB8888小端像素；逐行连续，stride 16 B对齐；X字节当前忽略 | 已冻结；C提供工具 |
 | C驱动 | 阻塞式`bitblt_fill/copy`和`display_queue/wait_swap`；返回OK、EINVAL、EBUSY、ETIMEOUT、EHW；超时单位为100 MHz CLINT tick | API已冻结待实现 |
@@ -150,9 +150,11 @@ API参数顺序和返回值以头文件为准。统一错误码：`0=OK`、`-1=E
 哨兵、二维stride、实际跨4 KiB、不同Burst、AXI backpressure/错误、读写仲裁，
 以及640×480整帧Copy约353.2 MiB/s实板吞吐率。显示控制译码、BitBlt绘制
 1920×1080 A/B帧缓冲、DDR扫描和VBlank换帧的串口smoke已通过。16-beat显示
-读取在1080p下会欠流，改为64 beat后持续扫描1561帧且欠流计数保持0。
+读取在1080p下会欠流，改为64 beat后持续扫描1561帧且欠流计数保持0。共享
+PLIC源30已验证16次BitBlt完成中断和显示VBlank换帧判源；32帧压力测试覆盖
+显示读前台、BitBlt写后台、CPU读Scratch DDR及逐帧中断换页，欠流计数为0。
 
-仍需验证：共享中断、CPU/BitBlt/显示三方并发和更长时间压力。
+仍需验证：更长时间老化，以及CPU绘制与BitBlt绘制的端到端性能对比。
 
 ## 9. 版本记录
 
@@ -160,4 +162,4 @@ API参数顺序和返回值以头文件为准。统一错误码：`0=OK`、`-1=E
 |---|---|---|---|---|
 | V0.1 | 2026-09-16 | 根据Fill/Copy实板结果建立控制、状态和DDR数据面基线 | B | 历史版本 |
 | V0.2 | 2026-09-17 | 冻结640×480时序、XRGB8888、DDR布局、显示寄存器、VBlank换帧、共享中断和C API | B | 接口确认已完成 |
-| V0.3 | 2026-09-17 | 因目标屏不接受640×480，将显示时序改为1920×1080p60；显示DMA Burst增至64 beat；地址、像素格式和寄存器偏移不变 | B | 联合编译、板端smoke、1561帧零欠流及8条竖向彩条目视确认通过 |
+| V0.3 | 2026-09-17 | 因目标屏不接受640×480，将显示时序改为1920×1080p60；显示DMA Burst增至64 beat；地址、像素格式和寄存器偏移不变 | B | 联合编译、板端smoke、共享IRQ、32帧并发、零欠流及8条竖向彩条目视确认通过 |
