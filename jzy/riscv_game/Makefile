@@ -1,9 +1,9 @@
 # jzy/riscv_game —— 聚合 Makefile
 #
-#   make test               两套测试都跑（冻结基线 + 统一层）
+#   make test               三套测试都跑（冻结基线 + 统一层 + BitBlt 适配层）
 #   make native-test        冻结的 M1 基线测试（委托给 tests/Makefile）
-#   make api-test           统一渲染层 / 后端分发 / 约束校验 / 驱动骨架
-#   make riscv-build        RISC-V 交叉编译验证（冻结基线 + 统一层）
+#   make api-test           统一渲染层 + BitBlt 驱动/适配层
+#   make riscv-build        RISC-V 交叉编译验证
 #   make riscv-build-hw     额外开启 BITBLT_ENABLE_HW_ACCESS 做编译检查
 #   make check              静态约束检查（寄存器引用隔离、无硬编码地址）
 #   make clean
@@ -21,8 +21,17 @@ TESTS_DIR  := $(TOP)/tests
 # 统一层的构建产物放在冻结基线的 build 目录下，这样无需改动 .gitignore
 API_BUILD  := $(TESTS_DIR)/build/api
 
-LIB_SRCS := $(wildcard $(RENDER_DIR)/*.c) $(wildcard $(DRIVER_DIR)/*.c)
-API_TEST := $(TESTS_DIR)/test_render_api.c
+LIB_SRCS    := $(wildcard $(RENDER_DIR)/*.c) $(wildcard $(DRIVER_DIR)/*.c)
+TEST_API    := $(TESTS_DIR)/test_render_api.c
+TEST_BITBLT := $(TESTS_DIR)/test_bitblt_api.c
+
+
+# ---- B 组权威头文件 ----
+# bitblt_api.h / bitblt_regs.h / framebuffer_layout.h 的唯一来源。
+# 不复制、不软链，只加 include 路径——复制会制造第二份真相源。
+# 拷进 BSP 后这些头在 standalone/driver/，standalone.mk 已经加过该路径。
+BITBLT_INC_DIR ?= $(TOP)/../../04_project/bitblt_accel/sw/driver
+
 
 # ---- 本机编译 ----
 # 需要换编译器时用 make api-test CC=clang
@@ -36,7 +45,9 @@ WARNFLAGS := -Wall -Wextra -Wpedantic $(WERROR)
 # -fno-sanitize-recover=all 让 UBSan 命中后直接终止，否则只打警告、退出码仍是 0。
 SANFLAGS := -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
 
-CFLAGS := -std=c99 -O1 -g $(WARNFLAGS) $(SANFLAGS) -I$(RENDER_DIR) -I$(DRIVER_DIR)
+INCFLAGS := -I$(RENDER_DIR) -I$(DRIVER_DIR) -I$(BITBLT_INC_DIR)
+
+CFLAGS := -std=c99 -O1 -g $(WARNFLAGS) $(SANFLAGS) $(INCFLAGS)
 
 
 # ---- RISC-V 交叉编译 ----
@@ -49,15 +60,18 @@ CROSS_SIZE   := $(CROSS_PREFIX)size
 RV_ARCH ?= rv32im_zicsr_zifencei
 RV_ABI  ?= ilp32
 
-CROSS_CFLAGS := -std=c99 -Os -g $(WARNFLAGS) -march=$(RV_ARCH) -mabi=$(RV_ABI)
-
-# B 组的寄存器定义位置。不复制、不软链，只加 include 路径。
-# 拷进 BSP 后这个头文件在 standalone/driver/，standalone.mk 已经加过该路径。
-BITBLT_INC_DIR ?= $(TOP)/../../04_project/bitblt_accel/sw/driver
+CROSS_CFLAGS := -std=c99 -Os -g $(WARNFLAGS) -march=$(RV_ARCH) -mabi=$(RV_ABI) $(INCFLAGS)
 
 
-.PHONY: all test native-test api-test riscv-build riscv-build-hw check \
-        check-hw-isolation check-no-addresses clean
+.PHONY: all test native-test api-test riscv-build riscv-build-api riscv-build-hw \
+        check check-hw-isolation check-no-addresses check-cross clean
+
+# 交叉编译器存在性检查；所有交叉编译目标都依赖它
+check-cross:
+	@command -v $(CROSS_CC) >/dev/null 2>&1 || { \
+	  echo "找不到交叉编译器：$(CROSS_CC)"; \
+	  echo "可用 make CROSS_CC=/path/to/riscv-none-elf-gcc 指定"; \
+	  exit 1; }
 
 all: test
 
@@ -69,51 +83,54 @@ test: native-test api-test
 native-test:
 	@$(MAKE) -C $(TESTS_DIR) native-test
 
-api-test: $(API_BUILD)/test_render_api
+api-test: $(API_BUILD)/test_render_api $(API_BUILD)/test_bitblt_api
 	@echo "== 运行统一渲染层测试（CC=$(CC)，ASan/UBSan 已开启）=="
 	@$(API_BUILD)/test_render_api
-	@echo "== 统一渲染层测试通过 =="
+	@echo "== 运行 BitBlt 驱动 / 适配层测试 =="
+	@$(API_BUILD)/test_bitblt_api
+	@echo "== 统一层与 BitBlt 适配层测试通过 =="
 
-$(API_BUILD)/test_render_api: $(API_TEST) $(LIB_SRCS)
+$(API_BUILD)/test_render_api: $(TEST_API) $(LIB_SRCS)
 	@mkdir -p $(API_BUILD)
-	$(CC) $(CFLAGS) $(API_TEST) $(LIB_SRCS) -o $@
+	$(CC) $(CFLAGS) $(TEST_API) $(LIB_SRCS) -o $@
+
+$(API_BUILD)/test_bitblt_api: $(TEST_BITBLT) $(LIB_SRCS)
+	@mkdir -p $(API_BUILD)
+	$(CC) $(CFLAGS) $(TEST_BITBLT) $(LIB_SRCS) -o $@
 
 
 # ---- RISC-V 交叉编译验证（只证明能编能链，产物不在本机运行）----
 
 riscv-build: riscv-build-api
 	@$(MAKE) -C $(TESTS_DIR) riscv-build
-	@echo "== RISC-V 交叉编译验证通过（冻结基线 + 统一层）=="
+	@echo "== RISC-V 交叉编译验证通过（冻结基线 + 统一层 + 适配层）=="
 
-riscv-build-api: $(API_BUILD)/test_render_api.elf
+riscv-build-api: $(API_BUILD)/test_render_api.elf $(API_BUILD)/test_bitblt_api.elf
 
-$(API_BUILD)/test_render_api.elf: $(API_TEST) $(LIB_SRCS)
-	@command -v $(CROSS_CC) >/dev/null 2>&1 || { \
-	  echo "找不到交叉编译器：$(CROSS_CC)"; \
-	  echo "可用 make riscv-build CROSS_CC=/path/to/riscv-none-elf-gcc 指定"; \
-	  exit 1; \
-	}
+$(API_BUILD)/test_render_api.elf: $(TEST_API) $(LIB_SRCS) check-cross
 	@mkdir -p $(API_BUILD)
-	$(CROSS_CC) $(CROSS_CFLAGS) -I$(RENDER_DIR) -I$(DRIVER_DIR) \
-	  $(API_TEST) $(LIB_SRCS) -static -o $@
+	$(CROSS_CC) $(CROSS_CFLAGS) $(TEST_API) $(LIB_SRCS) -static -o $@
+	@$(CROSS_SIZE) $@
+
+$(API_BUILD)/test_bitblt_api.elf: $(TEST_BITBLT) $(LIB_SRCS) check-cross
+	@mkdir -p $(API_BUILD)
+	$(CROSS_CC) $(CROSS_CFLAGS) $(TEST_BITBLT) $(LIB_SRCS) -static -o $@
 	@$(CROSS_SIZE) $@
 
 
 # ---- 开启硬件分支的编译检查 ----
 # 只编译库，不含测试（测试里禁止 BITBLT_ENABLE_HW_ACCESS）。
-# 这一步确保 gpu.c 里被 #ifdef 包住的真实寄存器分支不是死代码。
+# 这一步确保 bitblt_api.c 里被 #ifdef 包住的真实寄存器分支不是死代码：
+# 它会真的 include B 的 bitblt_regs.h、用到 fence 指令和被寄存器枚举值。
 
-riscv-build-hw:
-	@command -v $(CROSS_CC) >/dev/null 2>&1 || { \
-	  echo "找不到交叉编译器：$(CROSS_CC)"; exit 1; }
-	@test -f $(BITBLT_INC_DIR)/bitblt_regs.h || { \
-	  echo "找不到 bitblt_regs.h：$(BITBLT_INC_DIR)"; \
+riscv-build-hw: check-cross
+	@test -f $(BITBLT_INC_DIR)/bitblt_api.h || { \
+	  echo "找不到 bitblt_api.h：$(BITBLT_INC_DIR)"; \
 	  echo "可用 make riscv-build-hw BITBLT_INC_DIR=/path/to/driver 指定"; \
 	  exit 1; }
 	@mkdir -p $(API_BUILD)/hw
 	cd $(API_BUILD)/hw && $(CROSS_CC) $(CROSS_CFLAGS) \
-	  -DBITBLT_ENABLE_HW_ACCESS -I$(RENDER_DIR) -I$(DRIVER_DIR) \
-	  -I$(BITBLT_INC_DIR) -c $(abspath $(LIB_SRCS))
+	  -DBITBLT_ENABLE_HW_ACCESS -c $(abspath $(LIB_SRCS))
 	@echo "== 硬件分支编译检查通过（BITBLT_ENABLE_HW_ACCESS）=="
 
 
@@ -122,6 +139,8 @@ riscv-build-hw:
 check: check-hw-isolation check-no-addresses
 
 # 全树只允许一个文件引用 B 组的寄存器定义，杜绝第二份寄存器真相源。
+# 寄存器访问现在集中在真正的驱动 bitblt_api.c 里；旧的 gpu.c 已降级为兼容层，
+# 不再包含任何寄存器分支。
 check-hw-isolation:
 	@files=$$(grep -rlE '^[[:space:]]*#[[:space:]]*include[[:space:]]*"bitblt_regs\.h"' \
 	    $(RENDER_DIR) $(DRIVER_DIR) || true); \
@@ -132,15 +151,20 @@ check-hw-isolation:
 	  exit 1; \
 	fi; \
 	case "$$files" in \
-	  */driver/gpu.c) echo "通过：只有 driver/gpu.c 引用 bitblt_regs.h";; \
-	  *) echo "失败：引用点是 $$files，应为 driver/gpu.c"; exit 1;; \
+	  */driver/bitblt_api.c) echo "通过：只有 driver/bitblt_api.c 引用 bitblt_regs.h";; \
+	  *) echo "失败：引用点是 $$files，应为 driver/bitblt_api.c"; exit 1;; \
 	esac
 
-# 库代码里不得出现任何已知的真实地址——地址都由参数传入或由平台代码填写。
+# 库代码里不得出现任何已知的真实地址。
+#
+# 地址现在【已经冻结】——权威来源是 B 的 framebuffer_layout.h 与 bitblt_regs.h。
+# 这条检查的意义不是"地址还没定"，而是"地址已定，但库代码仍不得硬编码它们"：
+# 地址一律由参数传入（gpu_limits_t / render_surface_t.phys_base）或由
+# render_limits_from_layout() 从权威头文件取。
 check-no-addresses:
-	@if grep -rnE '0x[Ee]1000000|0x01100000|0x01200000' \
+	@if grep -rnE '0x([Ee]1000000|[Ee]1100000|01000000|01800000|02000000|04000000|01100000|01200000)' \
 	    $(RENDER_DIR) $(DRIVER_DIR) 2>/dev/null; then \
-	  echo "失败：库代码里出现了硬编码的真实地址"; \
+	  echo "失败：库代码里出现了硬编码的真实地址（应引用 framebuffer_layout.h / bitblt_regs.h）"; \
 	  exit 1; \
 	fi
 	@echo "通过：render/ 与 driver/ 里没有硬编码的真实地址"

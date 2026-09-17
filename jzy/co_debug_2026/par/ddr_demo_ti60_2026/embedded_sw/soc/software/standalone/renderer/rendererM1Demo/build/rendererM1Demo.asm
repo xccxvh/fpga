@@ -12,7 +12,7 @@ _start:
 .option norelax
 	la gp, __global_pointer$
     1000:	00004197          	auipc	gp,0x4
-    1004:	b3018193          	addi	gp,gp,-1232 # 4b30 <__global_pointer$>
+    1004:	c7818193          	addi	gp,gp,-904 # 4c78 <__global_pointer$>
 
 00001008 <init>:
 	sw a0, smp_lottery_lock, a1
@@ -22,18 +22,18 @@ _start:
 init:
 	la sp, _sp
     1008:	00005117          	auipc	sp,0x5
-    100c:	8f810113          	addi	sp,sp,-1800 # 5900 <__freertos_irq_stack_top>
+    100c:	a6810113          	addi	sp,sp,-1432 # 5a70 <__freertos_irq_stack_top>
 
 	/* Load data section */
 	la a0, _data_lma
     1010:	00003517          	auipc	a0,0x3
-    1014:	db050513          	addi	a0,a0,-592 # 3dc0 <_data>
+    1014:	ee450513          	addi	a0,a0,-284 # 3ef4 <_data>
 	la a1, _data
     1018:	00003597          	auipc	a1,0x3
-    101c:	da858593          	addi	a1,a1,-600 # 3dc0 <_data>
+    101c:	edc58593          	addi	a1,a1,-292 # 3ef4 <_data>
 	la a2, _edata
     1020:	00003617          	auipc	a2,0x3
-    1024:	32c60613          	addi	a2,a2,812 # 434c <t_extra>
+    1024:	47460613          	addi	a2,a2,1140 # 4494 <__bss_start>
 	bgeu a1, a2, 2f
     1028:	00c5fc63          	bgeu	a1,a2,1040 <init+0x38>
 1:
@@ -52,10 +52,10 @@ init:
 	/* Clear bss section */
 	la a0, __bss_start
     1040:	00003517          	auipc	a0,0x3
-    1044:	30c50513          	addi	a0,a0,780 # 434c <t_extra>
+    1044:	45450513          	addi	a0,a0,1108 # 4494 <__bss_start>
 	la a1, _end
     1048:	00004597          	auipc	a1,0x4
-    104c:	8b058593          	addi	a1,a1,-1872 # 48f8 <_end>
+    104c:	a2858593          	addi	a1,a1,-1496 # 4a70 <_end>
 	bgeu a0, a1, 2f
     1050:	00b57863          	bgeu	a0,a1,1060 <init+0x58>
 1:
@@ -95,9 +95,9 @@ Disassembly of section .text:
     1074:	00812423          	sw	s0,8(sp)
     1078:	01212023          	sw	s2,0(sp)
     107c:	00003797          	auipc	a5,0x3
-    1080:	d4478793          	addi	a5,a5,-700 # 3dc0 <_data>
+    1080:	e7878793          	addi	a5,a5,-392 # 3ef4 <_data>
     1084:	00003417          	auipc	s0,0x3
-    1088:	d3c40413          	addi	s0,s0,-708 # 3dc0 <_data>
+    1088:	e7040413          	addi	s0,s0,-400 # 3ef4 <_data>
     108c:	00112623          	sw	ra,12(sp)
     1090:	00912223          	sw	s1,4(sp)
     1094:	40878933          	sub	s2,a5,s0
@@ -110,9 +110,9 @@ Disassembly of section .text:
     10b0:	000780e7          	jalr	a5
     10b4:	ff24e8e3          	bltu	s1,s2,10a4 <__libc_init_array+0x34>
     10b8:	00003797          	auipc	a5,0x3
-    10bc:	d0878793          	addi	a5,a5,-760 # 3dc0 <_data>
+    10bc:	e3c78793          	addi	a5,a5,-452 # 3ef4 <_data>
     10c0:	00003417          	auipc	s0,0x3
-    10c4:	d0040413          	addi	s0,s0,-768 # 3dc0 <_data>
+    10c4:	e3440413          	addi	s0,s0,-460 # 3ef4 <_data>
     10c8:	40878933          	sub	s2,a5,s0
     10cc:	40295913          	srai	s2,s2,0x2
     10d0:	00878e63          	beq	a5,s0,10ec <__libc_init_array+0x7c>
@@ -204,13 +204,13 @@ void main(void)
 
     bsp_printf("\r\n=== M1 Renderer Board Smoke Test ===\r\n");
     11f4:	00004537          	lui	a0,0x4
-    11f8:	06450513          	addi	a0,a0,100 # 4064 <_data+0x2a4>
+    11f8:	19850513          	addi	a0,a0,408 # 4198 <_data+0x2a4>
     11fc:	50c000ef          	jal	1708 <bsp_printf>
     bsp_printf("pixel_t = %d bytes (expect 4), RENDER_PIXEL_BYTES = %d\r\n",
     1200:	00400613          	li	a2,4
     1204:	00400593          	li	a1,4
     1208:	00004537          	lui	a0,0x4
-    120c:	09050513          	addi	a0,a0,144 # 4090 <_data+0x2d0>
+    120c:	1c450513          	addi	a0,a0,452 # 41c4 <_data+0x2d0>
     1210:	4f8000ef          	jal	1708 <bsp_printf>
                (int)sizeof(pixel_t), (int)RENDER_PIXEL_BYTES);
     bsp_printf("canvas %dx%d stride_px=%d (%d guard cols) rows=%d (%d guard rows)\r\n",
@@ -221,12 +221,12 @@ void main(void)
     1224:	00c00613          	li	a2,12
     1228:	01000593          	li	a1,16
     122c:	00004537          	lui	a0,0x4
-    1230:	0cc50513          	addi	a0,a0,204 # 40cc <_data+0x30c>
+    1230:	20050513          	addi	a0,a0,512 # 4200 <_data+0x30c>
     1234:	4d4000ef          	jal	1708 <bsp_printf>
                FB_W, FB_H, FB_STRIDE, FB_STRIDE - FB_W, FB_ROWS, FB_ROWS - FB_H);
     bsp_printf("backend = CPU only; no BitBlt register access in this build\r\n\r\n");
     1238:	00004537          	lui	a0,0x4
-    123c:	11050513          	addi	a0,a0,272 # 4110 <_data+0x350>
+    123c:	24450513          	addi	a0,a0,580 # 4244 <_data+0x350>
     1240:	4c8000ef          	jal	1708 <bsp_printf>
 
     test_t1_pixel_size();
@@ -253,23 +253,23 @@ void main(void)
     126c:	70c010ef          	jal	2978 <test_t10_clip_rect_geometry>
 
     bsp_printf("\r\nPASS = %d\r\n", g_pass);
-    1270:	82c1a583          	lw	a1,-2004(gp) # 435c <g_pass>
+    1270:	8301a583          	lw	a1,-2000(gp) # 44a8 <g_pass>
     1274:	00004537          	lui	a0,0x4
-    1278:	15050513          	addi	a0,a0,336 # 4150 <_data+0x390>
+    1278:	28450513          	addi	a0,a0,644 # 4284 <_data+0x390>
     127c:	48c000ef          	jal	1708 <bsp_printf>
     bsp_printf("FAIL = %d\r\n", g_fail);
-    1280:	8281a583          	lw	a1,-2008(gp) # 4358 <g_fail>
+    1280:	82c1a583          	lw	a1,-2004(gp) # 44a4 <g_fail>
     1284:	00004537          	lui	a0,0x4
-    1288:	16050513          	addi	a0,a0,352 # 4160 <_data+0x3a0>
+    1288:	29450513          	addi	a0,a0,660 # 4294 <_data+0x3a0>
     128c:	47c000ef          	jal	1708 <bsp_printf>
 
     if (g_fail == 0)
-    1290:	8281a783          	lw	a5,-2008(gp) # 4358 <g_fail>
+    1290:	82c1a783          	lw	a5,-2004(gp) # 44a4 <g_fail>
     1294:	00079a63          	bnez	a5,12a8 <main+0xc8>
     {
         bsp_printf("M1 BOARD TEST PASSED\r\n");
     1298:	00004537          	lui	a0,0x4
-    129c:	16c50513          	addi	a0,a0,364 # 416c <_data+0x3ac>
+    129c:	2a050513          	addi	a0,a0,672 # 42a0 <_data+0x3ac>
     12a0:	468000ef          	jal	1708 <bsp_printf>
     else
     {
@@ -280,7 +280,7 @@ void main(void)
     12a4:	0000006f          	j	12a4 <main+0xc4>
         bsp_printf("M1 BOARD TEST FAILED\r\n");
     12a8:	00004537          	lui	a0,0x4
-    12ac:	18450513          	addi	a0,a0,388 # 4184 <_data+0x3c4>
+    12ac:	2b850513          	addi	a0,a0,696 # 42b8 <_data+0x3c4>
     12b0:	458000ef          	jal	1708 <bsp_printf>
     12b4:	ff1ff06f          	j	12a4 <main+0xc4>
 
@@ -422,7 +422,7 @@ void main(void)
     13a4:	0084d733          	srl	a4,s1,s0
     13a8:	00f77713          	andi	a4,a4,15
     13ac:	000047b7          	lui	a5,0x4
-    13b0:	dc078793          	addi	a5,a5,-576 # 3dc0 <_data>
+    13b0:	ef478793          	addi	a5,a5,-268 # 3ef4 <_data>
     13b4:	00e787b3          	add	a5,a5,a4
     13b8:	0007c503          	lbu	a0,0(a5)
     13bc:	f79ff0ef          	jal	1334 <_putchar>
@@ -456,7 +456,7 @@ void main(void)
     13f8:	0084d733          	srl	a4,s1,s0
     13fc:	00f77713          	andi	a4,a4,15
     1400:	000047b7          	lui	a5,0x4
-    1404:	dd478793          	addi	a5,a5,-556 # 3dd4 <_data+0x14>
+    1404:	f0878793          	addi	a5,a5,-248 # 3f08 <_data+0x14>
     1408:	00e787b3          	add	a5,a5,a4
     140c:	0007c503          	lbu	a0,0(a5)
     1410:	f25ff0ef          	jal	1334 <_putchar>
@@ -668,7 +668,7 @@ void main(void)
     while (*a != '\0' && *a == *b)
     159c:	00c0006f          	j	15a8 <str_eq+0xc>
         a++;
-    15a0:	00150513          	addi	a0,a0,1 # f8010001 <__freertos_irq_stack_top+0xf800a701>
+    15a0:	00150513          	addi	a0,a0,1 # f8010001 <__freertos_irq_stack_top+0xf800a591>
         b++;
     15a4:	00158593          	addi	a1,a1,1
     while (*a != '\0' && *a == *b)
@@ -685,11 +685,11 @@ void main(void)
 
 000015c8 <t_begin>:
     t_fail = 0;
-    15c8:	8201a223          	sw	zero,-2012(gp) # 4354 <t_fail>
+    15c8:	8201a423          	sw	zero,-2008(gp) # 44a0 <t_fail>
     t_printed = 0;
-    15cc:	8201a023          	sw	zero,-2016(gp) # 4350 <t_printed>
+    15cc:	8201a223          	sw	zero,-2012(gp) # 449c <t_printed>
     t_extra = 0;
-    15d0:	8001ae23          	sw	zero,-2020(gp) # 434c <t_extra>
+    15d0:	8201a023          	sw	zero,-2016(gp) # 4498 <t_extra>
 }
     15d4:	00008067          	ret
 
@@ -699,17 +699,17 @@ void main(void)
     15dc:	0640006f          	j	1640 <reset_canvas+0x68>
             canvas[(uint32_t)y * FB_STRIDE + x] = visible ? COLOR_BG : COLOR_GUARD;
     15e0:	00abd5b7          	lui	a1,0xabd
-    15e4:	def58593          	addi	a1,a1,-529 # abcdef <__freertos_irq_stack_top+0xab74ef>
+    15e4:	def58593          	addi	a1,a1,-529 # abcdef <__freertos_irq_stack_top+0xab737f>
     15e8:	00c0006f          	j	15f4 <reset_canvas+0x1c>
     15ec:	00abd5b7          	lui	a1,0xabd
-    15f0:	def58593          	addi	a1,a1,-529 # abcdef <__freertos_irq_stack_top+0xab74ef>
+    15f0:	def58593          	addi	a1,a1,-529 # abcdef <__freertos_irq_stack_top+0xab737f>
     15f4:	00261713          	slli	a4,a2,0x2
     15f8:	00c70733          	add	a4,a4,a2
     15fc:	00271793          	slli	a5,a4,0x2
     1600:	00f687b3          	add	a5,a3,a5
     1604:	00004737          	lui	a4,0x4
     1608:	00279793          	slli	a5,a5,0x2
-    160c:	3e870713          	addi	a4,a4,1000 # 43e8 <canvas>
+    160c:	53870713          	addi	a4,a4,1336 # 4538 <canvas>
     1610:	00f707b3          	add	a5,a4,a5
     1614:	00b7a023          	sw	a1,0(a5)
         for (int x = 0; x < FB_STRIDE; x++)
@@ -743,7 +743,7 @@ void main(void)
     1660:	00d706b3          	add	a3,a4,a3
     1664:	000047b7          	lui	a5,0x4
     1668:	00271613          	slli	a2,a4,0x2
-    166c:	36878793          	addi	a5,a5,872 # 4368 <sprite>
+    166c:	4b878793          	addi	a5,a5,1208 # 44b8 <sprite>
     1670:	00c787b3          	add	a5,a5,a2
     1674:	00d7a023          	sw	a3,0(a5)
     for (int i = 0; i < SPR_STRIDE * SPR_H; i++)
@@ -756,7 +756,7 @@ void main(void)
 00001688 <make_canvas_surface>:
     s.pixels = canvas;
     1688:	00004737          	lui	a4,0x4
-    168c:	3e870713          	addi	a4,a4,1000 # 43e8 <canvas>
+    168c:	53870713          	addi	a4,a4,1336 # 4538 <canvas>
     1690:	00e52023          	sw	a4,0(a0)
     s.width = FB_W;
     1694:	01000713          	li	a4,16
@@ -775,7 +775,7 @@ void main(void)
 000016b4 <make_sprite_surface>:
     s.pixels = sprite;
     16b4:	00004737          	lui	a4,0x4
-    16b8:	36870713          	addi	a4,a4,872 # 4368 <sprite>
+    16b8:	4b870713          	addi	a4,a4,1208 # 44b8 <sprite>
     16bc:	00e52023          	sw	a4,0(a0)
     s.width = SPR_W;
     16c0:	00500713          	li	a4,5
@@ -900,7 +900,7 @@ void main(void)
     17d8:	f85ff06f          	j	175c <bsp_printf+0x54>
                         bsp_printf_s("<Floating point printing not enable. Please Enable it at bsp.h first...>");
     17dc:	00004537          	lui	a0,0x4
-    17e0:	de850513          	addi	a0,a0,-536 # 3de8 <_data+0x28>
+    17e0:	f1c50513          	addi	a0,a0,-228 # 3f1c <_data+0x28>
     17e4:	c69ff0ef          	jal	144c <bsp_printf_s>
                         break;
     17e8:	f75ff06f          	j	175c <bsp_printf+0x54>
@@ -916,7 +916,7 @@ void main(void)
     1808:	fed762e3          	bltu	a4,a3,17ec <bsp_printf+0xe4>
     180c:	00269793          	slli	a5,a3,0x2
     1810:	00004737          	lui	a4,0x4
-    1814:	26470713          	addi	a4,a4,612 # 4264 <_data+0x4a4>
+    1814:	39870713          	addi	a4,a4,920 # 4398 <_data+0x4a4>
     1818:	00e787b3          	add	a5,a5,a4
     181c:	0007a783          	lw	a5,0(a5)
     1820:	00078067          	jr	a5
@@ -936,15 +936,15 @@ void main(void)
     1840:	00812423          	sw	s0,8(sp)
     1844:	00050413          	mv	s0,a0
     if (t_extra > 0)
-    1848:	81c1a603          	lw	a2,-2020(gp) # 434c <t_extra>
+    1848:	8201a603          	lw	a2,-2016(gp) # 4498 <t_extra>
     184c:	02c04463          	bgtz	a2,1874 <t_end+0x3c>
     if (t_fail == 0)
-    1850:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    1850:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     1854:	02078a63          	beqz	a5,1888 <t_end+0x50>
         g_fail++;
-    1858:	8281a783          	lw	a5,-2008(gp) # 4358 <g_fail>
+    1858:	82c1a783          	lw	a5,-2004(gp) # 44a4 <g_fail>
     185c:	00178793          	addi	a5,a5,1
-    1860:	82f1a423          	sw	a5,-2008(gp) # 4358 <g_fail>
+    1860:	82f1a623          	sw	a5,-2004(gp) # 44a4 <g_fail>
 }
     1864:	00c12083          	lw	ra,12(sp)
     1868:	00812403          	lw	s0,8(sp)
@@ -953,17 +953,17 @@ void main(void)
         bsp_printf("[FAIL] %s 另有 %d 处不符未逐条列出\r\n", name, t_extra);
     1874:	00050593          	mv	a1,a0
     1878:	00004537          	lui	a0,0x4
-    187c:	e3450513          	addi	a0,a0,-460 # 3e34 <_data+0x74>
+    187c:	f6850513          	addi	a0,a0,-152 # 3f68 <_data+0x74>
     1880:	e89ff0ef          	jal	1708 <bsp_printf>
     1884:	fcdff06f          	j	1850 <t_end+0x18>
         g_pass++;
-    1888:	82c1a783          	lw	a5,-2004(gp) # 435c <g_pass>
+    1888:	8301a783          	lw	a5,-2000(gp) # 44a8 <g_pass>
     188c:	00178793          	addi	a5,a5,1
-    1890:	82f1a623          	sw	a5,-2004(gp) # 435c <g_pass>
+    1890:	82f1a823          	sw	a5,-2000(gp) # 44a8 <g_pass>
         bsp_printf("[PASS] %s\r\n", name);
     1894:	00040593          	mv	a1,s0
     1898:	00004537          	lui	a0,0x4
-    189c:	e6850513          	addi	a0,a0,-408 # 3e68 <_data+0xa8>
+    189c:	f9c50513          	addi	a0,a0,-100 # 3f9c <_data+0xa8>
     18a0:	e69ff0ef          	jal	1708 <bsp_printf>
     18a4:	fc1ff06f          	j	1864 <t_end+0x2c>
 
@@ -975,7 +975,7 @@ void main(void)
     18b0:	d19ff0ef          	jal	15c8 <t_begin>
     t_end(name);
     18b4:	00004537          	lui	a0,0x4
-    18b8:	e7450513          	addi	a0,a0,-396 # 3e74 <_data+0xb4>
+    18b8:	fa850513          	addi	a0,a0,-88 # 3fa8 <_data+0xb4>
     18bc:	f7dff0ef          	jal	1838 <t_end>
 }
     18c0:	00c12083          	lw	ra,12(sp)
@@ -984,17 +984,17 @@ void main(void)
 
 000018cc <fail_text>:
     if (t_printed < MAX_DIAG_PER_TEST)
-    18cc:	8201a703          	lw	a4,-2016(gp) # 4350 <t_printed>
+    18cc:	8241a703          	lw	a4,-2012(gp) # 449c <t_printed>
     18d0:	00700793          	li	a5,7
     18d4:	02e7d063          	bge	a5,a4,18f4 <fail_text+0x28>
         t_extra++;
-    18d8:	81c1a783          	lw	a5,-2020(gp) # 434c <t_extra>
+    18d8:	8201a783          	lw	a5,-2016(gp) # 4498 <t_extra>
     18dc:	00178793          	addi	a5,a5,1
-    18e0:	80f1ae23          	sw	a5,-2020(gp) # 434c <t_extra>
+    18e0:	82f1a023          	sw	a5,-2016(gp) # 4498 <t_extra>
     t_fail++;
-    18e4:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    18e4:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     18e8:	00178793          	addi	a5,a5,1
-    18ec:	82f1a223          	sw	a5,-2012(gp) # 4354 <t_fail>
+    18ec:	82f1a423          	sw	a5,-2008(gp) # 44a0 <t_fail>
     18f0:	00008067          	ret
 {
     18f4:	ff010113          	addi	sp,sp,-16
@@ -1004,16 +1004,16 @@ void main(void)
     1900:	00058613          	mv	a2,a1
     1904:	00050593          	mv	a1,a0
     1908:	00004537          	lui	a0,0x4
-    190c:	e8c50513          	addi	a0,a0,-372 # 3e8c <_data+0xcc>
+    190c:	fc050513          	addi	a0,a0,-64 # 3fc0 <_data+0xcc>
     1910:	df9ff0ef          	jal	1708 <bsp_printf>
         t_printed++;
-    1914:	8201a783          	lw	a5,-2016(gp) # 4350 <t_printed>
+    1914:	8241a783          	lw	a5,-2012(gp) # 449c <t_printed>
     1918:	00178793          	addi	a5,a5,1
-    191c:	82f1a023          	sw	a5,-2016(gp) # 4350 <t_printed>
+    191c:	82f1a223          	sw	a5,-2012(gp) # 449c <t_printed>
     t_fail++;
-    1920:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    1920:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     1924:	00178793          	addi	a5,a5,1
-    1928:	82f1a223          	sw	a5,-2012(gp) # 4354 <t_fail>
+    1928:	82f1a423          	sw	a5,-2008(gp) # 44a0 <t_fail>
 }
     192c:	00c12083          	lw	ra,12(sp)
     1930:	01010113          	addi	sp,sp,16
@@ -1033,10 +1033,10 @@ void main(void)
     1958:	00058413          	mv	s0,a1
         fail_text(name, render_strstatus(want), render_strstatus(got));
     195c:	00060513          	mv	a0,a2
-    1960:	6e9010ef          	jal	3848 <render_strstatus>
+    1960:	795010ef          	jal	38f4 <render_strstatus>
     1964:	00050913          	mv	s2,a0
     1968:	00040513          	mv	a0,s0
-    196c:	6dd010ef          	jal	3848 <render_strstatus>
+    196c:	789010ef          	jal	38f4 <render_strstatus>
     1970:	00050613          	mv	a2,a0
     1974:	00090593          	mv	a1,s2
     1978:	00048513          	mv	a0,s1
@@ -1085,7 +1085,7 @@ void main(void)
         expect_status(name, st, RENDER_ERR_NO_BACKEND);
     1a04:	00200613          	li	a2,2
     1a08:	00004537          	lui	a0,0x4
-    1a0c:	eb850513          	addi	a0,a0,-328 # 3eb8 <_data+0xf8>
+    1a0c:	fec50513          	addi	a0,a0,-20 # 3fec <_data+0xf8>
     1a10:	f29ff0ef          	jal	1938 <expect_status>
     render_init();
     1a14:	550010ef          	jal	2f64 <render_init>
@@ -1095,19 +1095,19 @@ void main(void)
     1a1c:	04050663          	beqz	a0,1a68 <test_t2_default_backend+0xd0>
     1a20:	00050413          	mv	s0,a0
     1a24:	000045b7          	lui	a1,0x4
-    1a28:	ed458593          	addi	a1,a1,-300 # 3ed4 <_data+0x114>
+    1a28:	00858593          	addi	a1,a1,8 # 4008 <_data+0x114>
     1a2c:	b71ff0ef          	jal	159c <str_eq>
     1a30:	00051e63          	bnez	a0,1a4c <test_t2_default_backend+0xb4>
         fail_text(name, "cpu", got ? got : "(null)");
     1a34:	00040613          	mv	a2,s0
     1a38:	000045b7          	lui	a1,0x4
-    1a3c:	ed458593          	addi	a1,a1,-300 # 3ed4 <_data+0x114>
+    1a3c:	00858593          	addi	a1,a1,8 # 4008 <_data+0x114>
     1a40:	00004537          	lui	a0,0x4
-    1a44:	eb850513          	addi	a0,a0,-328 # 3eb8 <_data+0xf8>
+    1a44:	fec50513          	addi	a0,a0,-20 # 3fec <_data+0xf8>
     1a48:	e85ff0ef          	jal	18cc <fail_text>
     t_end(name);
     1a4c:	00004537          	lui	a0,0x4
-    1a50:	eb850513          	addi	a0,a0,-328 # 3eb8 <_data+0xf8>
+    1a50:	fec50513          	addi	a0,a0,-20 # 3fec <_data+0xf8>
     1a54:	de5ff0ef          	jal	1838 <t_end>
 }
     1a58:	04c12083          	lw	ra,76(sp)
@@ -1116,7 +1116,7 @@ void main(void)
     1a64:	00008067          	ret
         fail_text(name, "cpu", got ? got : "(null)");
     1a68:	00004437          	lui	s0,0x4
-    1a6c:	eb040413          	addi	s0,s0,-336 # 3eb0 <_data+0xf0>
+    1a6c:	fe440413          	addi	s0,s0,-28 # 3fe4 <_data+0xf0>
     1a70:	fc5ff06f          	j	1a34 <test_t2_default_backend+0x9c>
 
 00001a74 <expect_color>:
@@ -1127,24 +1127,24 @@ void main(void)
     1a80:	00f587b3          	add	a5,a1,a5
     1a84:	00004837          	lui	a6,0x4
     1a88:	00279793          	slli	a5,a5,0x2
-    1a8c:	3e880813          	addi	a6,a6,1000 # 43e8 <canvas>
+    1a8c:	53880813          	addi	a6,a6,1336 # 4538 <canvas>
     1a90:	00f807b3          	add	a5,a6,a5
     1a94:	0007a783          	lw	a5,0(a5)
     if (got == want)
     1a98:	06d78a63          	beq	a5,a3,1b0c <expect_color+0x98>
     1a9c:	00068713          	mv	a4,a3
     if (t_printed < MAX_DIAG_PER_TEST)
-    1aa0:	8201a803          	lw	a6,-2016(gp) # 4350 <t_printed>
+    1aa0:	8241a803          	lw	a6,-2012(gp) # 449c <t_printed>
     1aa4:	00700693          	li	a3,7
     1aa8:	0306d063          	bge	a3,a6,1ac8 <expect_color+0x54>
         t_extra++;
-    1aac:	81c1a783          	lw	a5,-2020(gp) # 434c <t_extra>
+    1aac:	8201a783          	lw	a5,-2016(gp) # 4498 <t_extra>
     1ab0:	00178793          	addi	a5,a5,1
-    1ab4:	80f1ae23          	sw	a5,-2020(gp) # 434c <t_extra>
+    1ab4:	82f1a023          	sw	a5,-2016(gp) # 4498 <t_extra>
     t_fail++;
-    1ab8:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    1ab8:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     1abc:	00178793          	addi	a5,a5,1
-    1ac0:	82f1a223          	sw	a5,-2012(gp) # 4354 <t_fail>
+    1ac0:	82f1a423          	sw	a5,-2008(gp) # 44a0 <t_fail>
     1ac4:	00008067          	ret
 {
     1ac8:	ff010113          	addi	sp,sp,-16
@@ -1154,16 +1154,16 @@ void main(void)
     1ad4:	00058613          	mv	a2,a1
     1ad8:	00050593          	mv	a1,a0
     1adc:	00004537          	lui	a0,0x4
-    1ae0:	ed850513          	addi	a0,a0,-296 # 3ed8 <_data+0x118>
+    1ae0:	00c50513          	addi	a0,a0,12 # 400c <_data+0x118>
     1ae4:	c25ff0ef          	jal	1708 <bsp_printf>
         t_printed++;
-    1ae8:	8201a783          	lw	a5,-2016(gp) # 4350 <t_printed>
+    1ae8:	8241a783          	lw	a5,-2012(gp) # 449c <t_printed>
     1aec:	00178793          	addi	a5,a5,1
-    1af0:	82f1a023          	sw	a5,-2016(gp) # 4350 <t_printed>
+    1af0:	82f1a223          	sw	a5,-2012(gp) # 449c <t_printed>
     t_fail++;
-    1af4:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    1af4:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     1af8:	00178793          	addi	a5,a5,1
-    1afc:	82f1a223          	sw	a5,-2012(gp) # 4354 <t_fail>
+    1afc:	82f1a423          	sw	a5,-2008(gp) # 44a0 <t_fail>
 }
     1b00:	00c12083          	lw	ra,12(sp)
     1b04:	01010113          	addi	sp,sp,16
@@ -1250,7 +1250,7 @@ void main(void)
     1c0c:	0400006f          	j	1c4c <expect_padding_intact+0x5c>
                 expect_color(name, x, y, COLOR_GUARD);
     1c10:	00abd6b7          	lui	a3,0xabd
-    1c14:	def68693          	addi	a3,a3,-529 # abcdef <__freertos_irq_stack_top+0xab74ef>
+    1c14:	def68693          	addi	a3,a3,-529 # abcdef <__freertos_irq_stack_top+0xab737f>
     1c18:	00048613          	mv	a2,s1
     1c1c:	00040593          	mv	a1,s0
     1c20:	00090513          	mv	a0,s2
@@ -1319,7 +1319,7 @@ void main(void)
     1ce4:	00050593          	mv	a1,a0
     1ce8:	00000613          	li	a2,0
     1cec:	00004437          	lui	s0,0x4
-    1cf0:	f0c40513          	addi	a0,s0,-244 # 3f0c <_data+0x14c>
+    1cf0:	04040513          	addi	a0,s0,64 # 4040 <_data+0x14c>
     1cf4:	c45ff0ef          	jal	1938 <expect_status>
     expect_status(name, render_fill_rect(&dst, make_rect(-5, -5, 20, 20), COLOR_RED),
     1cf8:	01400713          	li	a4,20
@@ -1342,7 +1342,7 @@ void main(void)
     1d3c:	524010ef          	jal	3260 <render_fill_rect>
     1d40:	00050593          	mv	a1,a0
     1d44:	00000613          	li	a2,0
-    1d48:	f0c40513          	addi	a0,s0,-244
+    1d48:	04040513          	addi	a0,s0,64
     1d4c:	bedff0ef          	jal	1938 <expect_status>
     expect_status(name, render_fill_rect(&dst, make_rect(FB_W - 1, FB_H - 1, 100, 100),
     1d50:	06400713          	li	a4,100
@@ -1360,13 +1360,13 @@ void main(void)
     1d80:	06c12783          	lw	a5,108(sp)
     1d84:	00f12623          	sw	a5,12(sp)
     1d88:	00010637          	lui	a2,0x10
-    1d8c:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa600>
+    1d8c:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa490>
     1d90:	00010593          	mv	a1,sp
     1d94:	02c10513          	addi	a0,sp,44
     1d98:	4c8010ef          	jal	3260 <render_fill_rect>
     1d9c:	00050593          	mv	a1,a0
     1da0:	00000613          	li	a2,0
-    1da4:	f0c40513          	addi	a0,s0,-244
+    1da4:	04040513          	addi	a0,s0,64
     1da8:	b91ff0ef          	jal	1938 <expect_status>
     expect_status(name, render_blit(&dst, &src, -3, 2), RENDER_OK);
     1dac:	00200693          	li	a3,2
@@ -1376,7 +1376,7 @@ void main(void)
     1dbc:	588010ef          	jal	3344 <render_blit>
     1dc0:	00050593          	mv	a1,a0
     1dc4:	00000613          	li	a2,0
-    1dc8:	f0c40513          	addi	a0,s0,-244
+    1dc8:	04040513          	addi	a0,s0,64
     1dcc:	b6dff0ef          	jal	1938 <expect_status>
     expect_status(name, render_blit(&dst, &src, FB_W - 3, FB_H - 3), RENDER_OK);
     1dd0:	00900693          	li	a3,9
@@ -1386,7 +1386,7 @@ void main(void)
     1de0:	564010ef          	jal	3344 <render_blit>
     1de4:	00050593          	mv	a1,a0
     1de8:	00000613          	li	a2,0
-    1dec:	f0c40513          	addi	a0,s0,-244
+    1dec:	04040513          	addi	a0,s0,64
     1df0:	b49ff0ef          	jal	1938 <expect_status>
     expect_status(name, render_fill_rect(&dst, make_rect(0, 0, 0, 0), COLOR_BLUE),
     1df4:	00000713          	li	a4,0
@@ -1409,7 +1409,7 @@ void main(void)
     1e38:	428010ef          	jal	3260 <render_fill_rect>
     1e3c:	00050593          	mv	a1,a0
     1e40:	00000613          	li	a2,0
-    1e44:	f0c40513          	addi	a0,s0,-244
+    1e44:	04040513          	addi	a0,s0,64
     1e48:	af1ff0ef          	jal	1938 <expect_status>
     expect_status(name, render_blit(&dst, &src, -100, -100), RENDER_OK);
     1e4c:	f9c00693          	li	a3,-100
@@ -1419,13 +1419,13 @@ void main(void)
     1e5c:	4e8010ef          	jal	3344 <render_blit>
     1e60:	00050593          	mv	a1,a0
     1e64:	00000613          	li	a2,0
-    1e68:	f0c40513          	addi	a0,s0,-244
+    1e68:	04040513          	addi	a0,s0,64
     1e6c:	acdff0ef          	jal	1938 <expect_status>
     expect_padding_intact(name);
-    1e70:	f0c40513          	addi	a0,s0,-244
+    1e70:	04040513          	addi	a0,s0,64
     1e74:	d7dff0ef          	jal	1bf0 <expect_padding_intact>
     t_end(name);
-    1e78:	f0c40513          	addi	a0,s0,-244
+    1e78:	04040513          	addi	a0,s0,64
     1e7c:	9bdff0ef          	jal	1838 <t_end>
 }
     1e80:	08c12083          	lw	ra,140(sp)
@@ -1470,7 +1470,7 @@ void main(void)
     expect_status(name, st, RENDER_OK);
     1f00:	00000613          	li	a2,0
     1f04:	00004437          	lui	s0,0x4
-    1f08:	f3040513          	addi	a0,s0,-208 # 3f30 <_data+0x170>
+    1f08:	06440513          	addi	a0,s0,100 # 4064 <_data+0x170>
     1f0c:	a2dff0ef          	jal	1938 <expect_status>
     expect_rect(name, 4, 3, 5, 4, COLOR_RED);
     1f10:	00ff07b7          	lui	a5,0xff0
@@ -1478,10 +1478,10 @@ void main(void)
     1f18:	00500693          	li	a3,5
     1f1c:	00300613          	li	a2,3
     1f20:	00400593          	li	a1,4
-    1f24:	f3040513          	addi	a0,s0,-208
+    1f24:	06440513          	addi	a0,s0,100
     1f28:	be9ff0ef          	jal	1b10 <expect_rect>
     expect_padding_intact(name);
-    1f2c:	f3040513          	addi	a0,s0,-208
+    1f2c:	06440513          	addi	a0,s0,100
     1f30:	cc1ff0ef          	jal	1bf0 <expect_padding_intact>
     reset_canvas();
     1f34:	ea4ff0ef          	jal	15d8 <reset_canvas>
@@ -1507,7 +1507,7 @@ void main(void)
     1f80:	00050593          	mv	a1,a0
     expect_status(name, st, RENDER_OK);
     1f84:	00000613          	li	a2,0
-    1f88:	f3040513          	addi	a0,s0,-208
+    1f88:	06440513          	addi	a0,s0,100
     1f8c:	9adff0ef          	jal	1938 <expect_status>
     st = render_fill_rect(&s, make_rect(0, 4, 16, 4), COLOR_GREEN);
     1f90:	00400713          	li	a4,4
@@ -1525,14 +1525,14 @@ void main(void)
     1fc0:	05c12783          	lw	a5,92(sp)
     1fc4:	00f12623          	sw	a5,12(sp)
     1fc8:	00010637          	lui	a2,0x10
-    1fcc:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa600>
+    1fcc:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa490>
     1fd0:	00010593          	mv	a1,sp
     1fd4:	01c10513          	addi	a0,sp,28
     1fd8:	288010ef          	jal	3260 <render_fill_rect>
     1fdc:	00050593          	mv	a1,a0
     expect_status(name, st, RENDER_OK);
     1fe0:	00000613          	li	a2,0
-    1fe4:	f3040513          	addi	a0,s0,-208
+    1fe4:	06440513          	addi	a0,s0,100
     1fe8:	951ff0ef          	jal	1938 <expect_status>
     st = render_fill_rect(&s, make_rect(0, 8, 16, 4), COLOR_BLUE);
     1fec:	00400713          	li	a4,4
@@ -1556,7 +1556,7 @@ void main(void)
     2034:	00050593          	mv	a1,a0
     expect_status(name, st, RENDER_OK);
     2038:	00000613          	li	a2,0
-    203c:	f3040513          	addi	a0,s0,-208
+    203c:	06440513          	addi	a0,s0,100
     2040:	8f9ff0ef          	jal	1938 <expect_status>
     for (int y = 0; y < FB_H; y++)
     2044:	00000493          	li	s1,0
@@ -1571,7 +1571,7 @@ void main(void)
     2060:	00048613          	mv	a2,s1
     2064:	00040593          	mv	a1,s0
     2068:	00004537          	lui	a0,0x4
-    206c:	f3050513          	addi	a0,a0,-208 # 3f30 <_data+0x170>
+    206c:	06450513          	addi	a0,a0,100 # 4064 <_data+0x170>
     2070:	a05ff0ef          	jal	1a74 <expect_color>
         for (int x = 0; x < FB_W; x++)
     2074:	00140413          	addi	s0,s0,1
@@ -1587,16 +1587,16 @@ void main(void)
     2094:	00700793          	li	a5,7
     2098:	fa97cee3          	blt	a5,s1,2054 <test_t3_fill_normal+0x1c4>
     209c:	00010937          	lui	s2,0x10
-    20a0:	f0090913          	addi	s2,s2,-256 # ff00 <__freertos_irq_stack_top+0xa600>
+    20a0:	f0090913          	addi	s2,s2,-256 # ff00 <__freertos_irq_stack_top+0xa490>
         for (int x = 0; x < FB_W; x++)
     20a4:	00000413          	li	s0,0
     20a8:	fd1ff06f          	j	2078 <test_t3_fill_normal+0x1e8>
     expect_padding_intact(name);
     20ac:	00004437          	lui	s0,0x4
-    20b0:	f3040513          	addi	a0,s0,-208 # 3f30 <_data+0x170>
+    20b0:	06440513          	addi	a0,s0,100 # 4064 <_data+0x170>
     20b4:	b3dff0ef          	jal	1bf0 <expect_padding_intact>
     t_end(name);
-    20b8:	f3040513          	addi	a0,s0,-208
+    20b8:	06440513          	addi	a0,s0,100
     20bc:	f7cff0ef          	jal	1838 <t_end>
 }
     20c0:	07c12083          	lw	ra,124(sp)
@@ -1691,7 +1691,7 @@ void main(void)
     21cc:	03c12783          	lw	a5,60(sp)
     21d0:	00f12623          	sw	a5,12(sp)
     21d4:	00010637          	lui	a2,0x10
-    21d8:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa600>
+    21d8:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa490>
     21dc:	00010593          	mv	a1,sp
     21e0:	01c10513          	addi	a0,sp,28
     21e4:	07c010ef          	jal	3260 <render_fill_rect>
@@ -1699,19 +1699,19 @@ void main(void)
     expect_status(name, st, RENDER_OK);
     21ec:	00000613          	li	a2,0
     21f0:	00004437          	lui	s0,0x4
-    21f4:	f4440513          	addi	a0,s0,-188 # 3f44 <_data+0x184>
+    21f4:	07840513          	addi	a0,s0,120 # 4078 <_data+0x184>
     21f8:	f40ff0ef          	jal	1938 <expect_status>
     expect_rect(name, 0, 0, 3, 3, COLOR_GREEN);
     21fc:	000107b7          	lui	a5,0x10
-    2200:	f0078793          	addi	a5,a5,-256 # ff00 <__freertos_irq_stack_top+0xa600>
+    2200:	f0078793          	addi	a5,a5,-256 # ff00 <__freertos_irq_stack_top+0xa490>
     2204:	00300713          	li	a4,3
     2208:	00300693          	li	a3,3
     220c:	00000613          	li	a2,0
     2210:	00000593          	li	a1,0
-    2214:	f4440513          	addi	a0,s0,-188
+    2214:	07840513          	addi	a0,s0,120
     2218:	8f9ff0ef          	jal	1b10 <expect_rect>
     expect_padding_intact(name);
-    221c:	f4440513          	addi	a0,s0,-188
+    221c:	07840513          	addi	a0,s0,120
     2220:	9d1ff0ef          	jal	1bf0 <expect_padding_intact>
     reset_canvas();
     2224:	bb4ff0ef          	jal	15d8 <reset_canvas>
@@ -1737,13 +1737,13 @@ void main(void)
     2270:	00050593          	mv	a1,a0
     expect_status(name, st, RENDER_OK);
     2274:	00000613          	li	a2,0
-    2278:	f4440513          	addi	a0,s0,-188
+    2278:	07840513          	addi	a0,s0,120
     227c:	ebcff0ef          	jal	1938 <expect_status>
     expect_nothing_drawn(name);
-    2280:	f4440513          	addi	a0,s0,-188
+    2280:	07840513          	addi	a0,s0,120
     2284:	ecdff0ef          	jal	2150 <expect_nothing_drawn>
     t_end(name);
-    2288:	f4440513          	addi	a0,s0,-188
+    2288:	07840513          	addi	a0,s0,120
     228c:	dacff0ef          	jal	1838 <t_end>
 }
     2290:	05c12083          	lw	ra,92(sp)
@@ -1790,12 +1790,12 @@ void main(void)
     2310:	02f51663          	bne	a0,a5,233c <test_t9_fpga_backend_inert+0x9c>
     expect_nothing_drawn(name);
     2314:	00004437          	lui	s0,0x4
-    2318:	f5c40513          	addi	a0,s0,-164 # 3f5c <_data+0x19c>
+    2318:	09040513          	addi	a0,s0,144 # 4090 <_data+0x19c>
     231c:	e35ff0ef          	jal	2150 <expect_nothing_drawn>
     render_init();
     2320:	445000ef          	jal	2f64 <render_init>
     t_end(name);
-    2324:	f5c40513          	addi	a0,s0,-164
+    2324:	09040513          	addi	a0,s0,144
     2328:	d10ff0ef          	jal	1838 <t_end>
 }
     232c:	04c12083          	lw	ra,76(sp)
@@ -1806,14 +1806,14 @@ void main(void)
     2340:	00050413          	mv	s0,a0
         fail_text(name, render_strstatus(RENDER_ERR_NOT_READY),
     2344:	00c00513          	li	a0,12
-    2348:	500010ef          	jal	3848 <render_strstatus>
+    2348:	5ac010ef          	jal	38f4 <render_strstatus>
     234c:	00050493          	mv	s1,a0
     2350:	00040513          	mv	a0,s0
-    2354:	4f4010ef          	jal	3848 <render_strstatus>
+    2354:	5a0010ef          	jal	38f4 <render_strstatus>
     2358:	00050613          	mv	a2,a0
     235c:	00048593          	mv	a1,s1
     2360:	00004537          	lui	a0,0x4
-    2364:	f5c50513          	addi	a0,a0,-164 # 3f5c <_data+0x19c>
+    2364:	09050513          	addi	a0,a0,144 # 4090 <_data+0x19c>
     2368:	d64ff0ef          	jal	18cc <fail_text>
     236c:	04412483          	lw	s1,68(sp)
     2370:	fa5ff06f          	j	2314 <test_t9_fpga_backend_inert+0x74>
@@ -1853,7 +1853,7 @@ void main(void)
     expect_status(name, st, RENDER_OK);
     23dc:	00000613          	li	a2,0
     23e0:	00004437          	lui	s0,0x4
-    23e4:	f7440513          	addi	a0,s0,-140 # 3f74 <_data+0x1b4>
+    23e4:	0a840513          	addi	a0,s0,168 # 40a8 <_data+0x1b4>
     23e8:	d50ff0ef          	jal	1938 <expect_status>
     expect_rect(name, FB_W - 3, FB_H - 2, 3, 2, COLOR_BLUE);
     23ec:	0ff00793          	li	a5,255
@@ -1861,10 +1861,10 @@ void main(void)
     23f4:	00300693          	li	a3,3
     23f8:	00a00613          	li	a2,10
     23fc:	00d00593          	li	a1,13
-    2400:	f7440513          	addi	a0,s0,-140
+    2400:	0a840513          	addi	a0,s0,168
     2404:	f0cff0ef          	jal	1b10 <expect_rect>
     expect_padding_intact(name);
-    2408:	f7440513          	addi	a0,s0,-140
+    2408:	0a840513          	addi	a0,s0,168
     240c:	fe4ff0ef          	jal	1bf0 <expect_padding_intact>
     reset_canvas();
     2410:	9c8ff0ef          	jal	15d8 <reset_canvas>
@@ -1890,14 +1890,14 @@ void main(void)
     245c:	00050593          	mv	a1,a0
     expect_status(name, st, RENDER_OK);
     2460:	00000613          	li	a2,0
-    2464:	f7440513          	addi	a0,s0,-140
+    2464:	0a840513          	addi	a0,s0,168
     2468:	cd0ff0ef          	jal	1938 <expect_status>
     expect_all_visible(name, COLOR_RED);
     246c:	00ff05b7          	lui	a1,0xff0
-    2470:	f7440513          	addi	a0,s0,-140
+    2470:	0a840513          	addi	a0,s0,168
     2474:	c65ff0ef          	jal	20d8 <expect_all_visible>
     expect_padding_intact(name);
-    2478:	f7440513          	addi	a0,s0,-140
+    2478:	0a840513          	addi	a0,s0,168
     247c:	f74ff0ef          	jal	1bf0 <expect_padding_intact>
     reset_canvas();
     2480:	958ff0ef          	jal	15d8 <reset_canvas>
@@ -1917,20 +1917,20 @@ void main(void)
     24b4:	05c12783          	lw	a5,92(sp)
     24b8:	00f12623          	sw	a5,12(sp)
     24bc:	00010637          	lui	a2,0x10
-    24c0:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa600>
+    24c0:	f0060613          	addi	a2,a2,-256 # ff00 <__freertos_irq_stack_top+0xa490>
     24c4:	00010593          	mv	a1,sp
     24c8:	01c10513          	addi	a0,sp,28
     24cc:	595000ef          	jal	3260 <render_fill_rect>
     24d0:	00050593          	mv	a1,a0
     expect_status(name, st, RENDER_OK);
     24d4:	00000613          	li	a2,0
-    24d8:	f7440513          	addi	a0,s0,-140
+    24d8:	0a840513          	addi	a0,s0,168
     24dc:	c5cff0ef          	jal	1938 <expect_status>
     expect_nothing_drawn(name);
-    24e0:	f7440513          	addi	a0,s0,-140
+    24e0:	0a840513          	addi	a0,s0,168
     24e4:	c6dff0ef          	jal	2150 <expect_nothing_drawn>
     t_end(name);
-    24e8:	f7440513          	addi	a0,s0,-140
+    24e8:	0a840513          	addi	a0,s0,168
     24ec:	b4cff0ef          	jal	1838 <t_end>
 }
     24f0:	06c12083          	lw	ra,108(sp)
@@ -2025,18 +2025,18 @@ void main(void)
     expect_status(name, st, RENDER_OK);
     25fc:	00000613          	li	a2,0
     2600:	00004437          	lui	s0,0x4
-    2604:	f9040513          	addi	a0,s0,-112 # 3f90 <_data+0x1d0>
+    2604:	0c440513          	addi	a0,s0,196 # 40c4 <_data+0x1d0>
     2608:	b30ff0ef          	jal	1938 <expect_status>
     expect_blit(name, 6, 4);
     260c:	00400613          	li	a2,4
     2610:	00600593          	li	a1,6
-    2614:	f9040513          	addi	a0,s0,-112
+    2614:	0c440513          	addi	a0,s0,196
     2618:	ee9ff0ef          	jal	2500 <expect_blit>
     expect_padding_intact(name);
-    261c:	f9040513          	addi	a0,s0,-112
+    261c:	0c440513          	addi	a0,s0,196
     2620:	dd0ff0ef          	jal	1bf0 <expect_padding_intact>
     t_end(name);
-    2624:	f9040513          	addi	a0,s0,-112
+    2624:	0c440513          	addi	a0,s0,196
     2628:	a10ff0ef          	jal	1838 <t_end>
 }
     262c:	03c12083          	lw	ra,60(sp)
@@ -2070,18 +2070,18 @@ void main(void)
     2678:	00050593          	mv	a1,a0
     267c:	00000613          	li	a2,0
     2680:	00004437          	lui	s0,0x4
-    2684:	fa040513          	addi	a0,s0,-96 # 3fa0 <_data+0x1e0>
+    2684:	0d440513          	addi	a0,s0,212 # 40d4 <_data+0x1e0>
     2688:	ab0ff0ef          	jal	1938 <expect_status>
     expect_blit(name, -2, -3);
     268c:	ffd00613          	li	a2,-3
     2690:	ffe00593          	li	a1,-2
-    2694:	fa040513          	addi	a0,s0,-96
+    2694:	0d440513          	addi	a0,s0,212
     2698:	e69ff0ef          	jal	2500 <expect_blit>
     expect_padding_intact(name);
-    269c:	fa040513          	addi	a0,s0,-96
+    269c:	0d440513          	addi	a0,s0,212
     26a0:	d50ff0ef          	jal	1bf0 <expect_padding_intact>
     t_end(name);
-    26a4:	fa040513          	addi	a0,s0,-96
+    26a4:	0d440513          	addi	a0,s0,212
     26a8:	990ff0ef          	jal	1838 <t_end>
     t_begin();
     26ac:	f1dfe0ef          	jal	15c8 <t_begin>
@@ -2096,18 +2096,18 @@ void main(void)
     26c8:	00050593          	mv	a1,a0
     26cc:	00000613          	li	a2,0
     26d0:	00004437          	lui	s0,0x4
-    26d4:	fb840513          	addi	a0,s0,-72 # 3fb8 <_data+0x1f8>
+    26d4:	0ec40513          	addi	a0,s0,236 # 40ec <_data+0x1f8>
     26d8:	a60ff0ef          	jal	1938 <expect_status>
     expect_blit(name, FB_W - 2, FB_H - 2);
     26dc:	00a00613          	li	a2,10
     26e0:	00e00593          	li	a1,14
-    26e4:	fb840513          	addi	a0,s0,-72
+    26e4:	0ec40513          	addi	a0,s0,236
     26e8:	e19ff0ef          	jal	2500 <expect_blit>
     expect_padding_intact(name);
-    26ec:	fb840513          	addi	a0,s0,-72
+    26ec:	0ec40513          	addi	a0,s0,236
     26f0:	d00ff0ef          	jal	1bf0 <expect_padding_intact>
     t_end(name);
-    26f4:	fb840513          	addi	a0,s0,-72
+    26f4:	0ec40513          	addi	a0,s0,236
     26f8:	940ff0ef          	jal	1838 <t_end>
     t_begin();
     26fc:	ecdfe0ef          	jal	15c8 <t_begin>
@@ -2122,13 +2122,13 @@ void main(void)
     2718:	00050593          	mv	a1,a0
     271c:	00000613          	li	a2,0
     2720:	00004437          	lui	s0,0x4
-    2724:	fd440513          	addi	a0,s0,-44 # 3fd4 <_data+0x214>
+    2724:	10840513          	addi	a0,s0,264 # 4108 <_data+0x214>
     2728:	a10ff0ef          	jal	1938 <expect_status>
     expect_nothing_drawn(name);
-    272c:	fd440513          	addi	a0,s0,-44
+    272c:	10840513          	addi	a0,s0,264
     2730:	a21ff0ef          	jal	2150 <expect_nothing_drawn>
     t_end(name);
-    2734:	fd440513          	addi	a0,s0,-44
+    2734:	10840513          	addi	a0,s0,264
     2738:	900ff0ef          	jal	1838 <t_end>
 }
     273c:	03c12083          	lw	ra,60(sp)
@@ -2172,14 +2172,14 @@ void main(void)
     expect_status(name, st, RENDER_OK);
     27b8:	00000613          	li	a2,0
     27bc:	00004437          	lui	s0,0x4
-    27c0:	fec40513          	addi	a0,s0,-20 # 3fec <_data+0x22c>
+    27c0:	12040513          	addi	a0,s0,288 # 4120 <_data+0x22c>
     27c4:	974ff0ef          	jal	1938 <expect_status>
     expect_all_visible(name, COLOR_BLUE);
     27c8:	0ff00593          	li	a1,255
-    27cc:	fec40513          	addi	a0,s0,-20
+    27cc:	12040513          	addi	a0,s0,288
     27d0:	909ff0ef          	jal	20d8 <expect_all_visible>
     expect_padding_intact(name);
-    27d4:	fec40513          	addi	a0,s0,-20
+    27d4:	12040513          	addi	a0,s0,288
     27d8:	c18ff0ef          	jal	1bf0 <expect_padding_intact>
     reset_canvas();
     27dc:	dfdfe0ef          	jal	15d8 <reset_canvas>
@@ -2211,7 +2211,7 @@ void main(void)
         expect_status(name, st, RENDER_OK);
     2838:	00000613          	li	a2,0
     283c:	00004537          	lui	a0,0x4
-    2840:	fec50513          	addi	a0,a0,-20 # 3fec <_data+0x22c>
+    2840:	12050513          	addi	a0,a0,288 # 4120 <_data+0x22c>
     2844:	8f4ff0ef          	jal	1938 <expect_status>
     for (int y = 0; y < FB_H; y++)
     2848:	00040613          	mv	a2,s0
@@ -2226,7 +2226,7 @@ void main(void)
     2860:	01041693          	slli	a3,s0,0x10
     2864:	00f00593          	li	a1,15
     2868:	00004537          	lui	a0,0x4
-    286c:	fec50513          	addi	a0,a0,-20 # 3fec <_data+0x22c>
+    286c:	12050513          	addi	a0,a0,288 # 4120 <_data+0x22c>
     2870:	a04ff0ef          	jal	1a74 <expect_color>
     for (int y = 0; y < FB_H; y++)
     2874:	00040613          	mv	a2,s0
@@ -2240,7 +2240,7 @@ void main(void)
     288c:	00048613          	mv	a2,s1
     2890:	00040593          	mv	a1,s0
     2894:	00004537          	lui	a0,0x4
-    2898:	fec50513          	addi	a0,a0,-20 # 3fec <_data+0x22c>
+    2898:	12050513          	addi	a0,a0,288 # 4120 <_data+0x22c>
     289c:	9d8ff0ef          	jal	1a74 <expect_color>
         for (int x = 0; x < FB_W - 1; x++)
     28a0:	00140413          	addi	s0,s0,1
@@ -2255,10 +2255,10 @@ void main(void)
     28bc:	fe9ff06f          	j	28a4 <test_t7_stride_not_equal_width+0x158>
     expect_padding_intact(name);
     28c0:	00004437          	lui	s0,0x4
-    28c4:	fec40513          	addi	a0,s0,-20 # 3fec <_data+0x22c>
+    28c4:	12040513          	addi	a0,s0,288 # 4120 <_data+0x22c>
     28c8:	b28ff0ef          	jal	1bf0 <expect_padding_intact>
     t_end(name);
-    28cc:	fec40513          	addi	a0,s0,-20
+    28cc:	12040513          	addi	a0,s0,288
     28d0:	f69fe0ef          	jal	1838 <t_end>
 }
     28d4:	05c12083          	lw	ra,92(sp)
@@ -2269,17 +2269,17 @@ void main(void)
 
 000028e8 <fail_num>:
     if (t_printed < MAX_DIAG_PER_TEST)
-    28e8:	8201a703          	lw	a4,-2016(gp) # 4350 <t_printed>
+    28e8:	8241a703          	lw	a4,-2012(gp) # 449c <t_printed>
     28ec:	00700793          	li	a5,7
     28f0:	02e7d063          	bge	a5,a4,2910 <fail_num+0x28>
         t_extra++;
-    28f4:	81c1a783          	lw	a5,-2020(gp) # 434c <t_extra>
+    28f4:	8201a783          	lw	a5,-2016(gp) # 4498 <t_extra>
     28f8:	00178793          	addi	a5,a5,1
-    28fc:	80f1ae23          	sw	a5,-2020(gp) # 434c <t_extra>
+    28fc:	82f1a023          	sw	a5,-2016(gp) # 4498 <t_extra>
     t_fail++;
-    2900:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    2900:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     2904:	00178793          	addi	a5,a5,1
-    2908:	82f1a223          	sw	a5,-2012(gp) # 4354 <t_fail>
+    2908:	82f1a423          	sw	a5,-2008(gp) # 44a0 <t_fail>
     290c:	00008067          	ret
 {
     2910:	ff010113          	addi	sp,sp,-16
@@ -2290,16 +2290,16 @@ void main(void)
     2920:	00058613          	mv	a2,a1
     2924:	00050593          	mv	a1,a0
     2928:	00004537          	lui	a0,0x4
-    292c:	00850513          	addi	a0,a0,8 # 4008 <_data+0x248>
+    292c:	13c50513          	addi	a0,a0,316 # 413c <_data+0x248>
     2930:	dd9fe0ef          	jal	1708 <bsp_printf>
         t_printed++;
-    2934:	8201a783          	lw	a5,-2016(gp) # 4350 <t_printed>
+    2934:	8241a783          	lw	a5,-2012(gp) # 449c <t_printed>
     2938:	00178793          	addi	a5,a5,1
-    293c:	82f1a023          	sw	a5,-2016(gp) # 4350 <t_printed>
+    293c:	82f1a223          	sw	a5,-2012(gp) # 449c <t_printed>
     t_fail++;
-    2940:	8241a783          	lw	a5,-2012(gp) # 4354 <t_fail>
+    2940:	8281a783          	lw	a5,-2008(gp) # 44a0 <t_fail>
     2944:	00178793          	addi	a5,a5,1
-    2948:	82f1a223          	sw	a5,-2012(gp) # 4354 <t_fail>
+    2948:	82f1a423          	sw	a5,-2008(gp) # 44a0 <t_fail>
 }
     294c:	00c12083          	lw	ra,12(sp)
     2950:	01010113          	addi	sp,sp,16
@@ -2350,11 +2350,11 @@ void main(void)
     29d4:	30051c63          	bnez	a0,2cec <test_t10_clip_rect_geometry+0x374>
         fail_text(name, "visible", "not visible");
     29d8:	00004637          	lui	a2,0x4
-    29dc:	03460613          	addi	a2,a2,52 # 4034 <_data+0x274>
+    29dc:	16860613          	addi	a2,a2,360 # 4168 <_data+0x274>
     29e0:	000045b7          	lui	a1,0x4
-    29e4:	03858593          	addi	a1,a1,56 # 4038 <_data+0x278>
+    29e4:	16c58593          	addi	a1,a1,364 # 416c <_data+0x278>
     29e8:	00004537          	lui	a0,0x4
-    29ec:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    29ec:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     29f0:	eddfe0ef          	jal	18cc <fail_text>
     visible = render_clip_rect(FB_W, FB_H, make_rect(FB_W - 3, FB_H - 2, 50, 50), &out);
     29f4:	03200713          	li	a4,50
@@ -2380,11 +2380,11 @@ void main(void)
     2a40:	30051a63          	bnez	a0,2d54 <test_t10_clip_rect_geometry+0x3dc>
         fail_text(name, "visible", "not visible");
     2a44:	00004637          	lui	a2,0x4
-    2a48:	03460613          	addi	a2,a2,52 # 4034 <_data+0x274>
+    2a48:	16860613          	addi	a2,a2,360 # 4168 <_data+0x274>
     2a4c:	000045b7          	lui	a1,0x4
-    2a50:	03858593          	addi	a1,a1,56 # 4038 <_data+0x278>
+    2a50:	16c58593          	addi	a1,a1,364 # 416c <_data+0x278>
     2a54:	00004537          	lui	a0,0x4
-    2a58:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2a58:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2a5c:	e71fe0ef          	jal	18cc <fail_text>
     visible = render_clip_rect(FB_W, FB_H, make_rect(0, 0, FB_W, FB_H), &out);
     2a60:	00c00713          	li	a4,12
@@ -2410,11 +2410,11 @@ void main(void)
     2aac:	30051863          	bnez	a0,2dbc <test_t10_clip_rect_geometry+0x444>
         fail_text(name, "visible", "not visible");
     2ab0:	00004637          	lui	a2,0x4
-    2ab4:	03460613          	addi	a2,a2,52 # 4034 <_data+0x274>
+    2ab4:	16860613          	addi	a2,a2,360 # 4168 <_data+0x274>
     2ab8:	000045b7          	lui	a1,0x4
-    2abc:	03858593          	addi	a1,a1,56 # 4038 <_data+0x278>
+    2abc:	16c58593          	addi	a1,a1,364 # 416c <_data+0x278>
     2ac0:	00004537          	lui	a0,0x4
-    2ac4:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2ac4:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2ac8:	e05fe0ef          	jal	18cc <fail_text>
     if (render_clip_rect(FB_W, FB_H, make_rect(-100, -100, 10, 10), &out))
     2acc:	00a00713          	li	a4,10
@@ -2502,7 +2502,7 @@ void main(void)
     2c08:	26051e63          	bnez	a0,2e84 <test_t10_clip_rect_geometry+0x50c>
     if (render_clip_rect(FB_W, FB_H, make_rect(INT_MIN, INT_MIN, INT_MAX, INT_MAX), &out))
     2c0c:	80000737          	lui	a4,0x80000
-    2c10:	fff70713          	addi	a4,a4,-1 # 7fffffff <__freertos_irq_stack_top+0x7fffa6ff>
+    2c10:	fff70713          	addi	a4,a4,-1 # 7fffffff <__freertos_irq_stack_top+0x7fffa58f>
     2c14:	00070693          	mv	a3,a4
     2c18:	80000637          	lui	a2,0x80000
     2c1c:	800005b7          	lui	a1,0x80000
@@ -2524,7 +2524,7 @@ void main(void)
     2c5c:	24051463          	bnez	a0,2ea4 <test_t10_clip_rect_geometry+0x52c>
     visible = render_clip_rect(FB_W, FB_H,
     2c60:	80000737          	lui	a4,0x80000
-    2c64:	fff70713          	addi	a4,a4,-1 # 7fffffff <__freertos_irq_stack_top+0x7fffa6ff>
+    2c64:	fff70713          	addi	a4,a4,-1 # 7fffffff <__freertos_irq_stack_top+0x7fffa58f>
     2c68:	00070693          	mv	a3,a4
     2c6c:	c0000637          	lui	a2,0xc0000
     2c70:	c00005b7          	lui	a1,0xc0000
@@ -2547,15 +2547,15 @@ void main(void)
     2cb0:	20051a63          	bnez	a0,2ec4 <test_t10_clip_rect_geometry+0x54c>
         fail_text(name, "visible", "not visible");
     2cb4:	00004637          	lui	a2,0x4
-    2cb8:	03460613          	addi	a2,a2,52 # 4034 <_data+0x274>
+    2cb8:	16860613          	addi	a2,a2,360 # 4168 <_data+0x274>
     2cbc:	000045b7          	lui	a1,0x4
-    2cc0:	03858593          	addi	a1,a1,56 # 4038 <_data+0x278>
+    2cc0:	16c58593          	addi	a1,a1,364 # 416c <_data+0x278>
     2cc4:	00004537          	lui	a0,0x4
-    2cc8:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2cc8:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2ccc:	c01fe0ef          	jal	18cc <fail_text>
     t_end(name);
     2cd0:	00004537          	lui	a0,0x4
-    2cd4:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2cd4:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2cd8:	b61fe0ef          	jal	1838 <t_end>
 }
     2cdc:	0bc12083          	lw	ra,188(sp)
@@ -2566,165 +2566,165 @@ void main(void)
     2cec:	01012683          	lw	a3,16(sp)
     2cf0:	00000613          	li	a2,0
     2cf4:	000045b7          	lui	a1,0x4
-    2cf8:	05858593          	addi	a1,a1,88 # 4058 <_data+0x298>
+    2cf8:	18c58593          	addi	a1,a1,396 # 418c <_data+0x298>
     2cfc:	00004437          	lui	s0,0x4
-    2d00:	04040513          	addi	a0,s0,64 # 4040 <_data+0x280>
+    2d00:	17440513          	addi	a0,s0,372 # 4174 <_data+0x280>
     2d04:	c55ff0ef          	jal	2958 <expect_int>
         expect_int(name, "y", 0, out.y);
     2d08:	01412683          	lw	a3,20(sp)
     2d0c:	00000613          	li	a2,0
     2d10:	000045b7          	lui	a1,0x4
-    2d14:	05c58593          	addi	a1,a1,92 # 405c <_data+0x29c>
-    2d18:	04040513          	addi	a0,s0,64
+    2d14:	19058593          	addi	a1,a1,400 # 4190 <_data+0x29c>
+    2d18:	17440513          	addi	a0,s0,372
     2d1c:	c3dff0ef          	jal	2958 <expect_int>
         expect_int(name, "w", 3, out.w);
     2d20:	01812683          	lw	a3,24(sp)
     2d24:	00300613          	li	a2,3
     2d28:	000045b7          	lui	a1,0x4
-    2d2c:	06058593          	addi	a1,a1,96 # 4060 <_data+0x2a0>
-    2d30:	04040513          	addi	a0,s0,64
+    2d2c:	19458593          	addi	a1,a1,404 # 4194 <_data+0x2a0>
+    2d30:	17440513          	addi	a0,s0,372
     2d34:	c25ff0ef          	jal	2958 <expect_int>
         expect_int(name, "h", 3, out.h);
     2d38:	01c12683          	lw	a3,28(sp)
     2d3c:	00300613          	li	a2,3
     2d40:	000045b7          	lui	a1,0x4
-    2d44:	00458593          	addi	a1,a1,4 # 4004 <_data+0x244>
-    2d48:	04040513          	addi	a0,s0,64
+    2d44:	13858593          	addi	a1,a1,312 # 4138 <_data+0x244>
+    2d48:	17440513          	addi	a0,s0,372
     2d4c:	c0dff0ef          	jal	2958 <expect_int>
     2d50:	ca5ff06f          	j	29f4 <test_t10_clip_rect_geometry+0x7c>
         expect_int(name, "x", FB_W - 3, out.x);
     2d54:	01012683          	lw	a3,16(sp)
     2d58:	00d00613          	li	a2,13
     2d5c:	000045b7          	lui	a1,0x4
-    2d60:	05858593          	addi	a1,a1,88 # 4058 <_data+0x298>
+    2d60:	18c58593          	addi	a1,a1,396 # 418c <_data+0x298>
     2d64:	00004437          	lui	s0,0x4
-    2d68:	04040513          	addi	a0,s0,64 # 4040 <_data+0x280>
+    2d68:	17440513          	addi	a0,s0,372 # 4174 <_data+0x280>
     2d6c:	bedff0ef          	jal	2958 <expect_int>
         expect_int(name, "y", FB_H - 2, out.y);
     2d70:	01412683          	lw	a3,20(sp)
     2d74:	00a00613          	li	a2,10
     2d78:	000045b7          	lui	a1,0x4
-    2d7c:	05c58593          	addi	a1,a1,92 # 405c <_data+0x29c>
-    2d80:	04040513          	addi	a0,s0,64
+    2d7c:	19058593          	addi	a1,a1,400 # 4190 <_data+0x29c>
+    2d80:	17440513          	addi	a0,s0,372
     2d84:	bd5ff0ef          	jal	2958 <expect_int>
         expect_int(name, "w", 3, out.w);
     2d88:	01812683          	lw	a3,24(sp)
     2d8c:	00300613          	li	a2,3
     2d90:	000045b7          	lui	a1,0x4
-    2d94:	06058593          	addi	a1,a1,96 # 4060 <_data+0x2a0>
-    2d98:	04040513          	addi	a0,s0,64
+    2d94:	19458593          	addi	a1,a1,404 # 4194 <_data+0x2a0>
+    2d98:	17440513          	addi	a0,s0,372
     2d9c:	bbdff0ef          	jal	2958 <expect_int>
         expect_int(name, "h", 2, out.h);
     2da0:	01c12683          	lw	a3,28(sp)
     2da4:	00200613          	li	a2,2
     2da8:	000045b7          	lui	a1,0x4
-    2dac:	00458593          	addi	a1,a1,4 # 4004 <_data+0x244>
-    2db0:	04040513          	addi	a0,s0,64
+    2dac:	13858593          	addi	a1,a1,312 # 4138 <_data+0x244>
+    2db0:	17440513          	addi	a0,s0,372
     2db4:	ba5ff0ef          	jal	2958 <expect_int>
     2db8:	ca9ff06f          	j	2a60 <test_t10_clip_rect_geometry+0xe8>
         expect_int(name, "x", 0, out.x);
     2dbc:	01012683          	lw	a3,16(sp)
     2dc0:	00000613          	li	a2,0
     2dc4:	000045b7          	lui	a1,0x4
-    2dc8:	05858593          	addi	a1,a1,88 # 4058 <_data+0x298>
+    2dc8:	18c58593          	addi	a1,a1,396 # 418c <_data+0x298>
     2dcc:	00004437          	lui	s0,0x4
-    2dd0:	04040513          	addi	a0,s0,64 # 4040 <_data+0x280>
+    2dd0:	17440513          	addi	a0,s0,372 # 4174 <_data+0x280>
     2dd4:	b85ff0ef          	jal	2958 <expect_int>
         expect_int(name, "y", 0, out.y);
     2dd8:	01412683          	lw	a3,20(sp)
     2ddc:	00000613          	li	a2,0
     2de0:	000045b7          	lui	a1,0x4
-    2de4:	05c58593          	addi	a1,a1,92 # 405c <_data+0x29c>
-    2de8:	04040513          	addi	a0,s0,64
+    2de4:	19058593          	addi	a1,a1,400 # 4190 <_data+0x29c>
+    2de8:	17440513          	addi	a0,s0,372
     2dec:	b6dff0ef          	jal	2958 <expect_int>
         expect_int(name, "w", FB_W, out.w);
     2df0:	01812683          	lw	a3,24(sp)
     2df4:	01000613          	li	a2,16
     2df8:	000045b7          	lui	a1,0x4
-    2dfc:	06058593          	addi	a1,a1,96 # 4060 <_data+0x2a0>
-    2e00:	04040513          	addi	a0,s0,64
+    2dfc:	19458593          	addi	a1,a1,404 # 4194 <_data+0x2a0>
+    2e00:	17440513          	addi	a0,s0,372
     2e04:	b55ff0ef          	jal	2958 <expect_int>
         expect_int(name, "h", FB_H, out.h);
     2e08:	01c12683          	lw	a3,28(sp)
     2e0c:	00c00613          	li	a2,12
     2e10:	000045b7          	lui	a1,0x4
-    2e14:	00458593          	addi	a1,a1,4 # 4004 <_data+0x244>
-    2e18:	04040513          	addi	a0,s0,64
+    2e14:	13858593          	addi	a1,a1,312 # 4138 <_data+0x244>
+    2e18:	17440513          	addi	a0,s0,372
     2e1c:	b3dff0ef          	jal	2958 <expect_int>
     2e20:	cadff06f          	j	2acc <test_t10_clip_rect_geometry+0x154>
         fail_text(name, "not visible", "visible");
     2e24:	00004637          	lui	a2,0x4
-    2e28:	03860613          	addi	a2,a2,56 # 4038 <_data+0x278>
+    2e28:	16c60613          	addi	a2,a2,364 # 416c <_data+0x278>
     2e2c:	000045b7          	lui	a1,0x4
-    2e30:	03458593          	addi	a1,a1,52 # 4034 <_data+0x274>
+    2e30:	16858593          	addi	a1,a1,360 # 4168 <_data+0x274>
     2e34:	00004537          	lui	a0,0x4
-    2e38:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2e38:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2e3c:	a91fe0ef          	jal	18cc <fail_text>
     2e40:	cddff06f          	j	2b1c <test_t10_clip_rect_geometry+0x1a4>
         fail_text(name, "not visible", "visible");
     2e44:	00004637          	lui	a2,0x4
-    2e48:	03860613          	addi	a2,a2,56 # 4038 <_data+0x278>
+    2e48:	16c60613          	addi	a2,a2,364 # 416c <_data+0x278>
     2e4c:	000045b7          	lui	a1,0x4
-    2e50:	03458593          	addi	a1,a1,52 # 4034 <_data+0x274>
+    2e50:	16858593          	addi	a1,a1,360 # 4168 <_data+0x274>
     2e54:	00004537          	lui	a0,0x4
-    2e58:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2e58:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2e5c:	a71fe0ef          	jal	18cc <fail_text>
     2e60:	d0dff06f          	j	2b6c <test_t10_clip_rect_geometry+0x1f4>
         fail_text(name, "not visible", "visible");
     2e64:	00004637          	lui	a2,0x4
-    2e68:	03860613          	addi	a2,a2,56 # 4038 <_data+0x278>
+    2e68:	16c60613          	addi	a2,a2,364 # 416c <_data+0x278>
     2e6c:	000045b7          	lui	a1,0x4
-    2e70:	03458593          	addi	a1,a1,52 # 4034 <_data+0x274>
+    2e70:	16858593          	addi	a1,a1,360 # 4168 <_data+0x274>
     2e74:	00004537          	lui	a0,0x4
-    2e78:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2e78:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2e7c:	a51fe0ef          	jal	18cc <fail_text>
     2e80:	d3dff06f          	j	2bbc <test_t10_clip_rect_geometry+0x244>
         fail_text(name, "not visible", "visible");
     2e84:	00004637          	lui	a2,0x4
-    2e88:	03860613          	addi	a2,a2,56 # 4038 <_data+0x278>
+    2e88:	16c60613          	addi	a2,a2,364 # 416c <_data+0x278>
     2e8c:	000045b7          	lui	a1,0x4
-    2e90:	03458593          	addi	a1,a1,52 # 4034 <_data+0x274>
+    2e90:	16858593          	addi	a1,a1,360 # 4168 <_data+0x274>
     2e94:	00004537          	lui	a0,0x4
-    2e98:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2e98:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2e9c:	a31fe0ef          	jal	18cc <fail_text>
     2ea0:	d6dff06f          	j	2c0c <test_t10_clip_rect_geometry+0x294>
         fail_text(name, "not visible", "visible");
     2ea4:	00004637          	lui	a2,0x4
-    2ea8:	03860613          	addi	a2,a2,56 # 4038 <_data+0x278>
+    2ea8:	16c60613          	addi	a2,a2,364 # 416c <_data+0x278>
     2eac:	000045b7          	lui	a1,0x4
-    2eb0:	03458593          	addi	a1,a1,52 # 4034 <_data+0x274>
+    2eb0:	16858593          	addi	a1,a1,360 # 4168 <_data+0x274>
     2eb4:	00004537          	lui	a0,0x4
-    2eb8:	04050513          	addi	a0,a0,64 # 4040 <_data+0x280>
+    2eb8:	17450513          	addi	a0,a0,372 # 4174 <_data+0x280>
     2ebc:	a11fe0ef          	jal	18cc <fail_text>
     2ec0:	da1ff06f          	j	2c60 <test_t10_clip_rect_geometry+0x2e8>
         expect_int(name, "x", 0, out.x);
     2ec4:	01012683          	lw	a3,16(sp)
     2ec8:	00000613          	li	a2,0
     2ecc:	000045b7          	lui	a1,0x4
-    2ed0:	05858593          	addi	a1,a1,88 # 4058 <_data+0x298>
+    2ed0:	18c58593          	addi	a1,a1,396 # 418c <_data+0x298>
     2ed4:	00004437          	lui	s0,0x4
-    2ed8:	04040513          	addi	a0,s0,64 # 4040 <_data+0x280>
+    2ed8:	17440513          	addi	a0,s0,372 # 4174 <_data+0x280>
     2edc:	a7dff0ef          	jal	2958 <expect_int>
         expect_int(name, "y", 0, out.y);
     2ee0:	01412683          	lw	a3,20(sp)
     2ee4:	00000613          	li	a2,0
     2ee8:	000045b7          	lui	a1,0x4
-    2eec:	05c58593          	addi	a1,a1,92 # 405c <_data+0x29c>
-    2ef0:	04040513          	addi	a0,s0,64
+    2eec:	19058593          	addi	a1,a1,400 # 4190 <_data+0x29c>
+    2ef0:	17440513          	addi	a0,s0,372
     2ef4:	a65ff0ef          	jal	2958 <expect_int>
         expect_int(name, "w", FB_W, out.w);
     2ef8:	01812683          	lw	a3,24(sp)
     2efc:	01000613          	li	a2,16
     2f00:	000045b7          	lui	a1,0x4
-    2f04:	06058593          	addi	a1,a1,96 # 4060 <_data+0x2a0>
-    2f08:	04040513          	addi	a0,s0,64
+    2f04:	19458593          	addi	a1,a1,404 # 4194 <_data+0x2a0>
+    2f08:	17440513          	addi	a0,s0,372
     2f0c:	a4dff0ef          	jal	2958 <expect_int>
         expect_int(name, "h", FB_H, out.h);
     2f10:	01c12683          	lw	a3,28(sp)
     2f14:	00c00613          	li	a2,12
     2f18:	000045b7          	lui	a1,0x4
-    2f1c:	00458593          	addi	a1,a1,4 # 4004 <_data+0x244>
-    2f20:	04040513          	addi	a0,s0,64
+    2f1c:	13858593          	addi	a1,a1,312 # 4138 <_data+0x244>
+    2f20:	17440513          	addi	a0,s0,372
     2f24:	a35ff0ef          	jal	2958 <expect_int>
     2f28:	da9ff06f          	j	2cd0 <test_t10_clip_rect_geometry+0x358>
 
@@ -2744,8 +2744,8 @@ render_status_t render_select(render_backend_t which)
     case RENDER_BACKEND_CPU:
         g_ops = &renderer_ops_cpu;
     2f40:	000047b7          	lui	a5,0x4
-    2f44:	2f478793          	addi	a5,a5,756 # 42f4 <renderer_ops_cpu>
-    2f48:	82f1a823          	sw	a5,-2000(gp) # 4360 <g_ops>
+    2f44:	43c78793          	addi	a5,a5,1084 # 443c <renderer_ops_cpu>
+    2f48:	82f1aa23          	sw	a5,-1996(gp) # 44ac <g_ops>
         return RENDER_OK;
     2f4c:	00008067          	ret
         /*
@@ -2755,8 +2755,8 @@ render_status_t render_select(render_backend_t which)
          */
         g_ops = &renderer_ops_fpga;
     2f50:	000047b7          	lui	a5,0x4
-    2f54:	2e878793          	addi	a5,a5,744 # 42e8 <renderer_ops_fpga>
-    2f58:	82f1a823          	sw	a5,-2000(gp) # 4360 <g_ops>
+    2f54:	43078793          	addi	a5,a5,1072 # 4430 <renderer_ops_fpga>
+    2f58:	82f1aa23          	sw	a5,-1996(gp) # 44ac <g_ops>
         return RENDER_OK;
     2f5c:	00000513          	li	a0,0
     }
@@ -2783,7 +2783,7 @@ render_status_t render_select(render_backend_t which)
 render_status_t render_select_ops(const renderer_ops_t *ops)
 {
     g_ops = ops;
-    2f80:	82a1a823          	sw	a0,-2000(gp) # 4360 <g_ops>
+    2f80:	82a1aa23          	sw	a0,-1996(gp) # 44ac <g_ops>
     return RENDER_OK;
 }
     2f84:	00000513          	li	a0,0
@@ -2795,12 +2795,12 @@ render_status_t render_select_ops(const renderer_ops_t *ops)
 const char *render_backend_name(void)
 {
     return g_ops ? g_ops->name : "(none)";
-    2f8c:	8301a783          	lw	a5,-2000(gp) # 4360 <g_ops>
+    2f8c:	8341a783          	lw	a5,-1996(gp) # 44ac <g_ops>
     2f90:	00078663          	beqz	a5,2f9c <render_backend_name+0x10>
     2f94:	0007a503          	lw	a0,0(a5)
     2f98:	00008067          	ret
     2f9c:	00004537          	lui	a0,0x4
-    2fa0:	19c50513          	addi	a0,a0,412 # 419c <_data+0x3dc>
+    2fa0:	2d050513          	addi	a0,a0,720 # 42d0 <_data+0x3dc>
 }
     2fa4:	00008067          	ret
 
@@ -3110,7 +3110,7 @@ render_surface_t render_surface_view(const render_surface_t *parent,
     render_rect_t clipped;
 
     if (g_ops == 0)
-    3260:	8301a783          	lw	a5,-2000(gp) # 4360 <g_ops>
+    3260:	8341a783          	lw	a5,-1996(gp) # 44ac <g_ops>
     3264:	0c078863          	beqz	a5,3334 <render_fill_rect+0xd4>
 {
     3268:	fa010113          	addi	sp,sp,-96
@@ -3179,7 +3179,7 @@ render_surface_t render_surface_view(const render_surface_t *parent,
     op.color = color;
     331c:	05212623          	sw	s2,76(sp)
     return g_ops->fill(&op);
-    3320:	8301a783          	lw	a5,-2000(gp) # 4360 <g_ops>
+    3320:	8341a783          	lw	a5,-1996(gp) # 44ac <g_ops>
     3324:	0047a783          	lw	a5,4(a5)
     3328:	02410513          	addi	a0,sp,36
     332c:	000780e7          	jalr	a5
@@ -3199,7 +3199,7 @@ render_surface_t render_surface_view(const render_surface_t *parent,
     render_rect_t clipped;
 
     if (g_ops == 0)
-    3344:	8301a783          	lw	a5,-2000(gp) # 4360 <g_ops>
+    3344:	8341a783          	lw	a5,-1996(gp) # 44ac <g_ops>
     3348:	0e078063          	beqz	a5,3428 <render_blit+0xe4>
 {
     334c:	f8010113          	addi	sp,sp,-128
@@ -3280,7 +3280,7 @@ render_surface_t render_surface_view(const render_surface_t *parent,
     3410:	04012e23          	sw	zero,92(sp)
 
     return g_ops->copy(&op);
-    3414:	8301a783          	lw	a5,-2000(gp) # 4360 <g_ops>
+    3414:	8341a783          	lw	a5,-1996(gp) # 44ac <g_ops>
     3418:	0087a783          	lw	a5,8(a5)
     341c:	03410513          	addi	a0,sp,52
     3420:	000780e7          	jalr	a5
@@ -3480,7 +3480,7 @@ static render_status_t fpga_gate(void)
         return RENDER_ERR_FORMAT_MISMATCH;
 
     if (!g_limits_set)
-    3570:	8341a783          	lw	a5,-1996(gp) # 4364 <g_limits_set>
+    3570:	8381a783          	lw	a5,-1992(gp) # 44b0 <g_limits_set>
     3574:	00078663          	beqz	a5,3580 <fpga_gate+0x10>
         return RENDER_ERR_NOT_READY;
 
@@ -3492,868 +3492,977 @@ static render_status_t fpga_gate(void)
 }
     3584:	00008067          	ret
 
-00003588 <render_pixel_to_hw_color>:
+00003588 <render_timeout_ms_to_ticks>:
+    return (uint64_t)timeout_ms * 100000ULL;
+    3588:	000187b7          	lui	a5,0x18
+    358c:	6a078793          	addi	a5,a5,1696 # 186a0 <__freertos_irq_stack_top+0x12c30>
+    3590:	02f535b3          	mulhu	a1,a0,a5
 }
-    3588:	00008067          	ret
+    3594:	02f50533          	mul	a0,a0,a5
+    3598:	00008067          	ret
 
-0000358c <render_fpga_build_request>:
+0000359c <render_status_from_bitblt>:
+    switch (r)
+    359c:	00450513          	addi	a0,a0,4
+    35a0:	00400793          	li	a5,4
+    35a4:	02a7ee63          	bltu	a5,a0,35e0 <render_status_from_bitblt+0x44>
+    35a8:	00251513          	slli	a0,a0,0x2
+    35ac:	000047b7          	lui	a5,0x4
+    35b0:	41c78793          	addi	a5,a5,1052 # 441c <_data+0x528>
+    35b4:	00f50533          	add	a0,a0,a5
+    35b8:	00052783          	lw	a5,0(a0)
+    35bc:	00078067          	jr	a5
+    35c0:	00000513          	li	a0,0
+    35c4:	00008067          	ret
+    case BITBLT_EBUSY:    return RENDER_ERR_BUSY;
+    35c8:	00d00513          	li	a0,13
+    35cc:	00008067          	ret
+    case BITBLT_ETIMEOUT: return RENDER_ERR_TIMEOUT;
+    35d0:	00f00513          	li	a0,15
+    35d4:	00008067          	ret
+    case BITBLT_EHW:      return RENDER_ERR_HW_ERROR;
+    35d8:	00e00513          	li	a0,14
+    35dc:	00008067          	ret
+    return RENDER_ERR_HW_ERROR;
+    35e0:	00e00513          	li	a0,14
+    35e4:	00008067          	ret
+    case BITBLT_EINVAL:   return RENDER_ERR_INVALID_ARG;
+    35e8:	00100513          	li	a0,1
+}
+    35ec:	00008067          	ret
+
+000035f0 <render_pixel_to_hw_color>:
+}
+    35f0:	00008067          	ret
+
+000035f4 <render_fpga_build_request>:
     if (op == 0 || op->dst == 0 || out == 0)
-    358c:	10050463          	beqz	a0,3694 <render_fpga_build_request+0x108>
+    35f4:	10050463          	beqz	a0,36fc <render_fpga_build_request+0x108>
 {
-    3590:	fe010113          	addi	sp,sp,-32
-    3594:	00112e23          	sw	ra,28(sp)
-    3598:	00812c23          	sw	s0,24(sp)
-    359c:	00912a23          	sw	s1,20(sp)
-    35a0:	01212823          	sw	s2,16(sp)
-    35a4:	00050413          	mv	s0,a0
-    35a8:	00058913          	mv	s2,a1
-    35ac:	00060493          	mv	s1,a2
+    35f8:	fe010113          	addi	sp,sp,-32
+    35fc:	00112e23          	sw	ra,28(sp)
+    3600:	00812c23          	sw	s0,24(sp)
+    3604:	00912a23          	sw	s1,20(sp)
+    3608:	01212823          	sw	s2,16(sp)
+    360c:	00050413          	mv	s0,a0
+    3610:	00058913          	mv	s2,a1
+    3614:	00060493          	mv	s1,a2
     if (op == 0 || op->dst == 0 || out == 0)
-    35b0:	00052783          	lw	a5,0(a0)
-    35b4:	0e078463          	beqz	a5,369c <render_fpga_build_request+0x110>
-    35b8:	0e060663          	beqz	a2,36a4 <render_fpga_build_request+0x118>
+    3618:	00052783          	lw	a5,0(a0)
+    361c:	0e078463          	beqz	a5,3704 <render_fpga_build_request+0x110>
+    3620:	0e060663          	beqz	a2,370c <render_fpga_build_request+0x118>
     if (is_copy && op->src == 0)
-    35bc:	00058663          	beqz	a1,35c8 <render_fpga_build_request+0x3c>
-    35c0:	00452703          	lw	a4,4(a0)
-    35c4:	0e070463          	beqz	a4,36ac <render_fpga_build_request+0x120>
-    35c8:	01312623          	sw	s3,12(sp)
+    3624:	00058663          	beqz	a1,3630 <render_fpga_build_request+0x3c>
+    3628:	00452703          	lw	a4,4(a0)
+    362c:	0e070463          	beqz	a4,3714 <render_fpga_build_request+0x120>
+    3630:	01312623          	sw	s3,12(sp)
     dst_pitch = (uint32_t)op->dst->stride_px * RENDER_PIXEL_BYTES;
-    35cc:	00c7a983          	lw	s3,12(a5)
-    35d0:	00299993          	slli	s3,s3,0x2
+    3634:	00c7a983          	lw	s3,12(a5)
+    3638:	00299993          	slli	s3,s3,0x2
     memset(out, 0, sizeof(*out));
-    35d4:	02000613          	li	a2,32
-    35d8:	00000593          	li	a1,0
-    35dc:	00048513          	mv	a0,s1
-    35e0:	b25fd0ef          	jal	1104 <memset>
+    363c:	02000613          	li	a2,32
+    3640:	00000593          	li	a1,0
+    3644:	00048513          	mv	a0,s1
+    3648:	abdfd0ef          	jal	1104 <memset>
     out->dst_stride_bytes = dst_pitch;
-    35e4:	0134a223          	sw	s3,4(s1)
+    364c:	0134a223          	sw	s3,4(s1)
     out->dst_addr_bytes = (uint32_t)(surface_base(op->dst)
-    35e8:	00042503          	lw	a0,0(s0)
-    35ec:	f71ff0ef          	jal	355c <surface_base>
+    3650:	00042503          	lw	a0,0(s0)
+    3654:	f09ff0ef          	jal	355c <surface_base>
                                      + (uintptr_t)op->dst_rect.x * RENDER_PIXEL_BYTES);
-    35f0:	00842783          	lw	a5,8(s0)
-    35f4:	00279793          	slli	a5,a5,0x2
+    3658:	00842783          	lw	a5,8(s0)
+    365c:	00279793          	slli	a5,a5,0x2
                                      + (uintptr_t)op->dst_rect.y * (uintptr_t)dst_pitch
-    35f8:	00c42703          	lw	a4,12(s0)
-    35fc:	03370733          	mul	a4,a4,s3
+    3660:	00c42703          	lw	a4,12(s0)
+    3664:	03370733          	mul	a4,a4,s3
                                      + (uintptr_t)op->dst_rect.x * RENDER_PIXEL_BYTES);
-    3600:	00e787b3          	add	a5,a5,a4
-    3604:	00a787b3          	add	a5,a5,a0
+    3668:	00e787b3          	add	a5,a5,a4
+    366c:	00a787b3          	add	a5,a5,a0
     out->dst_addr_bytes = (uint32_t)(surface_base(op->dst)
-    3608:	00f4a023          	sw	a5,0(s1)
+    3670:	00f4a023          	sw	a5,0(s1)
     out->width = (uint32_t)op->dst_rect.w;
-    360c:	01042783          	lw	a5,16(s0)
-    3610:	00f4a823          	sw	a5,16(s1)
+    3674:	01042783          	lw	a5,16(s0)
+    3678:	00f4a823          	sw	a5,16(s1)
     out->height = (uint32_t)op->dst_rect.h;
-    3614:	01442783          	lw	a5,20(s0)
-    3618:	00f4aa23          	sw	a5,20(s1)
+    367c:	01442783          	lw	a5,20(s0)
+    3680:	00f4aa23          	sw	a5,20(s1)
     out->color = render_pixel_to_hw_color(op->color);
-    361c:	02842503          	lw	a0,40(s0)
-    3620:	f69ff0ef          	jal	3588 <render_pixel_to_hw_color>
-    3624:	00a4ac23          	sw	a0,24(s1)
+    3684:	02842503          	lw	a0,40(s0)
+    3688:	f69ff0ef          	jal	35f0 <render_pixel_to_hw_color>
+    368c:	00a4ac23          	sw	a0,24(s1)
     out->operation = is_copy ? GPU_OP_COPY : GPU_OP_FILL;
-    3628:	06090263          	beqz	s2,368c <render_fpga_build_request+0x100>
-    362c:	00100793          	li	a5,1
-    3630:	00f4ae23          	sw	a5,28(s1)
+    3690:	06090263          	beqz	s2,36f4 <render_fpga_build_request+0x100>
+    3694:	00100793          	li	a5,1
+    3698:	00f4ae23          	sw	a5,28(s1)
     if (is_copy)
-    3634:	08090063          	beqz	s2,36b4 <render_fpga_build_request+0x128>
+    369c:	08090063          	beqz	s2,371c <render_fpga_build_request+0x128>
         uint32_t src_pitch = (uint32_t)op->src->stride_px * RENDER_PIXEL_BYTES;
-    3638:	00442783          	lw	a5,4(s0)
-    363c:	00c7a903          	lw	s2,12(a5)
-    3640:	00291913          	slli	s2,s2,0x2
+    36a0:	00442783          	lw	a5,4(s0)
+    36a4:	00c7a903          	lw	s2,12(a5)
+    36a8:	00291913          	slli	s2,s2,0x2
         out->src_stride_bytes = src_pitch;
-    3644:	0124a623          	sw	s2,12(s1)
+    36ac:	0124a623          	sw	s2,12(s1)
         out->src_addr_bytes = (uint32_t)(surface_base(op->src)
-    3648:	00442503          	lw	a0,4(s0)
-    364c:	f11ff0ef          	jal	355c <surface_base>
+    36b0:	00442503          	lw	a0,4(s0)
+    36b4:	ea9ff0ef          	jal	355c <surface_base>
                                          + (uintptr_t)op->src_rect.x * RENDER_PIXEL_BYTES);
-    3650:	01842783          	lw	a5,24(s0)
-    3654:	00279793          	slli	a5,a5,0x2
+    36b8:	01842783          	lw	a5,24(s0)
+    36bc:	00279793          	slli	a5,a5,0x2
                                          + (uintptr_t)op->src_rect.y * (uintptr_t)src_pitch
-    3658:	01c42703          	lw	a4,28(s0)
-    365c:	03270733          	mul	a4,a4,s2
+    36c0:	01c42703          	lw	a4,28(s0)
+    36c4:	03270733          	mul	a4,a4,s2
                                          + (uintptr_t)op->src_rect.x * RENDER_PIXEL_BYTES);
-    3660:	00e787b3          	add	a5,a5,a4
-    3664:	00a787b3          	add	a5,a5,a0
+    36c8:	00e787b3          	add	a5,a5,a4
+    36cc:	00a787b3          	add	a5,a5,a0
         out->src_addr_bytes = (uint32_t)(surface_base(op->src)
-    3668:	00f4a423          	sw	a5,8(s1)
+    36d0:	00f4a423          	sw	a5,8(s1)
     return RENDER_OK;
-    366c:	00000513          	li	a0,0
-    3670:	00c12983          	lw	s3,12(sp)
+    36d4:	00000513          	li	a0,0
+    36d8:	00c12983          	lw	s3,12(sp)
 }
-    3674:	01c12083          	lw	ra,28(sp)
-    3678:	01812403          	lw	s0,24(sp)
-    367c:	01412483          	lw	s1,20(sp)
-    3680:	01012903          	lw	s2,16(sp)
-    3684:	02010113          	addi	sp,sp,32
-    3688:	00008067          	ret
+    36dc:	01c12083          	lw	ra,28(sp)
+    36e0:	01812403          	lw	s0,24(sp)
+    36e4:	01412483          	lw	s1,20(sp)
+    36e8:	01012903          	lw	s2,16(sp)
+    36ec:	02010113          	addi	sp,sp,32
+    36f0:	00008067          	ret
     out->operation = is_copy ? GPU_OP_COPY : GPU_OP_FILL;
-    368c:	00000793          	li	a5,0
-    3690:	fa1ff06f          	j	3630 <render_fpga_build_request+0xa4>
+    36f4:	00000793          	li	a5,0
+    36f8:	fa1ff06f          	j	3698 <render_fpga_build_request+0xa4>
         return RENDER_ERR_INVALID_ARG;
-    3694:	00100513          	li	a0,1
+    36fc:	00100513          	li	a0,1
 }
-    3698:	00008067          	ret
+    3700:	00008067          	ret
         return RENDER_ERR_INVALID_ARG;
-    369c:	00100513          	li	a0,1
-    36a0:	fd5ff06f          	j	3674 <render_fpga_build_request+0xe8>
-    36a4:	00100513          	li	a0,1
-    36a8:	fcdff06f          	j	3674 <render_fpga_build_request+0xe8>
+    3704:	00100513          	li	a0,1
+    3708:	fd5ff06f          	j	36dc <render_fpga_build_request+0xe8>
+    370c:	00100513          	li	a0,1
+    3710:	fcdff06f          	j	36dc <render_fpga_build_request+0xe8>
         return RENDER_ERR_INVALID_ARG;
-    36ac:	00100513          	li	a0,1
-    36b0:	fc5ff06f          	j	3674 <render_fpga_build_request+0xe8>
+    3714:	00100513          	li	a0,1
+    3718:	fc5ff06f          	j	36dc <render_fpga_build_request+0xe8>
     return RENDER_OK;
-    36b4:	00000513          	li	a0,0
-    36b8:	00c12983          	lw	s3,12(sp)
-    36bc:	fb9ff06f          	j	3674 <render_fpga_build_request+0xe8>
+    371c:	00000513          	li	a0,0
+    3720:	00c12983          	lw	s3,12(sp)
+    3724:	fb9ff06f          	j	36dc <render_fpga_build_request+0xe8>
 
-000036c0 <fpga_copy>:
-    return gpu_fill(&req, GPU_TIMEOUT_MS_DEFAULT);
+00003728 <fpga_copy>:
+                    render_timeout_ms_to_ticks(RENDER_FPGA_TIMEOUT_MS)));
 }
 
 
 static render_status_t fpga_copy(const render_op_t *op)
 {
-    36c0:	fd010113          	addi	sp,sp,-48
-    36c4:	02112623          	sw	ra,44(sp)
-    36c8:	02812423          	sw	s0,40(sp)
-    36cc:	00050413          	mv	s0,a0
+    3728:	fd010113          	addi	sp,sp,-48
+    372c:	02112623          	sw	ra,44(sp)
+    3730:	02812423          	sw	s0,40(sp)
+    3734:	00050413          	mv	s0,a0
     gpu_params_t req;
     render_status_t st = fpga_gate();
-    36d0:	ea1ff0ef          	jal	3570 <fpga_gate>
+    3738:	e39ff0ef          	jal	3570 <fpga_gate>
 
     if (st != RENDER_OK)
-    36d4:	00050a63          	beqz	a0,36e8 <fpga_copy+0x28>
-    st = gpu_validate_copy(&g_limits, &req);
-    if (st != RENDER_OK)
-        return st;
-
-    return gpu_copy(&req, GPU_TIMEOUT_MS_DEFAULT);
+    373c:	00050a63          	beqz	a0,3750 <fpga_copy+0x28>
+                    req.width,
+                    req.height,
+                    req.src_stride_bytes,
+                    req.dst_stride_bytes,
+                    render_timeout_ms_to_ticks(RENDER_FPGA_TIMEOUT_MS)));
 }
-    36d8:	02c12083          	lw	ra,44(sp)
-    36dc:	02812403          	lw	s0,40(sp)
-    36e0:	03010113          	addi	sp,sp,48
-    36e4:	00008067          	ret
+    3740:	02c12083          	lw	ra,44(sp)
+    3744:	02812403          	lw	s0,40(sp)
+    3748:	03010113          	addi	sp,sp,48
+    374c:	00008067          	ret
     st = render_fpga_build_request(op, 1, &req);
-    36e8:	00010613          	mv	a2,sp
-    36ec:	00100593          	li	a1,1
-    36f0:	00040513          	mv	a0,s0
-    36f4:	e99ff0ef          	jal	358c <render_fpga_build_request>
+    3750:	00010613          	mv	a2,sp
+    3754:	00100593          	li	a1,1
+    3758:	00040513          	mv	a0,s0
+    375c:	e99ff0ef          	jal	35f4 <render_fpga_build_request>
     if (st != RENDER_OK)
-    36f8:	fe0510e3          	bnez	a0,36d8 <fpga_copy+0x18>
+    3760:	fe0510e3          	bnez	a0,3740 <fpga_copy+0x18>
     st = gpu_validate_copy(&g_limits, &req);
-    36fc:	00010593          	mv	a1,sp
-    3700:	db818513          	addi	a0,gp,-584 # 48e8 <g_limits>
-    3704:	424000ef          	jal	3b28 <gpu_validate_copy>
+    3764:	00010593          	mv	a1,sp
+    3768:	dc018513          	addi	a0,gp,-576 # 4a38 <g_limits>
+    376c:	468000ef          	jal	3bd4 <gpu_validate_copy>
     if (st != RENDER_OK)
-    3708:	fc0518e3          	bnez	a0,36d8 <fpga_copy+0x18>
-    return gpu_copy(&req, GPU_TIMEOUT_MS_DEFAULT);
-    370c:	06400593          	li	a1,100
-    3710:	00010513          	mv	a0,sp
-    3714:	698000ef          	jal	3dac <gpu_copy>
-    3718:	fc1ff06f          	j	36d8 <fpga_copy+0x18>
+    3770:	fc0518e3          	bnez	a0,3740 <fpga_copy+0x18>
+    return render_status_from_bitblt(
+    3774:	06400513          	li	a0,100
+    3778:	e11ff0ef          	jal	3588 <render_timeout_ms_to_ticks>
+    377c:	00050813          	mv	a6,a0
+    3780:	00058893          	mv	a7,a1
+    3784:	00412783          	lw	a5,4(sp)
+    3788:	00c12703          	lw	a4,12(sp)
+    378c:	01412683          	lw	a3,20(sp)
+    3790:	01012603          	lw	a2,16(sp)
+    3794:	00012583          	lw	a1,0(sp)
+    3798:	00812503          	lw	a0,8(sp)
+    379c:	72c000ef          	jal	3ec8 <bitblt_copy>
+    37a0:	dfdff0ef          	jal	359c <render_status_from_bitblt>
+    37a4:	f9dff06f          	j	3740 <fpga_copy+0x18>
 
-0000371c <fpga_fill>:
+000037a8 <fpga_fill>:
 {
-    371c:	fd010113          	addi	sp,sp,-48
-    3720:	02112623          	sw	ra,44(sp)
-    3724:	02812423          	sw	s0,40(sp)
-    3728:	00050413          	mv	s0,a0
+    37a8:	fd010113          	addi	sp,sp,-48
+    37ac:	02112623          	sw	ra,44(sp)
+    37b0:	02812423          	sw	s0,40(sp)
+    37b4:	00050413          	mv	s0,a0
     render_status_t st = fpga_gate();
-    372c:	e45ff0ef          	jal	3570 <fpga_gate>
+    37b8:	db9ff0ef          	jal	3570 <fpga_gate>
     if (st != RENDER_OK)
-    3730:	00050a63          	beqz	a0,3744 <fpga_fill+0x28>
+    37bc:	00050a63          	beqz	a0,37d0 <fpga_fill+0x28>
 }
-    3734:	02c12083          	lw	ra,44(sp)
-    3738:	02812403          	lw	s0,40(sp)
-    373c:	03010113          	addi	sp,sp,48
-    3740:	00008067          	ret
+    37c0:	02c12083          	lw	ra,44(sp)
+    37c4:	02812403          	lw	s0,40(sp)
+    37c8:	03010113          	addi	sp,sp,48
+    37cc:	00008067          	ret
     st = render_fpga_build_request(op, 0, &req);
-    3744:	00010613          	mv	a2,sp
-    3748:	00000593          	li	a1,0
-    374c:	00040513          	mv	a0,s0
-    3750:	e3dff0ef          	jal	358c <render_fpga_build_request>
+    37d0:	00010613          	mv	a2,sp
+    37d4:	00000593          	li	a1,0
+    37d8:	00040513          	mv	a0,s0
+    37dc:	e19ff0ef          	jal	35f4 <render_fpga_build_request>
     if (st != RENDER_OK)
-    3754:	fe0510e3          	bnez	a0,3734 <fpga_fill+0x18>
+    37e0:	fe0510e3          	bnez	a0,37c0 <fpga_fill+0x18>
     st = gpu_validate_fill(&g_limits, &req);
-    3758:	00010593          	mv	a1,sp
-    375c:	db818513          	addi	a0,gp,-584 # 48e8 <g_limits>
-    3760:	358000ef          	jal	3ab8 <gpu_validate_fill>
+    37e4:	00010593          	mv	a1,sp
+    37e8:	dc018513          	addi	a0,gp,-576 # 4a38 <g_limits>
+    37ec:	378000ef          	jal	3b64 <gpu_validate_fill>
     if (st != RENDER_OK)
-    3764:	fc0518e3          	bnez	a0,3734 <fpga_fill+0x18>
-    return gpu_fill(&req, GPU_TIMEOUT_MS_DEFAULT);
-    3768:	06400593          	li	a1,100
-    376c:	00010513          	mv	a0,sp
-    3770:	628000ef          	jal	3d98 <gpu_fill>
-    3774:	fc1ff06f          	j	3734 <fpga_fill+0x18>
+    37f0:	fc0518e3          	bnez	a0,37c0 <fpga_fill+0x18>
+    return render_status_from_bitblt(
+    37f4:	06400513          	li	a0,100
+    37f8:	d91ff0ef          	jal	3588 <render_timeout_ms_to_ticks>
+    37fc:	00050793          	mv	a5,a0
+    3800:	00058813          	mv	a6,a1
+    3804:	01812703          	lw	a4,24(sp)
+    3808:	00412683          	lw	a3,4(sp)
+    380c:	01412603          	lw	a2,20(sp)
+    3810:	01012583          	lw	a1,16(sp)
+    3814:	00012503          	lw	a0,0(sp)
+    3818:	66c000ef          	jal	3e84 <bitblt_fill>
+    381c:	d81ff0ef          	jal	359c <render_status_from_bitblt>
+    3820:	fa1ff06f          	j	37c0 <fpga_fill+0x18>
 
-00003778 <cpu_copy>:
+00003824 <cpu_copy>:
     return RENDER_OK;
 }
 
 
 static render_status_t cpu_copy(const render_op_t *op)
 {
-    3778:	fc010113          	addi	sp,sp,-64
-    377c:	02112e23          	sw	ra,60(sp)
-    3780:	02812c23          	sw	s0,56(sp)
-    3784:	00050413          	mv	s0,a0
+    3824:	fc010113          	addi	sp,sp,-64
+    3828:	02112e23          	sw	ra,60(sp)
+    382c:	02812c23          	sw	s0,56(sp)
+    3830:	00050413          	mv	s0,a0
      * 一旦目标被裁剪，源也必须跟着偏移，所以这里用子视图把源里对应的
      * 那一块单独表达出来，再把它画到裁剪后的目标位置。
      *
      * 没有发生裁剪时 src_rect 就是整张源图，视图与 op->src 等价，是纯直通。
      */
     render_surface_t src_view = render_surface_view(op->src,
-    3788:	02452783          	lw	a5,36(a0)
-    378c:	02052703          	lw	a4,32(a0)
-    3790:	01c52683          	lw	a3,28(a0)
-    3794:	01852603          	lw	a2,24(a0)
-    3798:	00452583          	lw	a1,4(a0)
-    379c:	01c10513          	addi	a0,sp,28
-    37a0:	999ff0ef          	jal	3138 <render_surface_view>
+    3834:	02452783          	lw	a5,36(a0)
+    3838:	02052703          	lw	a4,32(a0)
+    383c:	01c52683          	lw	a3,28(a0)
+    3840:	01852603          	lw	a2,24(a0)
+    3844:	00452583          	lw	a1,4(a0)
+    3848:	01c10513          	addi	a0,sp,28
+    384c:	8edff0ef          	jal	3138 <render_surface_view>
                                                     op->src_rect.x,
                                                     op->src_rect.y,
                                                     op->src_rect.w,
                                                     op->src_rect.h);
 
     if (src_view.pixels == 0)
-    37a4:	01c12703          	lw	a4,28(sp)
-    37a8:	04070663          	beqz	a4,37f4 <cpu_copy+0x7c>
+    3850:	01c12703          	lw	a4,28(sp)
+    3854:	04070663          	beqz	a4,38a0 <cpu_copy+0x7c>
         return RENDER_ERR_INVALID_ARG;
 
     sw_blit(op->dst->pixels,
-    37ac:	00042783          	lw	a5,0(s0)
-    37b0:	0007a503          	lw	a0,0(a5)
+    3858:	00042783          	lw	a5,0(s0)
+    385c:	0007a503          	lw	a0,0(a5)
             op->dst->width,
-    37b4:	0047a583          	lw	a1,4(a5)
+    3860:	0047a583          	lw	a1,4(a5)
             op->dst->height,
-    37b8:	0087a603          	lw	a2,8(a5)
+    3864:	0087a603          	lw	a2,8(a5)
             op->dst->stride_px,
-    37bc:	00c7a683          	lw	a3,12(a5)
+    3868:	00c7a683          	lw	a3,12(a5)
             src_view.pixels,
             src_view.width,
             src_view.height,
             src_view.stride_px,
 
             op->dst_rect.x,
-    37c0:	00842783          	lw	a5,8(s0)
+    386c:	00842783          	lw	a5,8(s0)
             op->dst_rect.y);
-    37c4:	00c42803          	lw	a6,12(s0)
+    3870:	00c42803          	lw	a6,12(s0)
     sw_blit(op->dst->pixels,
-    37c8:	01012223          	sw	a6,4(sp)
-    37cc:	00f12023          	sw	a5,0(sp)
-    37d0:	02812883          	lw	a7,40(sp)
-    37d4:	02412803          	lw	a6,36(sp)
-    37d8:	02012783          	lw	a5,32(sp)
-    37dc:	cf9ff0ef          	jal	34d4 <sw_blit>
+    3874:	01012223          	sw	a6,4(sp)
+    3878:	00f12023          	sw	a5,0(sp)
+    387c:	02812883          	lw	a7,40(sp)
+    3880:	02412803          	lw	a6,36(sp)
+    3884:	02012783          	lw	a5,32(sp)
+    3888:	c4dff0ef          	jal	34d4 <sw_blit>
 
     return RENDER_OK;
-    37e0:	00000513          	li	a0,0
+    388c:	00000513          	li	a0,0
 }
-    37e4:	03c12083          	lw	ra,60(sp)
-    37e8:	03812403          	lw	s0,56(sp)
-    37ec:	04010113          	addi	sp,sp,64
-    37f0:	00008067          	ret
+    3890:	03c12083          	lw	ra,60(sp)
+    3894:	03812403          	lw	s0,56(sp)
+    3898:	04010113          	addi	sp,sp,64
+    389c:	00008067          	ret
         return RENDER_ERR_INVALID_ARG;
-    37f4:	00100513          	li	a0,1
-    37f8:	fedff06f          	j	37e4 <cpu_copy+0x6c>
+    38a0:	00100513          	li	a0,1
+    38a4:	fedff06f          	j	3890 <cpu_copy+0x6c>
 
-000037fc <cpu_fill>:
+000038a8 <cpu_fill>:
 {
-    37fc:	fe010113          	addi	sp,sp,-32
-    3800:	00112e23          	sw	ra,28(sp)
-    3804:	00050713          	mv	a4,a0
+    38a8:	fe010113          	addi	sp,sp,-32
+    38ac:	00112e23          	sw	ra,28(sp)
+    38b0:	00050713          	mv	a4,a0
     sw_fill_rect(op->dst->pixels,
-    3808:	00052783          	lw	a5,0(a0)
-    380c:	0007a503          	lw	a0,0(a5)
+    38b4:	00052783          	lw	a5,0(a0)
+    38b8:	0007a503          	lw	a0,0(a5)
                  op->dst->width,
-    3810:	0047a583          	lw	a1,4(a5)
+    38bc:	0047a583          	lw	a1,4(a5)
                  op->dst->height,
-    3814:	0087a603          	lw	a2,8(a5)
+    38c0:	0087a603          	lw	a2,8(a5)
                  op->dst->stride_px,
-    3818:	00c7a683          	lw	a3,12(a5)
+    38c4:	00c7a683          	lw	a3,12(a5)
                  op->color);
-    381c:	02872783          	lw	a5,40(a4)
+    38c8:	02872783          	lw	a5,40(a4)
     sw_fill_rect(op->dst->pixels,
-    3820:	00f12023          	sw	a5,0(sp)
-    3824:	01472883          	lw	a7,20(a4)
-    3828:	01072803          	lw	a6,16(a4)
-    382c:	00c72783          	lw	a5,12(a4)
-    3830:	00872703          	lw	a4,8(a4)
-    3834:	c25ff0ef          	jal	3458 <sw_fill_rect>
+    38cc:	00f12023          	sw	a5,0(sp)
+    38d0:	01472883          	lw	a7,20(a4)
+    38d4:	01072803          	lw	a6,16(a4)
+    38d8:	00c72783          	lw	a5,12(a4)
+    38dc:	00872703          	lw	a4,8(a4)
+    38e0:	b79ff0ef          	jal	3458 <sw_fill_rect>
 }
-    3838:	00000513          	li	a0,0
-    383c:	01c12083          	lw	ra,28(sp)
-    3840:	02010113          	addi	sp,sp,32
-    3844:	00008067          	ret
+    38e4:	00000513          	li	a0,0
+    38e8:	01c12083          	lw	ra,28(sp)
+    38ec:	02010113          	addi	sp,sp,32
+    38f0:	00008067          	ret
 
-00003848 <render_strstatus>:
+000038f4 <render_strstatus>:
 {
     /*
      * 用 switch 而不是查表：新增枚举项时编译器会以 -Wswitch 提醒补上，
      * 查表则会在运行期静默返回错位的字符串。
      */
     switch (status)
-    3848:	00f00793          	li	a5,15
-    384c:	0ca7e863          	bltu	a5,a0,391c <render_strstatus+0xd4>
-    3850:	00251513          	slli	a0,a0,0x2
-    3854:	000047b7          	lui	a5,0x4
-    3858:	30078793          	addi	a5,a5,768 # 4300 <renderer_ops_cpu+0xc>
-    385c:	00f50533          	add	a0,a0,a5
-    3860:	00052783          	lw	a5,0(a0)
-    3864:	00078067          	jr	a5
-    3868:	00004537          	lui	a0,0x4
-    386c:	1ac50513          	addi	a0,a0,428 # 41ac <_data+0x3ec>
-    3870:	00008067          	ret
+    38f4:	00f00793          	li	a5,15
+    38f8:	0ca7e863          	bltu	a5,a0,39c8 <render_strstatus+0xd4>
+    38fc:	00251513          	slli	a0,a0,0x2
+    3900:	000047b7          	lui	a5,0x4
+    3904:	44878793          	addi	a5,a5,1096 # 4448 <renderer_ops_cpu+0xc>
+    3908:	00f50533          	add	a0,a0,a5
+    390c:	00052783          	lw	a5,0(a0)
+    3910:	00078067          	jr	a5
+    3914:	00004537          	lui	a0,0x4
+    3918:	2e050513          	addi	a0,a0,736 # 42e0 <_data+0x3ec>
+    391c:	00008067          	ret
     {
     case RENDER_OK:                  return "OK";
     case RENDER_ERR_INVALID_ARG:     return "INVALID_ARG";
     case RENDER_ERR_NO_BACKEND:      return "NO_BACKEND";
-    3874:	00004537          	lui	a0,0x4
-    3878:	1bc50513          	addi	a0,a0,444 # 41bc <_data+0x3fc>
-    387c:	00008067          	ret
+    3920:	00004537          	lui	a0,0x4
+    3924:	2f050513          	addi	a0,a0,752 # 42f0 <_data+0x3fc>
+    3928:	00008067          	ret
     case RENDER_ERR_UNSUPPORTED:     return "UNSUPPORTED";
-    3880:	00004537          	lui	a0,0x4
-    3884:	1c850513          	addi	a0,a0,456 # 41c8 <_data+0x408>
-    3888:	00008067          	ret
+    392c:	00004537          	lui	a0,0x4
+    3930:	2fc50513          	addi	a0,a0,764 # 42fc <_data+0x408>
+    3934:	00008067          	ret
     case RENDER_ERR_FORMAT_MISMATCH: return "FORMAT_MISMATCH";
-    388c:	00004537          	lui	a0,0x4
-    3890:	1d450513          	addi	a0,a0,468 # 41d4 <_data+0x414>
-    3894:	00008067          	ret
+    3938:	00004537          	lui	a0,0x4
+    393c:	30850513          	addi	a0,a0,776 # 4308 <_data+0x414>
+    3940:	00008067          	ret
     case RENDER_ERR_BAD_OPERATION:   return "BAD_OPERATION";
-    3898:	00004537          	lui	a0,0x4
-    389c:	1e450513          	addi	a0,a0,484 # 41e4 <_data+0x424>
-    38a0:	00008067          	ret
+    3944:	00004537          	lui	a0,0x4
+    3948:	31850513          	addi	a0,a0,792 # 4318 <_data+0x424>
+    394c:	00008067          	ret
     case RENDER_ERR_BAD_WIDTH:       return "BAD_WIDTH";
-    38a4:	00004537          	lui	a0,0x4
-    38a8:	1f450513          	addi	a0,a0,500 # 41f4 <_data+0x434>
-    38ac:	00008067          	ret
+    3950:	00004537          	lui	a0,0x4
+    3954:	32850513          	addi	a0,a0,808 # 4328 <_data+0x434>
+    3958:	00008067          	ret
     case RENDER_ERR_BAD_HEIGHT:      return "BAD_HEIGHT";
-    38b0:	00004537          	lui	a0,0x4
-    38b4:	20050513          	addi	a0,a0,512 # 4200 <_data+0x440>
-    38b8:	00008067          	ret
+    395c:	00004537          	lui	a0,0x4
+    3960:	33450513          	addi	a0,a0,820 # 4334 <_data+0x440>
+    3964:	00008067          	ret
     case RENDER_ERR_BAD_ALIGN:       return "BAD_ALIGN";
-    38bc:	00004537          	lui	a0,0x4
-    38c0:	20c50513          	addi	a0,a0,524 # 420c <_data+0x44c>
-    38c4:	00008067          	ret
+    3968:	00004537          	lui	a0,0x4
+    396c:	34050513          	addi	a0,a0,832 # 4340 <_data+0x44c>
+    3970:	00008067          	ret
     case RENDER_ERR_BAD_STRIDE:      return "BAD_STRIDE";
-    38c8:	00004537          	lui	a0,0x4
-    38cc:	21850513          	addi	a0,a0,536 # 4218 <_data+0x458>
-    38d0:	00008067          	ret
+    3974:	00004537          	lui	a0,0x4
+    3978:	34c50513          	addi	a0,a0,844 # 434c <_data+0x458>
+    397c:	00008067          	ret
     case RENDER_ERR_OVERLAP:         return "OVERLAP";
-    38d4:	00004537          	lui	a0,0x4
-    38d8:	22450513          	addi	a0,a0,548 # 4224 <_data+0x464>
-    38dc:	00008067          	ret
+    3980:	00004537          	lui	a0,0x4
+    3984:	35850513          	addi	a0,a0,856 # 4358 <_data+0x464>
+    3988:	00008067          	ret
     case RENDER_ERR_RANGE:           return "RANGE";
-    38e0:	00004537          	lui	a0,0x4
-    38e4:	22c50513          	addi	a0,a0,556 # 422c <_data+0x46c>
-    38e8:	00008067          	ret
+    398c:	00004537          	lui	a0,0x4
+    3990:	36050513          	addi	a0,a0,864 # 4360 <_data+0x46c>
+    3994:	00008067          	ret
     case RENDER_ERR_NOT_READY:       return "NOT_READY";
-    38ec:	00004537          	lui	a0,0x4
-    38f0:	23450513          	addi	a0,a0,564 # 4234 <_data+0x474>
-    38f4:	00008067          	ret
+    3998:	00004537          	lui	a0,0x4
+    399c:	36850513          	addi	a0,a0,872 # 4368 <_data+0x474>
+    39a0:	00008067          	ret
     case RENDER_ERR_BUSY:            return "BUSY";
-    38f8:	00004537          	lui	a0,0x4
-    38fc:	24050513          	addi	a0,a0,576 # 4240 <_data+0x480>
-    3900:	00008067          	ret
+    39a4:	00004537          	lui	a0,0x4
+    39a8:	37450513          	addi	a0,a0,884 # 4374 <_data+0x480>
+    39ac:	00008067          	ret
     case RENDER_ERR_HW_ERROR:        return "HW_ERROR";
-    3904:	00004537          	lui	a0,0x4
-    3908:	24850513          	addi	a0,a0,584 # 4248 <_data+0x488>
-    390c:	00008067          	ret
+    39b0:	00004537          	lui	a0,0x4
+    39b4:	37c50513          	addi	a0,a0,892 # 437c <_data+0x488>
+    39b8:	00008067          	ret
     case RENDER_ERR_TIMEOUT:         return "TIMEOUT";
-    3910:	00004537          	lui	a0,0x4
-    3914:	25450513          	addi	a0,a0,596 # 4254 <_data+0x494>
-    3918:	00008067          	ret
+    39bc:	00004537          	lui	a0,0x4
+    39c0:	38850513          	addi	a0,a0,904 # 4388 <_data+0x494>
+    39c4:	00008067          	ret
     }
 
     return "UNKNOWN";
-    391c:	00004537          	lui	a0,0x4
-    3920:	25c50513          	addi	a0,a0,604 # 425c <_data+0x49c>
-    3924:	00008067          	ret
+    39c8:	00004537          	lui	a0,0x4
+    39cc:	39050513          	addi	a0,a0,912 # 4390 <_data+0x49c>
+    39d0:	00008067          	ret
     case RENDER_ERR_INVALID_ARG:     return "INVALID_ARG";
-    3928:	00004537          	lui	a0,0x4
-    392c:	1b050513          	addi	a0,a0,432 # 41b0 <_data+0x3f0>
+    39d4:	00004537          	lui	a0,0x4
+    39d8:	2e450513          	addi	a0,a0,740 # 42e4 <_data+0x3f0>
 }
-    3930:	00008067          	ret
+    39dc:	00008067          	ret
 
-00003934 <region_end>:
+000039e0 <region_end>:
  */
 static uint64_t region_end(uint32_t addr, uint32_t stride, uint32_t width, uint32_t height)
 {
     return (uint64_t)addr
          + (uint64_t)(height - 1u) * (uint64_t)stride
          + (uint64_t)width * (uint64_t)GPU_HW_PIXEL_BYTES;
-    3934:	01e65713          	srli	a4,a2,0x1e
-    3938:	00261613          	slli	a2,a2,0x2
+    39e0:	01e65713          	srli	a4,a2,0x1e
+    39e4:	00261613          	slli	a2,a2,0x2
          + (uint64_t)(height - 1u) * (uint64_t)stride
-    393c:	fff68693          	addi	a3,a3,-1
-    3940:	02b687b3          	mul	a5,a3,a1
-    3944:	02b6b6b3          	mulhu	a3,a3,a1
+    39e8:	fff68693          	addi	a3,a3,-1
+    39ec:	02b687b3          	mul	a5,a3,a1
+    39f0:	02b6b6b3          	mulhu	a3,a3,a1
          + (uint64_t)width * (uint64_t)GPU_HW_PIXEL_BYTES;
-    3948:	00f607b3          	add	a5,a2,a5
-    394c:	00c7b633          	sltu	a2,a5,a2
-    3950:	00d70733          	add	a4,a4,a3
-    3954:	00e60633          	add	a2,a2,a4
-    3958:	00a78533          	add	a0,a5,a0
-    395c:	00f535b3          	sltu	a1,a0,a5
+    39f4:	00f607b3          	add	a5,a2,a5
+    39f8:	00c7b633          	sltu	a2,a5,a2
+    39fc:	00d70733          	add	a4,a4,a3
+    3a00:	00e60633          	add	a2,a2,a4
+    3a04:	00a78533          	add	a0,a5,a0
+    3a08:	00f535b3          	sltu	a1,a0,a5
 }
-    3960:	00c585b3          	add	a1,a1,a2
-    3964:	00008067          	ret
+    3a0c:	00c585b3          	add	a1,a1,a2
+    3a10:	00008067          	ret
 
-00003968 <check_region>:
+00003a14 <check_region>:
  *
  * 这里只做区间合法性判断，不关心它是源还是目标。
  */
 static render_status_t check_region(const gpu_limits_t *lim, uint64_t lo, uint64_t hi)
 {
     uint64_t win_lo = (uint64_t)lim->ddr_base;
-    3968:	00052303          	lw	t1,0(a0)
-    396c:	00000893          	li	a7,0
+    3a14:	00052303          	lw	t1,0(a0)
+    3a18:	00000893          	li	a7,0
     uint64_t win_hi = (uint64_t)lim->ddr_base + (uint64_t)lim->ddr_size;
-    3970:	00452803          	lw	a6,4(a0)
-    3974:	006807b3          	add	a5,a6,t1
-    3978:	00078e13          	mv	t3,a5
-    397c:	0107b7b3          	sltu	a5,a5,a6
+    3a1c:	00452803          	lw	a6,4(a0)
+    3a20:	006807b3          	add	a5,a6,t1
+    3a24:	00078e13          	mv	t3,a5
+    3a28:	0107b7b3          	sltu	a5,a5,a6
 
     /* 越过 32 位地址空间顶端：地址算术已经回绕，直接判非法 */
     if (hi > 0x100000000ull)
-    3980:	00100813          	li	a6,1
-    3984:	04e86263          	bltu	a6,a4,39c8 <check_region+0x60>
-    3988:	03070e63          	beq	a4,a6,39c4 <check_region+0x5c>
+    3a2c:	00100813          	li	a6,1
+    3a30:	04e86263          	bltu	a6,a4,3a74 <check_region+0x60>
+    3a34:	03070e63          	beq	a4,a6,3a70 <check_region+0x5c>
         return RENDER_ERR_RANGE;
 
     if (lo < win_lo || hi > win_hi)
-    398c:	05166463          	bltu	a2,a7,39d4 <check_region+0x6c>
-    3990:	04c88063          	beq	a7,a2,39d0 <check_region+0x68>
-    3994:	04e7e663          	bltu	a5,a4,39e0 <check_region+0x78>
-    3998:	04f70263          	beq	a4,a5,39dc <check_region+0x74>
+    3a38:	05166463          	bltu	a2,a7,3a80 <check_region+0x6c>
+    3a3c:	04c88063          	beq	a7,a2,3a7c <check_region+0x68>
+    3a40:	04e7e663          	bltu	a5,a4,3a8c <check_region+0x78>
+    3a44:	04f70263          	beq	a4,a5,3a88 <check_region+0x74>
         return RENDER_ERR_RANGE;
 
     /* 保留区判交：lo == hi 或逆序一律视为没有保留区 */
     if (lim->reserved_lo < lim->reserved_hi)
-    399c:	00852803          	lw	a6,8(a0)
-    39a0:	00c52783          	lw	a5,12(a0)
-    39a4:	04f87863          	bgeu	a6,a5,39f4 <check_region+0x8c>
+    3a48:	00852803          	lw	a6,8(a0)
+    3a4c:	00c52783          	lw	a5,12(a0)
+    3a50:	04f87863          	bgeu	a6,a5,3aa0 <check_region+0x8c>
     {
         uint64_t r_lo = (uint64_t)lim->reserved_lo;
-    39a8:	00000513          	li	a0,0
+    3a54:	00000513          	li	a0,0
         uint64_t r_hi = (uint64_t)lim->reserved_hi;
 
         if (lo < r_hi && r_lo < hi)
-    39ac:	04061863          	bnez	a2,39fc <check_region+0x94>
-    39b0:	04f5f663          	bgeu	a1,a5,39fc <check_region+0x94>
-    39b4:	02e56c63          	bltu	a0,a4,39ec <check_region+0x84>
-    39b8:	02a70863          	beq	a4,a0,39e8 <check_region+0x80>
+    3a58:	04061863          	bnez	a2,3aa8 <check_region+0x94>
+    3a5c:	04f5f663          	bgeu	a1,a5,3aa8 <check_region+0x94>
+    3a60:	02e56c63          	bltu	a0,a4,3a98 <check_region+0x84>
+    3a64:	02a70863          	beq	a4,a0,3a94 <check_region+0x80>
             return RENDER_ERR_RANGE;
     }
 
     return RENDER_OK;
-    39bc:	00000513          	li	a0,0
-    39c0:	00008067          	ret
+    3a68:	00000513          	li	a0,0
+    3a6c:	00008067          	ret
     if (hi > 0x100000000ull)
-    39c4:	fc0684e3          	beqz	a3,398c <check_region+0x24>
+    3a70:	fc0684e3          	beqz	a3,3a38 <check_region+0x24>
         return RENDER_ERR_RANGE;
-    39c8:	00b00513          	li	a0,11
-    39cc:	00008067          	ret
+    3a74:	00b00513          	li	a0,11
+    3a78:	00008067          	ret
     if (lo < win_lo || hi > win_hi)
-    39d0:	fc65f2e3          	bgeu	a1,t1,3994 <check_region+0x2c>
+    3a7c:	fc65f2e3          	bgeu	a1,t1,3a40 <check_region+0x2c>
         return RENDER_ERR_RANGE;
-    39d4:	00b00513          	li	a0,11
-    39d8:	00008067          	ret
+    3a80:	00b00513          	li	a0,11
+    3a84:	00008067          	ret
     if (lo < win_lo || hi > win_hi)
-    39dc:	fcde70e3          	bgeu	t3,a3,399c <check_region+0x34>
+    3a88:	fcde70e3          	bgeu	t3,a3,3a48 <check_region+0x34>
         return RENDER_ERR_RANGE;
-    39e0:	00b00513          	li	a0,11
-    39e4:	00008067          	ret
+    3a8c:	00b00513          	li	a0,11
+    3a90:	00008067          	ret
         if (lo < r_hi && r_lo < hi)
-    39e8:	fcd87ae3          	bgeu	a6,a3,39bc <check_region+0x54>
+    3a94:	fcd87ae3          	bgeu	a6,a3,3a68 <check_region+0x54>
             return RENDER_ERR_RANGE;
-    39ec:	00b00513          	li	a0,11
+    3a98:	00b00513          	li	a0,11
 }
-    39f0:	00008067          	ret
+    3a9c:	00008067          	ret
     return RENDER_OK;
-    39f4:	00000513          	li	a0,0
-    39f8:	00008067          	ret
-    39fc:	00000513          	li	a0,0
-    3a00:	00008067          	ret
+    3aa0:	00000513          	li	a0,0
+    3aa4:	00008067          	ret
+    3aa8:	00000513          	li	a0,0
+    3aac:	00008067          	ret
 
-00003a04 <check_common>:
+00003ab0 <check_common>:
  */
 static render_status_t check_common(const gpu_limits_t *lim,
                                     const gpu_params_t *p,
                                     uint32_t expected_operation)
 {
     if (lim == 0 || p == 0)
-    3a04:	06050663          	beqz	a0,3a70 <check_common+0x6c>
-    3a08:	06058863          	beqz	a1,3a78 <check_common+0x74>
+    3ab0:	06050663          	beqz	a0,3b1c <check_common+0x6c>
+    3ab4:	06058863          	beqz	a1,3b24 <check_common+0x74>
         return RENDER_ERR_INVALID_ARG;
 
     if (lim->ddr_size == 0u)
-    3a0c:	00452783          	lw	a5,4(a0)
-    3a10:	06078863          	beqz	a5,3a80 <check_common+0x7c>
+    3ab8:	00452783          	lw	a5,4(a0)
+    3abc:	06078863          	beqz	a5,3b2c <check_common+0x7c>
         return RENDER_ERR_NOT_READY;
 
     if (p->operation != expected_operation)
-    3a14:	01c5a783          	lw	a5,28(a1)
-    3a18:	06c79863          	bne	a5,a2,3a88 <check_common+0x84>
+    3ac0:	01c5a783          	lw	a5,28(a1)
+    3ac4:	06c79863          	bne	a5,a2,3b34 <check_common+0x84>
         return RENDER_ERR_BAD_OPERATION;
 
     if (p->width == 0u || (p->width % GPU_WIDTH_GRANULARITY) != 0u)
-    3a1c:	0105a783          	lw	a5,16(a1)
-    3a20:	06078863          	beqz	a5,3a90 <check_common+0x8c>
-    3a24:	0037f713          	andi	a4,a5,3
-    3a28:	06071863          	bnez	a4,3a98 <check_common+0x94>
+    3ac8:	0105a783          	lw	a5,16(a1)
+    3acc:	06078863          	beqz	a5,3b3c <check_common+0x8c>
+    3ad0:	0037f713          	andi	a4,a5,3
+    3ad4:	06071863          	bnez	a4,3b44 <check_common+0x94>
         return RENDER_ERR_BAD_WIDTH;
 
     if (p->height == 0u)
-    3a2c:	0145a703          	lw	a4,20(a1)
-    3a30:	06070863          	beqz	a4,3aa0 <check_common+0x9c>
+    3ad8:	0145a703          	lw	a4,20(a1)
+    3adc:	06070863          	beqz	a4,3b4c <check_common+0x9c>
         return RENDER_ERR_BAD_HEIGHT;
 
     if ((p->dst_addr_bytes % GPU_ALIGN_BYTES) != 0u)
-    3a34:	0005a703          	lw	a4,0(a1)
-    3a38:	00f77713          	andi	a4,a4,15
-    3a3c:	06071663          	bnez	a4,3aa8 <check_common+0xa4>
+    3ae0:	0005a703          	lw	a4,0(a1)
+    3ae4:	00f77713          	andi	a4,a4,15
+    3ae8:	06071663          	bnez	a4,3b54 <check_common+0xa4>
         return RENDER_ERR_BAD_ALIGN;
 
     if ((p->dst_stride_bytes % GPU_ALIGN_BYTES) != 0u)
-    3a40:	0045a703          	lw	a4,4(a1)
-    3a44:	00f77513          	andi	a0,a4,15
-    3a48:	06051463          	bnez	a0,3ab0 <check_common+0xac>
+    3aec:	0045a703          	lw	a4,4(a1)
+    3af0:	00f77513          	andi	a0,a4,15
+    3af4:	06051463          	bnez	a0,3b5c <check_common+0xac>
         return RENDER_ERR_BAD_ALIGN;
 
     if ((uint64_t)p->dst_stride_bytes < (uint64_t)p->width * GPU_HW_PIXEL_BYTES)
-    3a4c:	00000613          	li	a2,0
-    3a50:	01e7d693          	srli	a3,a5,0x1e
-    3a54:	00279793          	slli	a5,a5,0x2
-    3a58:	00069863          	bnez	a3,3a68 <check_common+0x64>
-    3a5c:	00c68463          	beq	a3,a2,3a64 <check_common+0x60>
+    3af8:	00000613          	li	a2,0
+    3afc:	01e7d693          	srli	a3,a5,0x1e
+    3b00:	00279793          	slli	a5,a5,0x2
+    3b04:	00069863          	bnez	a3,3b14 <check_common+0x64>
+    3b08:	00c68463          	beq	a3,a2,3b10 <check_common+0x60>
         return RENDER_ERR_BAD_STRIDE;
 
     return RENDER_OK;
 }
-    3a60:	00008067          	ret
+    3b0c:	00008067          	ret
     if ((uint64_t)p->dst_stride_bytes < (uint64_t)p->width * GPU_HW_PIXEL_BYTES)
-    3a64:	fef77ee3          	bgeu	a4,a5,3a60 <check_common+0x5c>
+    3b10:	fef77ee3          	bgeu	a4,a5,3b0c <check_common+0x5c>
         return RENDER_ERR_BAD_STRIDE;
-    3a68:	00900513          	li	a0,9
-    3a6c:	00008067          	ret
+    3b14:	00900513          	li	a0,9
+    3b18:	00008067          	ret
         return RENDER_ERR_INVALID_ARG;
-    3a70:	00100513          	li	a0,1
-    3a74:	00008067          	ret
-    3a78:	00100513          	li	a0,1
-    3a7c:	00008067          	ret
+    3b1c:	00100513          	li	a0,1
+    3b20:	00008067          	ret
+    3b24:	00100513          	li	a0,1
+    3b28:	00008067          	ret
         return RENDER_ERR_NOT_READY;
-    3a80:	00c00513          	li	a0,12
-    3a84:	00008067          	ret
+    3b2c:	00c00513          	li	a0,12
+    3b30:	00008067          	ret
         return RENDER_ERR_BAD_OPERATION;
-    3a88:	00500513          	li	a0,5
-    3a8c:	00008067          	ret
+    3b34:	00500513          	li	a0,5
+    3b38:	00008067          	ret
         return RENDER_ERR_BAD_WIDTH;
-    3a90:	00600513          	li	a0,6
-    3a94:	00008067          	ret
-    3a98:	00600513          	li	a0,6
-    3a9c:	00008067          	ret
+    3b3c:	00600513          	li	a0,6
+    3b40:	00008067          	ret
+    3b44:	00600513          	li	a0,6
+    3b48:	00008067          	ret
         return RENDER_ERR_BAD_HEIGHT;
-    3aa0:	00700513          	li	a0,7
-    3aa4:	00008067          	ret
+    3b4c:	00700513          	li	a0,7
+    3b50:	00008067          	ret
         return RENDER_ERR_BAD_ALIGN;
-    3aa8:	00800513          	li	a0,8
-    3aac:	00008067          	ret
+    3b54:	00800513          	li	a0,8
+    3b58:	00008067          	ret
         return RENDER_ERR_BAD_ALIGN;
-    3ab0:	00800513          	li	a0,8
-    3ab4:	00008067          	ret
+    3b5c:	00800513          	li	a0,8
+    3b60:	00008067          	ret
 
-00003ab8 <gpu_validate_fill>:
+00003b64 <gpu_validate_fill>:
 
 
 render_status_t gpu_validate_fill(const gpu_limits_t *lim, const gpu_params_t *p)
 {
-    3ab8:	ff010113          	addi	sp,sp,-16
-    3abc:	00112623          	sw	ra,12(sp)
-    3ac0:	00812423          	sw	s0,8(sp)
-    3ac4:	00912223          	sw	s1,4(sp)
-    3ac8:	00050493          	mv	s1,a0
-    3acc:	00058413          	mv	s0,a1
+    3b64:	ff010113          	addi	sp,sp,-16
+    3b68:	00112623          	sw	ra,12(sp)
+    3b6c:	00812423          	sw	s0,8(sp)
+    3b70:	00912223          	sw	s1,4(sp)
+    3b74:	00050493          	mv	s1,a0
+    3b78:	00058413          	mv	s0,a1
     render_status_t st = check_common(lim, p, GPU_OP_FILL);
-    3ad0:	00000613          	li	a2,0
-    3ad4:	f31ff0ef          	jal	3a04 <check_common>
+    3b7c:	00000613          	li	a2,0
+    3b80:	f31ff0ef          	jal	3ab0 <check_common>
 
     if (st != RENDER_OK)
-    3ad8:	02051e63          	bnez	a0,3b14 <gpu_validate_fill+0x5c>
-    3adc:	01212023          	sw	s2,0(sp)
+    3b84:	02051e63          	bnez	a0,3bc0 <gpu_validate_fill+0x5c>
+    3b88:	01212023          	sw	s2,0(sp)
         return st;
 
     /* FILL 忽略源侧参数，只用目标区间 */
     return check_region(lim,
                         p->dst_addr_bytes,
-    3ae0:	00042903          	lw	s2,0(s0)
+    3b8c:	00042903          	lw	s2,0(s0)
     return check_region(lim,
-    3ae4:	01442683          	lw	a3,20(s0)
-    3ae8:	01042603          	lw	a2,16(s0)
-    3aec:	00442583          	lw	a1,4(s0)
-    3af0:	00090513          	mv	a0,s2
-    3af4:	e41ff0ef          	jal	3934 <region_end>
-    3af8:	00050693          	mv	a3,a0
-    3afc:	00058713          	mv	a4,a1
-    3b00:	00090593          	mv	a1,s2
-    3b04:	00000613          	li	a2,0
-    3b08:	00048513          	mv	a0,s1
-    3b0c:	e5dff0ef          	jal	3968 <check_region>
-    3b10:	00012903          	lw	s2,0(sp)
+    3b90:	01442683          	lw	a3,20(s0)
+    3b94:	01042603          	lw	a2,16(s0)
+    3b98:	00442583          	lw	a1,4(s0)
+    3b9c:	00090513          	mv	a0,s2
+    3ba0:	e41ff0ef          	jal	39e0 <region_end>
+    3ba4:	00050693          	mv	a3,a0
+    3ba8:	00058713          	mv	a4,a1
+    3bac:	00090593          	mv	a1,s2
+    3bb0:	00000613          	li	a2,0
+    3bb4:	00048513          	mv	a0,s1
+    3bb8:	e5dff0ef          	jal	3a14 <check_region>
+    3bbc:	00012903          	lw	s2,0(sp)
                         region_end(p->dst_addr_bytes, p->dst_stride_bytes,
                                    p->width, p->height));
 }
-    3b14:	00c12083          	lw	ra,12(sp)
-    3b18:	00812403          	lw	s0,8(sp)
-    3b1c:	00412483          	lw	s1,4(sp)
-    3b20:	01010113          	addi	sp,sp,16
-    3b24:	00008067          	ret
+    3bc0:	00c12083          	lw	ra,12(sp)
+    3bc4:	00812403          	lw	s0,8(sp)
+    3bc8:	00412483          	lw	s1,4(sp)
+    3bcc:	01010113          	addi	sp,sp,16
+    3bd0:	00008067          	ret
 
-00003b28 <gpu_validate_copy>:
+00003bd4 <gpu_validate_copy>:
 
 
 render_status_t gpu_validate_copy(const gpu_limits_t *lim, const gpu_params_t *p)
 {
-    3b28:	fd010113          	addi	sp,sp,-48
-    3b2c:	02112623          	sw	ra,44(sp)
-    3b30:	02812423          	sw	s0,40(sp)
-    3b34:	02912223          	sw	s1,36(sp)
-    3b38:	00050413          	mv	s0,a0
-    3b3c:	00058493          	mv	s1,a1
+    3bd4:	fd010113          	addi	sp,sp,-48
+    3bd8:	02112623          	sw	ra,44(sp)
+    3bdc:	02812423          	sw	s0,40(sp)
+    3be0:	02912223          	sw	s1,36(sp)
+    3be4:	00050413          	mv	s0,a0
+    3be8:	00058493          	mv	s1,a1
     uint64_t dst_lo, dst_hi, src_lo, src_hi;
     render_status_t st = check_common(lim, p, GPU_OP_COPY);
-    3b40:	00100613          	li	a2,1
-    3b44:	ec1ff0ef          	jal	3a04 <check_common>
+    3bec:	00100613          	li	a2,1
+    3bf0:	ec1ff0ef          	jal	3ab0 <check_common>
 
     if (st != RENDER_OK)
-    3b48:	16051063          	bnez	a0,3ca8 <gpu_validate_copy+0x180>
-    3b4c:	01912223          	sw	s9,4(sp)
+    3bf4:	16051063          	bnez	a0,3d54 <gpu_validate_copy+0x180>
+    3bf8:	01912223          	sw	s9,4(sp)
         return st;
 
     /* COPY 才有源侧的对齐与 stride 约束 */
     if ((p->src_addr_bytes % GPU_ALIGN_BYTES) != 0u)
-    3b50:	0084ac83          	lw	s9,8(s1)
-    3b54:	00fcf793          	andi	a5,s9,15
-    3b58:	14079463          	bnez	a5,3ca0 <gpu_validate_copy+0x178>
-    3b5c:	01412c23          	sw	s4,24(sp)
+    3bfc:	0084ac83          	lw	s9,8(s1)
+    3c00:	00fcf793          	andi	a5,s9,15
+    3c04:	14079463          	bnez	a5,3d4c <gpu_validate_copy+0x178>
+    3c08:	01412c23          	sw	s4,24(sp)
         return RENDER_ERR_BAD_ALIGN;
 
     if ((p->src_stride_bytes % GPU_ALIGN_BYTES) != 0u)
-    3b60:	00c4aa03          	lw	s4,12(s1)
-    3b64:	00fa7793          	andi	a5,s4,15
-    3b68:	14079a63          	bnez	a5,3cbc <gpu_validate_copy+0x194>
-    3b6c:	01312e23          	sw	s3,28(sp)
+    3c0c:	00c4aa03          	lw	s4,12(s1)
+    3c10:	00fa7793          	andi	a5,s4,15
+    3c14:	14079a63          	bnez	a5,3d68 <gpu_validate_copy+0x194>
+    3c18:	01312e23          	sw	s3,28(sp)
         return RENDER_ERR_BAD_ALIGN;
 
     if ((uint64_t)p->src_stride_bytes < (uint64_t)p->width * GPU_HW_PIXEL_BYTES)
-    3b70:	00000713          	li	a4,0
-    3b74:	0104a983          	lw	s3,16(s1)
-    3b78:	01e9d793          	srli	a5,s3,0x1e
-    3b7c:	00299613          	slli	a2,s3,0x2
-    3b80:	0e079063          	bnez	a5,3c60 <gpu_validate_copy+0x138>
-    3b84:	0ce78c63          	beq	a5,a4,3c5c <gpu_validate_copy+0x134>
-    3b88:	03212023          	sw	s2,32(sp)
-    3b8c:	01512a23          	sw	s5,20(sp)
-    3b90:	01612823          	sw	s6,16(sp)
-    3b94:	01712623          	sw	s7,12(sp)
-    3b98:	01812423          	sw	s8,8(sp)
-    3b9c:	01a12023          	sw	s10,0(sp)
+    3c1c:	00000713          	li	a4,0
+    3c20:	0104a983          	lw	s3,16(s1)
+    3c24:	01e9d793          	srli	a5,s3,0x1e
+    3c28:	00299613          	slli	a2,s3,0x2
+    3c2c:	0e079063          	bnez	a5,3d0c <gpu_validate_copy+0x138>
+    3c30:	0ce78c63          	beq	a5,a4,3d08 <gpu_validate_copy+0x134>
+    3c34:	03212023          	sw	s2,32(sp)
+    3c38:	01512a23          	sw	s5,20(sp)
+    3c3c:	01612823          	sw	s6,16(sp)
+    3c40:	01712623          	sw	s7,12(sp)
+    3c44:	01812423          	sw	s8,8(sp)
+    3c48:	01a12023          	sw	s10,0(sp)
         return RENDER_ERR_BAD_STRIDE;
 
     dst_lo = p->dst_addr_bytes;
-    3ba0:	0004aa83          	lw	s5,0(s1)
-    3ba4:	00000b93          	li	s7,0
+    3c4c:	0004aa83          	lw	s5,0(s1)
+    3c50:	00000b93          	li	s7,0
     dst_hi = region_end(p->dst_addr_bytes, p->dst_stride_bytes, p->width, p->height);
-    3ba8:	0144ad03          	lw	s10,20(s1)
-    3bac:	000d0693          	mv	a3,s10
-    3bb0:	00098613          	mv	a2,s3
-    3bb4:	0044a583          	lw	a1,4(s1)
-    3bb8:	000a8513          	mv	a0,s5
-    3bbc:	d79ff0ef          	jal	3934 <region_end>
-    3bc0:	00050913          	mv	s2,a0
-    3bc4:	00058493          	mv	s1,a1
+    3c54:	0144ad03          	lw	s10,20(s1)
+    3c58:	000d0693          	mv	a3,s10
+    3c5c:	00098613          	mv	a2,s3
+    3c60:	0044a583          	lw	a1,4(s1)
+    3c64:	000a8513          	mv	a0,s5
+    3c68:	d79ff0ef          	jal	39e0 <region_end>
+    3c6c:	00050913          	mv	s2,a0
+    3c70:	00058493          	mv	s1,a1
     src_lo = p->src_addr_bytes;
-    3bc8:	00000b13          	li	s6,0
+    3c74:	00000b13          	li	s6,0
     src_hi = region_end(p->src_addr_bytes, p->src_stride_bytes, p->width, p->height);
-    3bcc:	000d0693          	mv	a3,s10
-    3bd0:	00098613          	mv	a2,s3
-    3bd4:	000a0593          	mv	a1,s4
-    3bd8:	000c8513          	mv	a0,s9
-    3bdc:	d59ff0ef          	jal	3934 <region_end>
-    3be0:	00050a13          	mv	s4,a0
-    3be4:	00058993          	mv	s3,a1
+    3c78:	000d0693          	mv	a3,s10
+    3c7c:	00098613          	mv	a2,s3
+    3c80:	000a0593          	mv	a1,s4
+    3c84:	000c8513          	mv	a0,s9
+    3c88:	d59ff0ef          	jal	39e0 <region_end>
+    3c8c:	00050a13          	mv	s4,a0
+    3c90:	00058993          	mv	s3,a1
 
     st = check_region(lim, dst_lo, dst_hi);
-    3be8:	00090693          	mv	a3,s2
-    3bec:	00048713          	mv	a4,s1
-    3bf0:	000a8593          	mv	a1,s5
-    3bf4:	00000613          	li	a2,0
-    3bf8:	00040513          	mv	a0,s0
-    3bfc:	d6dff0ef          	jal	3968 <check_region>
+    3c94:	00090693          	mv	a3,s2
+    3c98:	00048713          	mv	a4,s1
+    3c9c:	000a8593          	mv	a1,s5
+    3ca0:	00000613          	li	a2,0
+    3ca4:	00040513          	mv	a0,s0
+    3ca8:	d6dff0ef          	jal	3a14 <check_region>
     if (st != RENDER_OK)
-    3c00:	0e051c63          	bnez	a0,3cf8 <gpu_validate_copy+0x1d0>
+    3cac:	0e051c63          	bnez	a0,3da4 <gpu_validate_copy+0x1d0>
         return st;
 
     st = check_region(lim, src_lo, src_hi);
-    3c04:	000a0693          	mv	a3,s4
-    3c08:	00098713          	mv	a4,s3
-    3c0c:	000c8593          	mv	a1,s9
-    3c10:	00000613          	li	a2,0
-    3c14:	00040513          	mv	a0,s0
-    3c18:	d51ff0ef          	jal	3968 <check_region>
+    3cb0:	000a0693          	mv	a3,s4
+    3cb4:	00098713          	mv	a4,s3
+    3cb8:	000c8593          	mv	a1,s9
+    3cbc:	00000613          	li	a2,0
+    3cc0:	00040513          	mv	a0,s0
+    3cc4:	d51ff0ef          	jal	3a14 <check_region>
     if (st != RENDER_OK)
-    3c1c:	10051263          	bnez	a0,3d20 <gpu_validate_copy+0x1f8>
+    3cc8:	10051263          	bnez	a0,3dcc <gpu_validate_copy+0x1f8>
      * 硬件不保证 memmove 语义，所以重叠必须拒绝。用包围盒而不是逐行区间，
      * 意味着可能误拒某些实际不重叠的交错布局——这是有意的取舍：
      * 误报只是让某个合法请求退回 CPU 画，漏报则是内存损坏。
      * 将来要收紧成逐行区间比较，不需要改接口。
      */
     if (src_lo < dst_hi && dst_lo < src_hi)
-    3c20:	009b6663          	bltu	s6,s1,3c2c <gpu_validate_copy+0x104>
-    3c24:	13649263          	bne	s1,s6,3d48 <gpu_validate_copy+0x220>
-    3c28:	152cf463          	bgeu	s9,s2,3d70 <gpu_validate_copy+0x248>
-    3c2c:	0b3be063          	bltu	s7,s3,3ccc <gpu_validate_copy+0x1a4>
-    3c30:	05798263          	beq	s3,s7,3c74 <gpu_validate_copy+0x14c>
-    3c34:	02012903          	lw	s2,32(sp)
-    3c38:	01c12983          	lw	s3,28(sp)
-    3c3c:	01812a03          	lw	s4,24(sp)
-    3c40:	01412a83          	lw	s5,20(sp)
-    3c44:	01012b03          	lw	s6,16(sp)
-    3c48:	00c12b83          	lw	s7,12(sp)
-    3c4c:	00812c03          	lw	s8,8(sp)
-    3c50:	00412c83          	lw	s9,4(sp)
-    3c54:	00012d03          	lw	s10,0(sp)
-    3c58:	0500006f          	j	3ca8 <gpu_validate_copy+0x180>
+    3ccc:	009b6663          	bltu	s6,s1,3cd8 <gpu_validate_copy+0x104>
+    3cd0:	13649263          	bne	s1,s6,3df4 <gpu_validate_copy+0x220>
+    3cd4:	152cf463          	bgeu	s9,s2,3e1c <gpu_validate_copy+0x248>
+    3cd8:	0b3be063          	bltu	s7,s3,3d78 <gpu_validate_copy+0x1a4>
+    3cdc:	05798263          	beq	s3,s7,3d20 <gpu_validate_copy+0x14c>
+    3ce0:	02012903          	lw	s2,32(sp)
+    3ce4:	01c12983          	lw	s3,28(sp)
+    3ce8:	01812a03          	lw	s4,24(sp)
+    3cec:	01412a83          	lw	s5,20(sp)
+    3cf0:	01012b03          	lw	s6,16(sp)
+    3cf4:	00c12b83          	lw	s7,12(sp)
+    3cf8:	00812c03          	lw	s8,8(sp)
+    3cfc:	00412c83          	lw	s9,4(sp)
+    3d00:	00012d03          	lw	s10,0(sp)
+    3d04:	0500006f          	j	3d54 <gpu_validate_copy+0x180>
     if ((uint64_t)p->src_stride_bytes < (uint64_t)p->width * GPU_HW_PIXEL_BYTES)
-    3c5c:	f2ca76e3          	bgeu	s4,a2,3b88 <gpu_validate_copy+0x60>
+    3d08:	f2ca76e3          	bgeu	s4,a2,3c34 <gpu_validate_copy+0x60>
         return RENDER_ERR_BAD_STRIDE;
-    3c60:	00900513          	li	a0,9
-    3c64:	01c12983          	lw	s3,28(sp)
-    3c68:	01812a03          	lw	s4,24(sp)
-    3c6c:	00412c83          	lw	s9,4(sp)
-    3c70:	0380006f          	j	3ca8 <gpu_validate_copy+0x180>
+    3d0c:	00900513          	li	a0,9
+    3d10:	01c12983          	lw	s3,28(sp)
+    3d14:	01812a03          	lw	s4,24(sp)
+    3d18:	00412c83          	lw	s9,4(sp)
+    3d1c:	0380006f          	j	3d54 <gpu_validate_copy+0x180>
     if (src_lo < dst_hi && dst_lo < src_hi)
-    3c74:	054aec63          	bltu	s5,s4,3ccc <gpu_validate_copy+0x1a4>
-    3c78:	02012903          	lw	s2,32(sp)
-    3c7c:	01c12983          	lw	s3,28(sp)
-    3c80:	01812a03          	lw	s4,24(sp)
-    3c84:	01412a83          	lw	s5,20(sp)
-    3c88:	01012b03          	lw	s6,16(sp)
-    3c8c:	00c12b83          	lw	s7,12(sp)
-    3c90:	00812c03          	lw	s8,8(sp)
-    3c94:	00412c83          	lw	s9,4(sp)
-    3c98:	00012d03          	lw	s10,0(sp)
-    3c9c:	00c0006f          	j	3ca8 <gpu_validate_copy+0x180>
+    3d20:	054aec63          	bltu	s5,s4,3d78 <gpu_validate_copy+0x1a4>
+    3d24:	02012903          	lw	s2,32(sp)
+    3d28:	01c12983          	lw	s3,28(sp)
+    3d2c:	01812a03          	lw	s4,24(sp)
+    3d30:	01412a83          	lw	s5,20(sp)
+    3d34:	01012b03          	lw	s6,16(sp)
+    3d38:	00c12b83          	lw	s7,12(sp)
+    3d3c:	00812c03          	lw	s8,8(sp)
+    3d40:	00412c83          	lw	s9,4(sp)
+    3d44:	00012d03          	lw	s10,0(sp)
+    3d48:	00c0006f          	j	3d54 <gpu_validate_copy+0x180>
         return RENDER_ERR_BAD_ALIGN;
-    3ca0:	00800513          	li	a0,8
-    3ca4:	00412c83          	lw	s9,4(sp)
+    3d4c:	00800513          	li	a0,8
+    3d50:	00412c83          	lw	s9,4(sp)
         return RENDER_ERR_OVERLAP;
 
     return RENDER_OK;
 }
-    3ca8:	02c12083          	lw	ra,44(sp)
-    3cac:	02812403          	lw	s0,40(sp)
-    3cb0:	02412483          	lw	s1,36(sp)
-    3cb4:	03010113          	addi	sp,sp,48
-    3cb8:	00008067          	ret
+    3d54:	02c12083          	lw	ra,44(sp)
+    3d58:	02812403          	lw	s0,40(sp)
+    3d5c:	02412483          	lw	s1,36(sp)
+    3d60:	03010113          	addi	sp,sp,48
+    3d64:	00008067          	ret
         return RENDER_ERR_BAD_ALIGN;
-    3cbc:	00800513          	li	a0,8
-    3cc0:	01812a03          	lw	s4,24(sp)
-    3cc4:	00412c83          	lw	s9,4(sp)
-    3cc8:	fe1ff06f          	j	3ca8 <gpu_validate_copy+0x180>
+    3d68:	00800513          	li	a0,8
+    3d6c:	01812a03          	lw	s4,24(sp)
+    3d70:	00412c83          	lw	s9,4(sp)
+    3d74:	fe1ff06f          	j	3d54 <gpu_validate_copy+0x180>
         return RENDER_ERR_OVERLAP;
-    3ccc:	00a00513          	li	a0,10
-    3cd0:	02012903          	lw	s2,32(sp)
-    3cd4:	01c12983          	lw	s3,28(sp)
-    3cd8:	01812a03          	lw	s4,24(sp)
-    3cdc:	01412a83          	lw	s5,20(sp)
-    3ce0:	01012b03          	lw	s6,16(sp)
-    3ce4:	00c12b83          	lw	s7,12(sp)
-    3ce8:	00812c03          	lw	s8,8(sp)
-    3cec:	00412c83          	lw	s9,4(sp)
-    3cf0:	00012d03          	lw	s10,0(sp)
-    3cf4:	fb5ff06f          	j	3ca8 <gpu_validate_copy+0x180>
-    3cf8:	02012903          	lw	s2,32(sp)
-    3cfc:	01c12983          	lw	s3,28(sp)
-    3d00:	01812a03          	lw	s4,24(sp)
-    3d04:	01412a83          	lw	s5,20(sp)
-    3d08:	01012b03          	lw	s6,16(sp)
-    3d0c:	00c12b83          	lw	s7,12(sp)
-    3d10:	00812c03          	lw	s8,8(sp)
-    3d14:	00412c83          	lw	s9,4(sp)
-    3d18:	00012d03          	lw	s10,0(sp)
-    3d1c:	f8dff06f          	j	3ca8 <gpu_validate_copy+0x180>
-    3d20:	02012903          	lw	s2,32(sp)
-    3d24:	01c12983          	lw	s3,28(sp)
-    3d28:	01812a03          	lw	s4,24(sp)
-    3d2c:	01412a83          	lw	s5,20(sp)
-    3d30:	01012b03          	lw	s6,16(sp)
-    3d34:	00c12b83          	lw	s7,12(sp)
-    3d38:	00812c03          	lw	s8,8(sp)
-    3d3c:	00412c83          	lw	s9,4(sp)
-    3d40:	00012d03          	lw	s10,0(sp)
-    3d44:	f65ff06f          	j	3ca8 <gpu_validate_copy+0x180>
-    3d48:	02012903          	lw	s2,32(sp)
-    3d4c:	01c12983          	lw	s3,28(sp)
-    3d50:	01812a03          	lw	s4,24(sp)
-    3d54:	01412a83          	lw	s5,20(sp)
-    3d58:	01012b03          	lw	s6,16(sp)
-    3d5c:	00c12b83          	lw	s7,12(sp)
-    3d60:	00812c03          	lw	s8,8(sp)
-    3d64:	00412c83          	lw	s9,4(sp)
-    3d68:	00012d03          	lw	s10,0(sp)
-    3d6c:	f3dff06f          	j	3ca8 <gpu_validate_copy+0x180>
-    3d70:	02012903          	lw	s2,32(sp)
-    3d74:	01c12983          	lw	s3,28(sp)
-    3d78:	01812a03          	lw	s4,24(sp)
-    3d7c:	01412a83          	lw	s5,20(sp)
-    3d80:	01012b03          	lw	s6,16(sp)
-    3d84:	00c12b83          	lw	s7,12(sp)
-    3d88:	00812c03          	lw	s8,8(sp)
-    3d8c:	00412c83          	lw	s9,4(sp)
-    3d90:	00012d03          	lw	s10,0(sp)
-    3d94:	f15ff06f          	j	3ca8 <gpu_validate_copy+0x180>
+    3d78:	00a00513          	li	a0,10
+    3d7c:	02012903          	lw	s2,32(sp)
+    3d80:	01c12983          	lw	s3,28(sp)
+    3d84:	01812a03          	lw	s4,24(sp)
+    3d88:	01412a83          	lw	s5,20(sp)
+    3d8c:	01012b03          	lw	s6,16(sp)
+    3d90:	00c12b83          	lw	s7,12(sp)
+    3d94:	00812c03          	lw	s8,8(sp)
+    3d98:	00412c83          	lw	s9,4(sp)
+    3d9c:	00012d03          	lw	s10,0(sp)
+    3da0:	fb5ff06f          	j	3d54 <gpu_validate_copy+0x180>
+    3da4:	02012903          	lw	s2,32(sp)
+    3da8:	01c12983          	lw	s3,28(sp)
+    3dac:	01812a03          	lw	s4,24(sp)
+    3db0:	01412a83          	lw	s5,20(sp)
+    3db4:	01012b03          	lw	s6,16(sp)
+    3db8:	00c12b83          	lw	s7,12(sp)
+    3dbc:	00812c03          	lw	s8,8(sp)
+    3dc0:	00412c83          	lw	s9,4(sp)
+    3dc4:	00012d03          	lw	s10,0(sp)
+    3dc8:	f8dff06f          	j	3d54 <gpu_validate_copy+0x180>
+    3dcc:	02012903          	lw	s2,32(sp)
+    3dd0:	01c12983          	lw	s3,28(sp)
+    3dd4:	01812a03          	lw	s4,24(sp)
+    3dd8:	01412a83          	lw	s5,20(sp)
+    3ddc:	01012b03          	lw	s6,16(sp)
+    3de0:	00c12b83          	lw	s7,12(sp)
+    3de4:	00812c03          	lw	s8,8(sp)
+    3de8:	00412c83          	lw	s9,4(sp)
+    3dec:	00012d03          	lw	s10,0(sp)
+    3df0:	f65ff06f          	j	3d54 <gpu_validate_copy+0x180>
+    3df4:	02012903          	lw	s2,32(sp)
+    3df8:	01c12983          	lw	s3,28(sp)
+    3dfc:	01812a03          	lw	s4,24(sp)
+    3e00:	01412a83          	lw	s5,20(sp)
+    3e04:	01012b03          	lw	s6,16(sp)
+    3e08:	00c12b83          	lw	s7,12(sp)
+    3e0c:	00812c03          	lw	s8,8(sp)
+    3e10:	00412c83          	lw	s9,4(sp)
+    3e14:	00012d03          	lw	s10,0(sp)
+    3e18:	f3dff06f          	j	3d54 <gpu_validate_copy+0x180>
+    3e1c:	02012903          	lw	s2,32(sp)
+    3e20:	01c12983          	lw	s3,28(sp)
+    3e24:	01812a03          	lw	s4,24(sp)
+    3e28:	01412a83          	lw	s5,20(sp)
+    3e2c:	01012b03          	lw	s6,16(sp)
+    3e30:	00c12b83          	lw	s7,12(sp)
+    3e34:	00812c03          	lw	s8,8(sp)
+    3e38:	00412c83          	lw	s9,4(sp)
+    3e3c:	00012d03          	lw	s10,0(sp)
+    3e40:	f15ff06f          	j	3d54 <gpu_validate_copy+0x180>
 
-00003d98 <gpu_fill>:
-#endif
-
-
-render_status_t gpu_fill(const gpu_params_t *p, uint32_t timeout_ms)
+00003e44 <record_call>:
+                        uint32_t width, uint32_t height,
+                        uint32_t src_stride, uint32_t dst_stride,
+                        uint32_t color, int is_copy,
+                        uint64_t timeout_ticks)
 {
-    if (p == 0)
-    3d98:	00050663          	beqz	a0,3da4 <gpu_fill+0xc>
+    g_last_call.dst_addr_bytes  = dst_addr;
+    3e44:	dd018313          	addi	t1,gp,-560 # 4a48 <g_last_call>
+    3e48:	00b32023          	sw	a1,0(t1)
+    g_last_call.dst_stride_bytes = dst_stride;
+    3e4c:	00f32223          	sw	a5,4(t1)
+    g_last_call.src_addr_bytes  = src_addr;
+    3e50:	00a32423          	sw	a0,8(t1)
+    g_last_call.src_stride_bytes = src_stride;
+    3e54:	00e32623          	sw	a4,12(t1)
+    g_last_call.width           = width;
+    3e58:	00c32823          	sw	a2,16(t1)
+    g_last_call.height          = height;
+    3e5c:	00d32a23          	sw	a3,20(t1)
+    g_last_call.color           = color;
+    3e60:	01032c23          	sw	a6,24(t1)
+    g_last_call.is_copy         = is_copy;
+    3e64:	01132e23          	sw	a7,28(t1)
+    g_last_call.timeout_ticks   = timeout_ticks;
+    3e68:	00012703          	lw	a4,0(sp)
+    3e6c:	00412783          	lw	a5,4(sp)
+    3e70:	02e32023          	sw	a4,32(t1)
+    3e74:	02f32223          	sw	a5,36(t1)
+    g_has_call = 1;
+    3e78:	00100713          	li	a4,1
+    3e7c:	82e1ae23          	sw	a4,-1988(gp) # 44b4 <g_has_call>
+}
+    3e80:	00008067          	ret
+
+00003e84 <bitblt_fill>:
+
+bitblt_result_t bitblt_fill(uint32_t dst_addr,
+                            uint32_t width, uint32_t height,
+                            uint32_t dst_stride, uint32_t color,
+                            uint64_t timeout_ticks)
+{
+    3e84:	fe010113          	addi	sp,sp,-32
+    3e88:	00112e23          	sw	ra,28(sp)
 #ifdef BITBLT_ENABLE_HW_ACCESS
-    return gpu_submit(p, timeout_ms);
+    return submit(0u, dst_addr, width, height, 0u, dst_stride,
+                  color, BITBLT_OP_FILL, 0, timeout_ticks);
 #else
-    (void)timeout_ms;
-    /* 骨架：本构建不含任何寄存器访问代码，连碰都碰不到设备 */
-    return RENDER_ERR_UNSUPPORTED;
-    3d9c:	00300513          	li	a0,3
-    3da0:	00008067          	ret
-        return RENDER_ERR_INVALID_ARG;
-    3da4:	00100513          	li	a0,1
+    record_call(0u, dst_addr, width, height, 0u, dst_stride,
+    3e8c:	00f12023          	sw	a5,0(sp)
+    3e90:	01012223          	sw	a6,4(sp)
+    3e94:	00000893          	li	a7,0
+    3e98:	00070813          	mv	a6,a4
+    3e9c:	00068793          	mv	a5,a3
+    3ea0:	00000713          	li	a4,0
+    3ea4:	00060693          	mv	a3,a2
+    3ea8:	00058613          	mv	a2,a1
+    3eac:	00050593          	mv	a1,a0
+    3eb0:	00000513          	li	a0,0
+    3eb4:	f91ff0ef          	jal	3e44 <record_call>
+                color, 0, timeout_ticks);
+    return BITBLT_EHW;
 #endif
 }
-    3da8:	00008067          	ret
+    3eb8:	ffc00513          	li	a0,-4
+    3ebc:	01c12083          	lw	ra,28(sp)
+    3ec0:	02010113          	addi	sp,sp,32
+    3ec4:	00008067          	ret
 
-00003dac <gpu_copy>:
+00003ec8 <bitblt_copy>:
 
-
-render_status_t gpu_copy(const gpu_params_t *p, uint32_t timeout_ms)
+bitblt_result_t bitblt_copy(uint32_t src_addr, uint32_t dst_addr,
+                            uint32_t width, uint32_t height,
+                            uint32_t src_stride, uint32_t dst_stride,
+                            uint64_t timeout_ticks)
 {
-    if (p == 0)
-    3dac:	00050663          	beqz	a0,3db8 <gpu_copy+0xc>
-
+    3ec8:	fe010113          	addi	sp,sp,-32
+    3ecc:	00112e23          	sw	ra,28(sp)
 #ifdef BITBLT_ENABLE_HW_ACCESS
-    return gpu_submit(p, timeout_ms);
+    return submit(src_addr, dst_addr, width, height, src_stride, dst_stride,
+                  0u, BITBLT_OP_COPY, 1, timeout_ticks);
 #else
-    (void)timeout_ms;
-    return RENDER_ERR_UNSUPPORTED;
-    3db0:	00300513          	li	a0,3
-    3db4:	00008067          	ret
-        return RENDER_ERR_INVALID_ARG;
-    3db8:	00100513          	li	a0,1
+    record_call(src_addr, dst_addr, width, height, src_stride, dst_stride,
+    3ed0:	01012023          	sw	a6,0(sp)
+    3ed4:	01112223          	sw	a7,4(sp)
+    3ed8:	00100893          	li	a7,1
+    3edc:	00000813          	li	a6,0
+    3ee0:	f65ff0ef          	jal	3e44 <record_call>
+                0u, 1, timeout_ticks);
+    return BITBLT_EHW;
 #endif
 }
-    3dbc:	00008067          	ret
+    3ee4:	ffc00513          	li	a0,-4
+    3ee8:	01c12083          	lw	ra,28(sp)
+    3eec:	02010113          	addi	sp,sp,32
+    3ef0:	00008067          	ret

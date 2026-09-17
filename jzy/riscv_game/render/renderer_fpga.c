@@ -1,6 +1,8 @@
 #include <string.h>
 
 #include "renderer_fpga.h"
+#include "bitblt_platform.h"
+#include "framebuffer_layout.h"
 
 
 static gpu_limits_t g_limits;
@@ -18,6 +20,54 @@ void render_fpga_set_limits(const gpu_limits_t *lim)
 
     g_limits = *lim;
     g_limits_set = 1;
+}
+
+
+gpu_limits_t render_limits_from_layout(void)
+{
+    gpu_limits_t lim;
+
+    /*
+     * 只取内存布局有关的四组宏，地址全部来自 B 的权威头文件
+     * framebuffer_layout.h，本工程不重复硬编码。
+     *
+     * 刻意不碰 FB_WIDTH / FB_HEIGHT / FB_STRIDE：那是显示分辨率相关参数，
+     * 通用 Renderer 不该绑定 640x480 或 1920x1080 中的任何一个。
+     */
+    lim.ddr_base    = DDR_PHYSICAL_BASE;
+    lim.ddr_size    = DDR_PHYSICAL_SIZE;
+    lim.reserved_lo = SYSTEM_RESERVED_BASE;
+    lim.reserved_hi = SYSTEM_RESERVED_BASE + SYSTEM_RESERVED_SIZE;
+
+    return lim;
+}
+
+
+uint64_t render_timeout_ms_to_ticks(uint32_t timeout_ms)
+{
+    /*
+     * CLINT 是 100 MHz，1 ms = 100000 tick。
+     *
+     * 先转 uint64_t 再乘：timeout_ms 超过约 42949 时，32 位乘法会回绕，
+     * 把长超时算成一个很短的值，等待会提前超时失败。
+     */
+    return (uint64_t)timeout_ms * 100000ULL;
+}
+
+
+render_status_t render_status_from_bitblt(bitblt_result_t r)
+{
+    switch (r)
+    {
+    case BITBLT_OK:       return RENDER_OK;
+    case BITBLT_EINVAL:   return RENDER_ERR_INVALID_ARG;
+    case BITBLT_EBUSY:    return RENDER_ERR_BUSY;
+    case BITBLT_ETIMEOUT: return RENDER_ERR_TIMEOUT;
+    case BITBLT_EHW:      return RENDER_ERR_HW_ERROR;
+    }
+
+    /* 冻结枚举之外的值按硬件错误上报，不要静默当成成功 */
+    return RENDER_ERR_HW_ERROR;
 }
 
 
@@ -89,7 +139,7 @@ render_status_t render_fpga_build_request(const render_op_t *op,
 
 
 /*
- * 格式闸门。
+ * 格式闸门与就绪检查。
  *
  * 用运行期判断而不是 #if，是为了让下面整条下发路径【始终参与编译】——
  * 否则格式定案那天，这段代码将是有生以来第一次被编译。
@@ -114,13 +164,8 @@ static render_status_t fpga_fill(const render_op_t *op)
     if (st != RENDER_OK)
     {
         /*
-         * 闸门返回 FORMAT_MISMATCH 说明 pixel_t 的宽度与已确认的 XRGB8888
-         * 不一致（当前应该是 4，见 renderer.h 的 RENDER_PIXEL_BYTES）。
-         * 这属于配置错误，不允许用强制转换或截断绕过。
-         *
-         * 闸门返回 NOT_READY 说明内存布局还没设置——
-         * 本工程不内置任何默认地址，由平台代码在 A 冻结布局后调用
-         * render_fpga_set_limits() 填写。
+         * FORMAT_MISMATCH：pixel_t 宽度与已确认的 XRGB8888 不一致（见 renderer.h）。
+         * NOT_READY：内存布局还没设置，本工程不内置任何默认地址。
          */
         return st;
     }
@@ -133,7 +178,13 @@ static render_status_t fpga_fill(const render_op_t *op)
     if (st != RENDER_OK)
         return st;
 
-    return gpu_fill(&req, GPU_TIMEOUT_MS_DEFAULT);
+    return render_status_from_bitblt(
+        bitblt_fill(req.dst_addr_bytes,
+                    req.width,
+                    req.height,
+                    req.dst_stride_bytes,
+                    req.color,
+                    render_timeout_ms_to_ticks(RENDER_FPGA_TIMEOUT_MS)));
 }
 
 
@@ -153,7 +204,14 @@ static render_status_t fpga_copy(const render_op_t *op)
     if (st != RENDER_OK)
         return st;
 
-    return gpu_copy(&req, GPU_TIMEOUT_MS_DEFAULT);
+    return render_status_from_bitblt(
+        bitblt_copy(req.src_addr_bytes,
+                    req.dst_addr_bytes,
+                    req.width,
+                    req.height,
+                    req.src_stride_bytes,
+                    req.dst_stride_bytes,
+                    render_timeout_ms_to_ticks(RENDER_FPGA_TIMEOUT_MS)));
 }
 
 

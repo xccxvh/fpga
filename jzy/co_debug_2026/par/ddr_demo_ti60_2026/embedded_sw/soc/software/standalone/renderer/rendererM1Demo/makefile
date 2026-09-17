@@ -23,8 +23,16 @@ STANDALONE =../..
 #   make BSP=EfxSapphireSoc RENDER_ROOT=/path/to/riscv_game
 RENDER_ROOT ?= $(HOME)/code/fpga/jzy/riscv_game
 
+# B 组权威头文件目录：bitblt_api.h / bitblt_regs.h / framebuffer_layout.h。
+# 渲染层直接引用它们，不复制、不软链。
+BITBLT_INC_DIR ?= $(HOME)/code/fpga/04_project/bitblt_accel/sw/driver
+
 ifeq ($(wildcard $(RENDER_ROOT)/render/renderer_sw.c),)
 $(error 找不到渲染层源码 $(RENDER_ROOT)/render/renderer_sw.c；请用 RENDER_ROOT=/path/to/riscv_game 指定)
+endif
+
+ifeq ($(wildcard $(BITBLT_INC_DIR)/bitblt_api.h),)
+$(error 找不到 B 的驱动头文件 $(BITBLT_INC_DIR)/bitblt_api.h；请用 BITBLT_INC_DIR=/path/to/driver 指定)
 endif
 
 # 注意：standalone.mk 会把所有源文件按 basename 平铺到 $(OBJDIR)/obj_files/，
@@ -37,6 +45,7 @@ SRCS = 	$(RENDER_ROOT)/tests/test_render_board.c \
 
 CFLAGS += -I$(RENDER_ROOT)/render
 CFLAGS += -I$(RENDER_ROOT)/driver
+CFLAGS += -I$(BITBLT_INC_DIR)
 
 # 注意：不要在这里定义 BITBLT_ENABLE_HW_ACCESS。
 # 本 smoke test 只验证 CPU 后端，不访问 FPGA BitBlt 寄存器。

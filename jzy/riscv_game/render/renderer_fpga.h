@@ -2,30 +2,52 @@
 #define RENDERER_FPGA_H
 
 #include <stdint.h>
+
 #include "renderer.h"
-#include "gpu.h"
+#include "bitblt_api.h"      /* B 冻结的驱动接口，权威定义在 B 的 driver 目录 */
+#include "gpu_validate.h"    /* gpu_limits_t / gpu_params_t，硬件约束校验 */
 
 /*
- * FPGA（BitBlt 加速器）后端。
+ * FPGA（BitBlt 加速器）后端 —— 统一层与冻结驱动之间的适配层。
  *
- * 统一层送进来的操作已经裁剪好、保证落在画布内，本后端的职责是：
- *   1. 检查格式闸门（16-bit 软件像素 vs 32-bit 硬件数据面）
+ * 三层职责：
+ *   render_*（上层游戏） → 本文件（翻译 + 校验 + 映射） → bitblt_*（B 的驱动）
+ *
+ * 统一层送进来的操作已经裁剪好、保证落在画布内，本后端负责：
+ *   1. 检查格式闸门与内存布局是否就绪
  *   2. 把画布坐标翻译成硬件要的字节地址与字节 stride
- *   3. 过一遍硬件约束校验
- *   4. 交给 gpu_fill() / gpu_copy()
+ *   3. 过一遍硬件约束校验（gpu_validate）
+ *   4. 转换成 CLINT tick 超时后调用 bitblt_fill() / bitblt_copy()
+ *   5. 把 bitblt_result_t 映射回统一层的 render_status_t
  *
  * 硬件不做任何边界检查，所以第 2 步的地址算术必须精确；
  * 裁剪已经在统一层完成，这里不再重复。
  */
 
 
+/* 默认超时（毫秒）。1920x1080 整帧 8,294,400 B，
+   按接口文档实测约 353 MiB/s 估算约 22 ms，留约 4.5 倍余量。 */
+#define RENDER_FPGA_TIMEOUT_MS 100u
+
+
 /*
  * 设置 DDR 可访问窗口与保留区。
  *
- * 由平台代码在 A 冻结内存布局后填写。传 0 清除。
- * 未设置时后端返回 RENDER_ERR_NOT_READY —— 本工程不内置任何默认地址。
+ * 由平台代码填写。板端通常直接用 render_limits_from_layout() 的结果；
+ * 传 0 清除。未设置时后端返回 RENDER_ERR_NOT_READY。
  */
 void render_fpga_set_limits(const gpu_limits_t *lim);
+
+
+/*
+ * 从 B 的权威布局头 framebuffer_layout.h 生成校验器需要的 limits。
+ *
+ * 只取 DDR 物理窗口与系统保留区两组宏，让库代码不必重复硬编码任何地址。
+ *
+ * 刻意【不引用】FB_WIDTH / FB_HEIGHT / FB_STRIDE：那是显示参数，
+ * 通用 Renderer 不绑定任何分辨率。
+ */
+gpu_limits_t render_limits_from_layout(void);
 
 
 /*
@@ -40,6 +62,14 @@ void render_fpga_set_limits(const gpu_limits_t *lim);
 render_status_t render_fpga_build_request(const render_op_t *op,
                                           int is_copy,
                                           gpu_params_t *out);
+
+
+/* 毫秒 -> 100 MHz CLINT tick。导出以便单测。 */
+uint64_t render_timeout_ms_to_ticks(uint32_t timeout_ms);
+
+
+/* bitblt_result_t -> render_status_t。导出以便单测。 */
+render_status_t render_status_from_bitblt(bitblt_result_t r);
 
 
 /*

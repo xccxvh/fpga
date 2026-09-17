@@ -914,10 +914,14 @@ static void test_dispatch_and_gate(void)
         assert(st == RENDER_ERR_RANGE);
 
         /* 3) 画布物理地址落在布局内：闸门与硬件约束校验全部通过，
-              最终落到骨架的 UNSUPPORTED（真实下发尚未实现）。 */
+              请求会一直走到真正的驱动 bitblt_fill()。
+
+              本机构建没有开启 BITBLT_ENABLE_HW_ACCESS，驱动返回 BITBLT_EHW，
+              适配层把它映射成 RENDER_ERR_HW_ERROR。适配层与错误码映射
+              由 tests/test_bitblt_api.c 专门覆盖。 */
         dst.phys_base = 0x10100000u;   /* 在窗口内且 16B 对齐 */
         st = render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x1111);
-        assert(st == RENDER_ERR_UNSUPPORTED);
+        assert(st == RENDER_ERR_HW_ERROR);
 
         /* 4) 硬件约束确实在生效：x = 1 使目标地址不再 16B 对齐。
               这条也是"矩形起点必须是 4 的倍数"的来源——
@@ -989,9 +993,12 @@ static void test_skeleton_inert(void)
     gpu_params_t p = params_normal();
 
     /*
-     * 骨架状态断言：所有下发路径都必须明确返回 UNSUPPORTED，且不得崩溃。
-     * 接通真实驱动后这些期望值要连同实现一起改——
-     * 这是有意的绊线，避免"骨架悄悄变成了半成品"。
+     * gpu.h / gpu.c 是 V0.1 命名的遗留，现在【已降级为兼容层】：
+     * 真正的驱动是 driver/bitblt_api.c（B 冻结的 bitblt_* 接口），
+     * 由 tests/test_bitblt_api.c 覆盖。
+     *
+     * 这里只确认兼容层仍然惰性：恒返回 UNSUPPORTED、不碰寄存器、不崩。
+     * 渲染层已经不再使用它。
      */
     assert(gpu_fill(&p, GPU_TIMEOUT_MS_DEFAULT) == RENDER_ERR_UNSUPPORTED);
     assert(gpu_copy(&p, GPU_TIMEOUT_MS_DEFAULT) == RENDER_ERR_UNSUPPORTED);
@@ -999,11 +1006,11 @@ static void test_skeleton_inert(void)
     assert(gpu_fill(0, 100u) == RENDER_ERR_INVALID_ARG);
     assert(gpu_copy(0, 100u) == RENDER_ERR_INVALID_ARG);
 
-    /* 时基未注入：驱动不猜时钟 */
+    /* 兼容层不做任何时钟猜测与版本读取 */
     assert(gpu_timebase_ready() == 0);
     assert(gpu_version() == 0u);
 
-    printf("[PASS] GPU 驱动骨架惰性（不触碰任何寄存器）\n");
+    printf("[PASS] gpu.* 兼容层惰性（不触碰任何寄存器）\n");
 }
 
 

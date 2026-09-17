@@ -6,36 +6,40 @@
 #include "gpu_validate.h"
 
 /*
- * BitBlt 加速器的 GPU 驱动接口。
+ * BitBlt 加速器的 GPU 驱动接口 —— 【已废弃，仅作兼容层保留】。
  *
- * 本文件就是 B 组接口计划里要求 C 冻结的那份 API：
- * gpu_fill()、gpu_copy()、超时和错误码。
+ * ┌──────────────────────────────────────────────────────────────────┐
+ * │ 新代码请用 driver/bitblt_api.c 实现的冻结接口：                    │
+ * │   bitblt_fill() / bitblt_copy() / bitblt_result_t                 │
+ * │   uint64_t timeout_ticks（100 MHz CLINT tick）                    │
+ * │ 权威头文件是 B 的 04_project/bitblt_accel/sw/driver/bitblt_api.h。 │
+ * └──────────────────────────────────────────────────────────────────┘
  *
- * 已确认的硬件格式事实（2026-09-17）：
+ * 本文件是 V0.1 时期"待 C 确认"那套命名的产物，V0.2/V0.3 冻结下来的接口是
+ * bitblt_*，所以这里不再对外。保留它只为不打断既有引用与测试；
+ * 所有下发路径都返回 RENDER_ERR_UNSUPPORTED，没有任何寄存器访问。
+ *
+ * 寄存器访问（含 fence 与 STATUS 轮询）现在只存在于 driver/bitblt_api.c，
+ * 由 make check-hw-isolation 机械保证。
+ *
+ * 渲染层不再使用本文件：render/renderer_fpga.c 直接调 bitblt_*。
+ *
+ * 现有接口的语义（保留不变）：
+ *   gpu_fill / gpu_copy   骨架，恒返回 RENDER_ERR_UNSUPPORTED
+ *   gpu_init              骨架，恒返回 RENDER_ERR_UNSUPPORTED
+ *   gpu_set_timebase      局部时基注入，与本文件外的代码无关
+ *
+ * 调用方约定（由真正的驱动 bitblt_api.c 承担）：
+ *   当前 CPU 只有 4 KiB 指令缓存、没有数据缓存，CPU 写过源数据后
+ *   执行 fence rw,rw 即可，不需要 data_cache_invalidate_address()。
+ *
+ * 硬件格式事实（2026-09-17 确认，仍然有效）：
  *   Pixel format        XRGB8888
  *   Pixel size          32 bit
  *   RISC-V control AXI  32 bit
  *   DDR AXI data width  128 bit
  *   Pixels per DDR beat 4
  *   Stride              width × 4 Byte
- *   Solid Fill color    1 个 32-bit XRGB8888 像素
- *   Block Copy          按 32-bit 像素搬运
- *
- * RTL 里存在显示侧格式字段（约定名 DISPLAY_FORMAT），但当前只实现了 XRGB8888，
- * 没有 RGB565 的打包/解包与显示适配，所以本驱动只按 32-bit 像素处理。
- *
- * 当前是【骨架】：所有下发路径都返回 RENDER_ERR_UNSUPPORTED，
- * 真实的寄存器读写一行都没有实现。寄存器访问只可能出现在 gpu.c 里
- * 由 BITBLT_ENABLE_HW_ACCESS 包住的分支中。
- *
- * 驱动刻意不 include 任何 BSP 头（vexriscv.h / plic.h 等），
- * 否则本工程脱离 BSP 就编不过。代价是两件事成为调用方责任，
- * 写在下面的"调用方约定"里。
- *
- * 调用方约定：
- *   1. 读加速器写过的 DDR 之前，调用方必须执行 data_cache_invalidate_address()
- *      （D-cache 非一致，这一点 B 的 demo 本来就是这么做的）。
- *   2. 枚举换帧、PLIC 中断注册属于显示与 BSP 范畴，不在本驱动内。
  */
 
 

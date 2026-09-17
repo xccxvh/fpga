@@ -95,7 +95,7 @@ M1 阶段的 CPU 参考实现，作为后续 RTL 渲染加速器（BitBlt）的�
 | 目录 | 内容 |
 |---|---|
 | `render/` | CPU 参考实现 `renderer_sw.*`（**冻结**）；统一层 `renderer.*`、`render_status.*`；后端 `renderer_cpu.c`、`renderer_fpga.*` |
-| `driver/` | GPU 驱动接口骨架 `gpu.*`（**不含真实寄存器访问**）；硬件约束校验 `gpu_validate.*` |
+| `driver/` | BitBlt 驱动 `bitblt_api.c`（实现 B 冻结的 `bitblt_fill/copy`，**全工程唯一引用寄存器定义的文件**）+ 平台钩子 `bitblt_platform.h`；硬件约束校验 `gpu_validate.*`；`gpu.*` 已降级为兼容层 |
 | `tests/` | 冻结基线 `test_renderer.c` + 统一层测试 `test_render_api.c` |
 | `input/` | 输入处理（待填） |
 | `game/` | 游戏逻辑（待填） |
@@ -107,17 +107,29 @@ M1 阶段的 CPU 参考实现，作为后续 RTL 渲染加速器（BitBlt）的�
 
 ```bash
 cd jzy/riscv_game
-make test              # 两套都跑（冻结基线 + 统一层），均带严格警告 + ASan/UBSan
+make test              # 三套都跑（冻结基线 + 统一层 + BitBlt 适配层），均带严格警告 + ASan/UBSan
 make check             # 静态约束检查：寄存器引用隔离、库代码无硬编码地址
 make riscv-build       # RISC-V 交叉编译验证（rv32im_zicsr_zifencei / ilp32）
 make riscv-build-hw    # 额外开启 BITBLT_ENABLE_HW_ACCESS 做编译检查
 make clean
 ```
 
-- 两套测试都用 `-Wall -Wextra -Wpedantic -Werror`，并固定开启 ASan + UBSan
+三套 host 测试的分工：
+
+| 文件 | 覆盖 |
+|---|---|
+| `tests/test_renderer.c` | 冻结的 M1 CPU 基线（14 组） |
+| `tests/test_render_api.c` | 统一层、裁剪、后端分发、约束校验（10 组） |
+| `tests/test_bitblt_api.c` | `bitblt_*` 接口、错误码映射、超时换算、limits、适配层转发（7 组） |
+
+- 三套测试都用 `-Wall -Wextra -Wpedantic -Werror`，并固定开启 ASan + UBSan
   （`-fno-sanitize-recover=all`，UBSan 命中直接终止而不是打完警告继续跑）。
-- `make check` 机械保证：全树只有一个文件 include `bitblt_regs.h`（B 组的寄存器定义，
-  不复制、不软链），且 `render/`、`driver/` 里没有任何硬编码的真实地址。
+- `make check` 机械保证两件事：**全树只有一个文件 include `bitblt_regs.h`**
+  （现在是 `driver/bitblt_api.c`；B 组的寄存器定义不复制、不软链），
+  以及 `render/`、`driver/` 里没有任何硬编码的真实地址。
+- `make riscv-build-hw` 会真的把 `bitblt_api.c` 的寄存器分支编进去
+  （include B 的 `bitblt_regs.h`、用 `fence rw,rw`、用寄存器枚举值），
+  确保那段代码不是死代码。
 - `make riscv-build` 的 `-march/-mabi` 取自 2026.1 BSP 实际产物的
   `Tag_RISCV_arch`（`rv32i2p1_m2p0_zicsr2p0_zifencei2p0_zmmul1p0`，ABI `ilp32`）。
   换 BSP 时可用 `make riscv-build RV_ARCH=... RV_ABI=...` 覆盖。
@@ -126,15 +138,22 @@ make clean
 
 ### 渲染层分层约定
 
-- **`render_*` 是统一层，`gpu_*` 是驱动层**。名字差异本身是安全属性：从调用点就能
-  看出有没有裁剪过、stride 是像素还是字节。
+- **三层分工**：`render_*`（上层游戏调用的统一层）→ `renderer_fpga.c`（适配层）
+  → `bitblt_*`（B 冻结的驱动）。名字差异本身是安全属性：从调用点就能看出
+  有没有裁剪过、stride 是像素还是字节、以及是不是直接碰了硬件。
 - **裁剪只在 `render/renderer.c` 里做一次**，两个后端收到的都是已裁剪、保证落在画布内的
   参数。CPU 后端因此是纯直通，后端不得再裁剪，也不得写出 `dst_rect` 之外。
 - **stride 单位**：统一层是像素（`stride_px`），驱动层是字节（`*_stride_bytes`），
   全代码库不出现裸 `stride`。硬件那边 `WIDTH` 是矩形宽度而 `DST_STRIDE` 是画布行距，
   传错会把后面每一行写花。
-- **真实寄存器访问只允许出现在 `driver/gpu.c`**，且被 `#ifdef BITBLT_ENABLE_HW_ACCESS`
-  包住。当前该分支是骨架，一行寄存器读写都没有实现。
+- **真实寄存器访问只允许出现在 `driver/bitblt_api.c`**，且被
+  `#ifdef BITBLT_ENABLE_HW_ACCESS` 包住。旧的 `gpu.*` 已降级为兼容层，不再含寄存器分支。
+- **上层只调 `render_fill_rect()` / `render_blit()`**；`render/renderer_fpga.c` 是适配层，
+  负责调用 `bitblt_fill()` / `bitblt_copy()`、做 `bitblt_result_t → render_status_t`
+  的错误码映射、以及 `timeout_ms → 100 MHz CLINT tick` 的换算。
+- **地址一律来自 B 的权威头文件**：`bitblt_regs.h`（寄存器）、`framebuffer_layout.h`
+  （Framebuffer A/B、素材区、Scratch、系统保留区）。本工程不复制、不软链、不重复硬编码，
+  由 `make check` 机械保证。
 
 ### 测试覆盖范围
 
@@ -500,21 +519,64 @@ bash $EFINITY_HOME/pgm/bin/ftdi_pgm.sh \
   -m jtag
 ```
 
-### 当前尚未确定的真实地址
+### 真实地址：V0.3 已冻结，但库代码仍禁止硬编码
 
-M1 板测**完全没有访问真正的 BitBlt**。以下内容当前仍不得猜值或硬编码：
+M1 板测**完全没有访问真正的 BitBlt**（当时地址还是 TBD）。现在地址已经由接口
+文档冻结（V0.2/V0.3 行），权威来源是 B 的两个头文件：
 
-- `GPU_BASE`
-- Framebuffer A
-- Framebuffer B
-- BitBlt AXI 基地址
-- 最终 DDR 内存布局
+| 内容 | 权威头文件 | 值 |
+|---|---|---|
+| BitBlt 寄存器块 | `bitblt_regs.h` | `0xE1000000`，偏移 `0x00`–`0x28` |
+| 显示控制寄存器块 | `display_regs.h` | `0xE1100000`（**本工程本次不实现**） |
+| Framebuffer A | `framebuffer_layout.h` | `0x01000000`，8 MiB slot |
+| Framebuffer B | `framebuffer_layout.h` | `0x01800000`，8 MiB slot |
+| 图片素材区 | `framebuffer_layout.h` | `0x02000000`，32 MiB |
+| 测试/Scratch | `framebuffer_layout.h` | `0x04000000`，16 MiB |
+| 系统/程序保留区 | `framebuffer_layout.h` | `0x00000000`，16 MiB |
 
-这些由 A/B 在 **M2 接口冻结后**填写。
+**但库代码仍然不得硬编码这些地址。** `make check-no-addresses` 会在
+`render/` 与 `driver/` 里搜上面这些字面量，出现即失败。地址只能通过：
 
-当前 `gpu_fill()` / `gpu_copy()` **仍不是实际硬件操作**，这是有意设计，不是未完成。
+- `gpu_limits_t` 参数（由平台层用 `render_limits_from_layout()` 填充，
+  该函数直接从 `framebuffer_layout.h` 取宏）
+- `render_surface_t.phys_base`
 
-代码层面由 `make check` 机械保证：`render/` 与 `driver/` 里不出现任何硬编码真实地址。
+传入。这条约束的意义已经从"地址还没定"变成"地址已定，但只有一个真相源"。
+
+> 注意 V0.3 §5 的提醒：早期板测用的 `0x01100000–0x0182C000` 会覆盖新的
+> Framebuffer 布局，只能在显示关闭时运行；**新测试必须用 Scratch 区**。
+> M1 板端 smoke test 用的是静态 RAM，不受影响。
+
+### C 驱动的对外接口
+
+对外严格使用 B 冻结的接口（`04_project/bitblt_accel/sw/driver/bitblt_api.h`）：
+
+```c
+typedef enum {
+    BITBLT_OK = 0, BITBLT_EINVAL = -1, BITBLT_EBUSY = -2,
+    BITBLT_ETIMEOUT = -3, BITBLT_EHW = -4
+} bitblt_result_t;
+
+bitblt_result_t bitblt_fill(uint32_t dst_addr, uint32_t width, uint32_t height,
+                            uint32_t dst_stride, uint32_t color,
+                            uint64_t timeout_ticks);
+bitblt_result_t bitblt_copy(uint32_t src_addr, uint32_t dst_addr,
+                            uint32_t width, uint32_t height,
+                            uint32_t src_stride, uint32_t dst_stride,
+                            uint64_t timeout_ticks);
+```
+
+- 实现位于 `jzy/riscv_game/driver/bitblt_api.c`，是**全工程唯一**引用
+  `bitblt_regs.h` 的文件（`make check-hw-isolation` 保证）。
+- 超时单位是 **100 MHz CLINT tick**，不是毫秒。适配层用
+  `render_timeout_ms_to_ticks()` 换算（先转 `uint64_t` 再乘 `100000ULL`，
+  避免 32 位溢出）。
+- 旧的 `gpu_fill()` / `gpu_copy()` 是 V0.1 时期命名的遗留，**已降级为兼容层**，
+  恒返回 `RENDER_ERR_UNSUPPORTED`，不含任何寄存器访问。新代码不要用。
+- **缓存**：当前 CPU 只有 4 KiB 指令缓存、**没有数据缓存**，CPU 写过源数据后
+  执行 `fence rw,rw` 即可，不需要 `data_cache_invalidate_address()`。
+  （B 的旧 demo 里仍有 invalidate 调用，那是防御性写法，本次未擅自删除。）
+- 本次**不实现** `display_api.h`（显示初始化与换帧），只做 BitBlt。
 
 ### 当前格式
 
