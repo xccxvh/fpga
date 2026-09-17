@@ -61,7 +61,8 @@ DDR Copy burst readback: PASSED (240 pixels)
 组合 bitstream 已通过 JTAG SRAM 下载且能识别 RISC-V Debug TAP。
 `framebufferSmokeDemo` 完成寄存器译码、BitBlt绘制Framebuffer A/B、A扫描及
 VBlank A→B换帧验证，串口全部返回`PASSED`。最初16-beat显示读Burst在1080p
-下发生欠流；改为64 beat后持续扫描1561帧，`UNDERFLOW_COUNT=0`。
+下发生欠流；改为64 beat后持续扫描1561帧，`UNDERFLOW_COUNT=0`。目标屏已
+目视确认显示Framebuffer B的8条竖向彩条。
 
 ```text
 *** BitBlt Framebuffer Smoke Demo ***
@@ -81,8 +82,8 @@ VBlank A->B swap: PASSED
 - stride 单位为字节，且不得小于 `WIDTH * 4`。
 - Copy 不提供重叠区域的 `memmove` 语义。
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
-- HDMI TX 与 DDR/RISC-V 已完成联合编译和寄存器/DMA/VBlank 板测；显示器
-  最终彩条画面仍应由测试人员目视确认。
+- HDMI TX 与 DDR/RISC-V 已完成联合编译、寄存器/DMA/VBlank 板测及目标屏
+  8条竖向彩条目视确认。
 - 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比。
 
 ## 创建 FPGA 工作副本
