@@ -1,4 +1,4 @@
-# BitBlt/显示软硬件接口约定 V0.2
+# BitBlt/显示软硬件接口约定 V0.3
 
 - 日期：2026-09-17
 - 主要维护：B（FPGA 2D渲染加速器）
@@ -11,19 +11,19 @@
 
 ## 1. 接口总表
 
-| 接口项目 | V0.2统一约定 | 状态/责任 |
+| 接口项目 | V0.3统一约定 | 状态/责任 |
 |---|---|---|
-| 显示分辨率与刷新率 | 首版固定`640×480@60 Hz`：25.2 MHz像素时钟，水平800总像素，垂直525总行；BitBlt仍使用参数化宽高 | 已冻结待实现 |
-| 像素格式与字节序 | XRGB8888、小端；C值为`0x00RRGGBB`，低地址依次存B、G、R、X；显示输出`R=word[23:16]`、`G=word[15:8]`、`B=word[7:0]` | 已冻结待实现 |
+| 显示分辨率与刷新率 | 固定`1920×1080@60 Hz`：约148.75 MHz像素时钟，水平2200总像素，垂直1125总行；BitBlt仍使用参数化宽高 | 已编译并通过板端自动测试；图像待目视确认 |
+| 像素格式与字节序 | XRGB8888、小端；C值为`0x00RRGGBB`，低地址依次存B、G、R、X；显示输出`R=word[23:16]`、`G=word[15:8]`、`B=word[7:0]` | 已实现并通过数据通路测试 |
 | 图像宽高与stride | WIDTH/HEIGHT单位为像素/行；SRC_STRIDE、DST_STRIDE单位为字节；width必须为4的倍数，stride必须16 B对齐且不小于`width*4` | 已验证 |
-| DDR/Framebuffer布局 | 256 MiB物理DDR；Framebuffer A=`0x01000000`、B=`0x01800000`，各8 MiB；素材区=`0x02000000`/32 MiB；Scratch=`0x04000000`/16 MiB | 地址已冻结；显示读取待实现 |
+| DDR/Framebuffer布局 | 256 MiB物理DDR；Framebuffer A=`0x01000000`、B=`0x01800000`，各8 MiB；素材区=`0x02000000`/32 MiB；Scratch=`0x04000000`/16 MiB | 已实现并通过A/B换帧测试 |
 | RISC-V→BitBlt | `SYSTEM_AXI_A`，32-bit AXI4 Slave，基地址`0xE1000000`；仅支持单拍、完整4-byte strobe | 已验证 |
-| RISC-V→显示控制 | `SYSTEM_AXI_A`，32-bit AXI4 Slave，基地址`0xE1100000`；仅支持单拍、完整4-byte strobe | 已冻结待实现 |
+| RISC-V→显示控制 | `SYSTEM_AXI_A`，32-bit AXI4 Slave，基地址`0xE1100000`；仅支持单拍、完整4-byte strobe | 已验证 |
 | BitBlt数据接口 | 128-bit AXI4 Master，INCR Burst，`ARSIZE/AWSIZE=4`；每beat 16 B | 已验证 |
-| Burst/缓冲 | 单Burst最多16 beat（256 B），自动按行和4 KiB边界拆分；Copy内部缓冲为16×128 bit | 已验证 |
-| Double Buffer | BitBlt只写后台Buffer；DONE且ERROR=0后软件提交NEXT_ADDR；显示只在VBlank切换；SWAP_DONE后旧前台才可复用 | 已冻结待实现 |
-| 中断 | BitBlt与显示共享PLIC源30；顶层OR，ISR读取两组STATUS判源 | BitBlt已验证；显示待实现 |
-| 时钟/复位 | DDR主机和控制接口位于100 MHz `user_clk`域，低有效`ddr_rstn`；显示数据通过异步FIFO跨到25.2 MHz像素域 | 前半已验证；CDC待实现 |
+| Burst/缓冲 | BitBlt单Burst最多16 beat（256 B）；显示DMA最多64 beat（1024 B）；均自动按行和4 KiB边界拆分；Copy内部缓冲为16×128 bit | 已验证 |
+| Double Buffer | BitBlt只写后台Buffer；DONE且ERROR=0后软件提交NEXT_ADDR；显示只在VBlank切换；SWAP_DONE后旧前台才可复用 | 已验证 |
+| 中断 | BitBlt与显示共享PLIC源30；顶层OR，ISR读取两组STATUS判源 | BitBlt已验证；显示IRQ待联调 |
+| 时钟/复位 | DDR主机和控制接口位于100 MHz `user_clk`域，低有效`ddr_rstn`；显示数据通过异步FIFO跨到约148.75 MHz像素域 | 已联合编译并通过板端自动测试 |
 | 素材格式 | 与Framebuffer相同的XRGB8888小端像素；逐行连续，stride 16 B对齐；X字节当前忽略 | 已冻结；C提供工具 |
 | C驱动 | 阻塞式`bitblt_fill/copy`和`display_queue/wait_swap`；返回OK、EINVAL、EBUSY、ETIMEOUT、EHW；超时单位为100 MHz CLINT tick | API已冻结待实现 |
 
@@ -49,7 +49,7 @@
 寄存器写必须使用`WSTRB=4'b1111`。`AWLEN/ARLEN`非零、写未定义地址或BUSY时
 再次START均置ERROR。
 
-## 3. 显示控制寄存器（`0xE1100000`，待实现）
+## 3. 显示控制寄存器（`0xE1100000`，已实现）
 
 | 偏移 | 寄存器 | R/W | 定义 |
 |---:|---|---|---|
@@ -57,18 +57,18 @@
 | `0x04` | STATUS | R | bit0 ENABLED；bit1 SWAP_PENDING；bit2 SWAP_DONE；bit3 UNDERFLOW；bit4 ERROR |
 | `0x08` | FRONT_ADDR | R | 当前正在扫描的Framebuffer地址 |
 | `0x0C` | NEXT_ADDR | R/W | 下一帧待切换Framebuffer地址 |
-| `0x10` | WIDTH | R/W | 有效区宽度，首版写640 |
-| `0x14` | HEIGHT | R/W | 有效区高度，首版写480 |
-| `0x18` | STRIDE | R/W | 每行字节数，首版写2560 |
+| `0x10` | WIDTH | R/W | 有效区宽度，当前固定写1920 |
+| `0x14` | HEIGHT | R/W | 有效区高度，当前固定写1080 |
+| `0x18` | STRIDE | R/W | 每行字节数，当前固定写7680 |
 | `0x1C` | FORMAT | R/W | `0=XRGB8888`，其他值非法 |
 | `0x20` | FRAME_COUNT | R | 每完成一帧扫描加1 |
 | `0x24` | UNDERFLOW_COUNT | R | FIFO欠载次数，CLEAR时清零 |
-| `0x28` | VERSION | R | 首版显示控制器为`0x00010000` |
-| `0x2C` | IRQ_ENABLE | R/W | bit0 SWAP_DONE中断；bit1 UNDERFLOW中断 |
+| `0x28` | VERSION | R | 当前显示控制器为`0x00020000` |
+| `0x2C` | IRQ_ENABLE | R/W | bit0 SWAP_DONE；bit1 UNDERFLOW；bit2 ERROR |
 
 `SYSTEM_AXI_A`增加地址译码：`0xE1000000–0xE100FFFF`路由至BitBlt，
-`0xE1100000–0xE110FFFF`路由至显示控制器，其他地址返回DECERR。当前位流尚未
-加入该1-to-2控制互连，因此实现前禁止软件访问`DISPLAY_BASE`。
+`0xE1100000–0xE110FFFF`路由至显示控制器，其他地址返回DECERR。当前组合位流
+已加入该1-to-2控制互连并通过寄存器译码板测。
 
 ## 4. BitBlt命令与数据约束
 
@@ -94,14 +94,14 @@
 | 区域 | 起始地址 | 大小 | 格式/stride | 访问方 | 状态 |
 |---|---:|---:|---|---|---|
 | 系统/程序保留区 | `0x00000000` | 16 MiB | 程序、栈及未来堆 | CPU/JTAG | 已冻结 |
-| Framebuffer A | `0x01000000` | 8 MiB slot | XRGB8888；首版stride 2560 B | 显示/CPU/BitBlt | 已冻结待联调 |
-| Framebuffer B | `0x01800000` | 8 MiB slot | XRGB8888；首版stride 2560 B | 显示/CPU/BitBlt | 已冻结待联调 |
+| Framebuffer A | `0x01000000` | 8 MiB slot | XRGB8888；stride 7680 B | 显示/CPU/BitBlt | 已验证 |
+| Framebuffer B | `0x01800000` | 8 MiB slot | XRGB8888；stride 7680 B | 显示/CPU/BitBlt | 已验证 |
 | 图片素材区 | `0x02000000` | 32 MiB | XRGB8888、16 B对齐 | CPU写、BitBlt读 | 已冻结待联调 |
 | 测试/Scratch | `0x04000000` | 16 MiB | 非持久临时数据 | CPU/BitBlt | 已冻结 |
 | 后续可分配区 | `0x05000000` | 176 MiB | 未定义 | TBD | 保留 |
 
 板载`MT41J128M16JT-125`容量为256 MiB，对应`0x00000000–0x0FFFFFFF`。每个
-8 MiB Framebuffer slot既可容纳640×480×4，也可容纳1920×1080×4，且基址
+8 MiB Framebuffer slot可容纳1920×1080×4（8,294,400 B），且基址
 同时满足4 KiB和16 B对齐。
 
 早期板测使用`0x01100000–0x0182C000`，会覆盖新Framebuffer布局，只能在显示
@@ -109,12 +109,13 @@
 
 ## 6. 显示时序、DMA与换帧
 
-首版扫描时序：水平有效640、前肩16、同步96、后肩48；垂直有效480、前肩10、
-同步2、后肩33；HSync/VSync均低有效，像素时钟25.2 MHz。
+扫描时序：水平有效1920、前肩88、同步44、后肩148；垂直有效1080、前肩4、
+同步5、后肩36；HSync/VSync均高有效，像素时钟约148.75 MHz。该时序来自已在
+目标树莓派屏验证显示彩条的兼容修正版。
 
-显示读DMA在100 MHz `user_clk`域访问128-bit DDR AXI，单Burst不超过16 beat且
-不得跨4 KiB；通过至少1024像素的异步FIFO跨到像素时钟域。FIFO低水位时显示
-读通道优先，其他时间事务间轮询；仲裁器必须保持所有权到本次Burst响应结束。
+显示读DMA在100 MHz `user_clk`域访问128-bit DDR AXI，单Burst不超过64 beat且
+不得跨4 KiB；通过2048像素的异步FIFO跨到像素时钟域。显示读通道固定为
+最高读优先级；仲裁器必须保持所有权到本次Burst响应结束。
 欠载时当前像素输出黑色，并置UNDERFLOW和计数器，不能重复随机旧像素。
 
 换帧顺序：
@@ -146,10 +147,12 @@ API参数顺序和返回值以头文件为准。统一错误码：`0=OK`、`-1=E
 
 已验证：BitBlt寄存器、BUSY/DONE/ERROR、PLIC中断、Fill/Copy DDR回读、保护区
 哨兵、二维stride、实际跨4 KiB、不同Burst、AXI backpressure/错误、读写仲裁，
-以及640×480整帧Copy约353.2 MiB/s实板吞吐率。
+以及640×480整帧Copy约353.2 MiB/s实板吞吐率。显示控制译码、BitBlt绘制
+1920×1080 A/B帧缓冲、DDR扫描和VBlank换帧的串口smoke已通过。16-beat显示
+读取在1080p下会欠流，改为64 beat后持续扫描1561帧且欠流计数保持0。
 
-仍需实现/验证：SYSTEM_AXI_A 1-to-2译码、显示DDR读DMA、异步FIFO、640×480 HDMI
-输出、VBlank双缓冲切换、共享中断、CPU/BitBlt/显示三方并发和长时间压力。
+仍需验证：1080p60最终图像目视确认、共享中断、CPU/BitBlt/显示三方并发和
+更长时间压力。
 
 ## 9. 版本记录
 
@@ -157,3 +160,4 @@ API参数顺序和返回值以头文件为准。统一错误码：`0=OK`、`-1=E
 |---|---|---|---|---|
 | V0.1 | 2026-09-16 | 根据Fill/Copy实板结果建立控制、状态和DDR数据面基线 | B | 历史版本 |
 | V0.2 | 2026-09-17 | 冻结640×480时序、XRGB8888、DDR布局、显示寄存器、VBlank换帧、共享中断和C API | B | B已核对板卡/现有工程；A/C待签收 |
+| V0.3 | 2026-09-17 | 因目标屏不接受640×480，将显示时序改为1920×1080p60；显示DMA Burst增至64 beat；地址、像素格式和寄存器偏移不变 | B | 联合编译、板端smoke和1561帧零欠流通过；图像待目视确认 |

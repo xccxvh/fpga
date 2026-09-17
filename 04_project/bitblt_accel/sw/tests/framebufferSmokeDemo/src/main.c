@@ -43,14 +43,14 @@ static void fill(uint32_t dst, uint32_t width, uint32_t height,
 static void draw_horizontal_bars(uint32_t base) {
     uint32_t i;
     for (i = 0; i < 8; ++i)
-        fill(base + i * 60u * FB_STRIDE, FB_WIDTH, 60u,
+        fill(base + i * 135u * FB_STRIDE, FB_WIDTH, 135u,
              FB_STRIDE, colors[i]);
 }
 
 static void draw_vertical_bars(uint32_t base) {
     uint32_t i;
     for (i = 0; i < 8; ++i)
-        fill(base + i * 80u * FB_BYTES_PER_PIXEL, 80u, FB_HEIGHT,
+        fill(base + i * 240u * FB_BYTES_PER_PIXEL, 240u, FB_HEIGHT,
              FB_STRIDE, colors[i]);
 }
 

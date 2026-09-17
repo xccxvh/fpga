@@ -1,7 +1,9 @@
 `timescale 1ns/1ps
 
 // Read-only framebuffer DMA. XRGB8888 pixels are emitted four per 128-bit beat.
-// Bursts are limited to 16 beats and never cross a 4 KiB boundary.
+// Bursts are limited to 64 beats and never cross a 4 KiB boundary.  The
+// longer bursts are required to sustain 1080p60 scanout through the DDR
+// controller without spending too much bandwidth on read-address latency.
 module display_dma_axi #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 128,
@@ -49,7 +51,7 @@ module display_dma_axi #(
     reg frame_error;
 
     wire [8:0] beats_to_4k = (13'd4096 - {1'b0,current_addr[11:0]}) >> 4;
-    wire [8:0] row_limit = (row_beats_remaining > 32'd16) ? 9'd16 :
+    wire [8:0] row_limit = (row_beats_remaining > 32'd64) ? 9'd64 :
                            row_beats_remaining[8:0];
     wire [8:0] selected_burst = (beats_to_4k < row_limit) ?
                                 beats_to_4k : row_limit;

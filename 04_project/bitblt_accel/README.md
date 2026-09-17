@@ -12,7 +12,8 @@ Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI 仲裁器共享 DDR �
 
 - RISC-V 软件使用 GCC 13.4 编译通过，测试程序约 6480 B / 124 KiB。
 - Efinity 2026.1 Map、Interface、PnR、PGM 全流程通过。
-- 最差 Setup 余量约 0.306 ns，最差 Hold 余量约 0.026 ns。
+- 1080p60 联合工程最差 Setup 余量约 0.325 ns，最差 Hold 余量约 0.026 ns；
+  HDMI 像素域 Setup/Hold 余量分别约 2.542 ns/0.042 ns。
 - Solid Fill：寄存器、BUSY/DONE、PLIC 中断和 240 像素 DDR 回读通过。
 - Block Copy：80×3 像素、源 stride 384 B、目标 stride 416 B，240 像素逐项回读通过。
 - 每次 AXI Burst 最多 16 个 128-bit beat，并自动避免跨越 4 KiB 边界。
@@ -39,26 +40,28 @@ DDR Copy burst readback: PASSED (240 pixels)
 - `SYSTEM_AXI_A` 按 `0xE100_0000` / `0xE110_0000` 隔离 BitBlt 与显示控制；
   未映射访问返回 `DECERR`。
 - 显示控制器实现双缓冲、VBlank 原子换帧、帧计数、欠载计数和中断。
-- 128-bit DDR 读 DMA 支持二维 stride、最多 16 beat Burst、4 KiB 边界拆包。
+- 128-bit DDR 读 DMA 支持二维 stride、最多 64 beat Burst、4 KiB 边界拆包。
 - 512×128-bit 异步 FIFO 可缓存 2048 像素，跨越 100 MHz DDR 与
-  25.2 MHz 像素时钟域。
-- 640×480p60 负极性同步时序和 little-endian XRGB8888 像素拆包已完成。
+  约148.75 MHz像素时钟域。
+- 已改用测试屏确认兼容的CTA-861 1920×1080p60时序和little-endian
+  XRGB8888像素拆包。
 - `framebuffer_display.v` 已把控制、DMA、FIFO、时序和像素通路封装。
 - `bitblt_display_subsystem.v` 统一完成 `SYSTEM_AXI_A` 地址分发以及 BitBlt、
   显示寄存器控制。
 - 厂家 DDR/RISC-V 顶层已加入第三路 DDR 读仲裁；显示 DMA 具有最高读优先级，
   BitBlt 和 CPU 共用另一输入。
-- 已合并官方 HDMI TX 的 DVI Encoder、25.2/126 MHz PLL 和 LVDS 引脚定义。
+- 已合并官方 HDMI TX 的 DVI Encoder、148.75/743.75 MHz PLL 和 LVDS 引脚定义。
 - 隔离工作副本位于 `local/riscv_work/bitblt_display_mvp`，不修改稳定的
   `bitblt_mvp` 和厂家原始 Demo。
-- Efinity 2026.1 Map、Interface、PnR、PGM 全流程通过；HDMI 25.2 MHz 时钟域
-  Setup/Hold 余量分别为 +35.481 ns / +0.090 ns，DDR 相关时钟域也全部为正。
+- 640×480版本曾通过Efinity全流程，但测试屏不接受该输入；1080p60版本已完成
+  Efinity全流程、时序检查和板端自动测试。
 - `framebufferSmokeDemo` 已编译通过，用于绘制两组彩条、启动扫描输出并验证
   VBlank 双缓冲切换。
 
-组合 bitstream 已通过 JTAG SRAM 下载且能识别 RISC-V Debug TAP。重新连接
-开发板后，`framebufferSmokeDemo` 完成寄存器译码、Framebuffer A 扫描、
-Framebuffer B 绘制及 VBlank A→B 换帧验证，串口全部返回 `PASSED`。
+组合 bitstream 已通过 JTAG SRAM 下载且能识别 RISC-V Debug TAP。
+`framebufferSmokeDemo` 完成寄存器译码、BitBlt绘制Framebuffer A/B、A扫描及
+VBlank A→B换帧验证，串口全部返回`PASSED`。最初16-beat显示读Burst在1080p
+下发生欠流；改为64 beat后持续扫描1561帧，`UNDERFLOW_COUNT=0`。
 
 ```text
 *** BitBlt Framebuffer Smoke Demo ***
@@ -127,7 +130,7 @@ efx_run --prj -f compile ddr_demo_ti60
 ```
 
 本次生成的 JTAG bitstream SHA-256 为
-`5a35cc4b6d058adf20f8d413ff2bf74ec055b8a0470ee6a3c9df574c07300154`。
+`aa4a91cd6078f1fa9625b47bf134db13924cbd1a79b0084b01dee0082c20f712`。
 
 命令行通过 OpenOCD 装载软件时，必须先执行 `soft_reset_halt`；只使用
 `halt` 会使 VexRiscv 停在 `PC=0x8`，程序不会进入 `main()`：

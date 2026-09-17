@@ -9,22 +9,22 @@
 #define SYSTEM_RESERVED_BASE       0x00000000u
 #define SYSTEM_RESERVED_SIZE       0x01000000u
 
-/* First integration target: 640x480p60, little-endian XRGB8888. */
-#define FB_WIDTH                   640u
-#define FB_HEIGHT                  480u
-#define FB_PIXEL_CLOCK_HZ          25200000u
-#define FB_H_FRONT_PORCH           16u
-#define FB_H_SYNC                  96u
-#define FB_H_BACK_PORCH            48u
-#define FB_V_FRONT_PORCH           10u
-#define FB_V_SYNC                  2u
-#define FB_V_BACK_PORCH            33u
+/* Board-tested display target: CTA-861 1920x1080p60, XRGB8888. */
+#define FB_WIDTH                   1920u
+#define FB_HEIGHT                  1080u
+#define FB_PIXEL_CLOCK_HZ          148750000u
+#define FB_H_FRONT_PORCH           88u
+#define FB_H_SYNC                  44u
+#define FB_H_BACK_PORCH            148u
+#define FB_V_FRONT_PORCH           4u
+#define FB_V_SYNC                  5u
+#define FB_V_BACK_PORCH            36u
 #define FB_BYTES_PER_PIXEL         4u
 #define FB_STRIDE                  (FB_WIDTH * FB_BYTES_PER_PIXEL)
 #define FB_ACTIVE_BYTES            (FB_STRIDE * FB_HEIGHT)
 #define FB_SLOT_SIZE               0x00800000u
 
-/* 8 MiB slots also fit one 1920x1080 XRGB8888 frame. */
+/* Each 8 MiB slot fits one 1920x1080 XRGB8888 frame (8,294,400 B). */
 #define FB_A_BASE                  0x01000000u
 #define FB_B_BASE                  0x01800000u
 #define ASSET_BASE                 0x02000000u

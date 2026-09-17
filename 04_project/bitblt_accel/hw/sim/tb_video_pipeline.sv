@@ -1,11 +1,11 @@
 `timescale 1ns/1ps
 module tb_video_pipeline;
   reg clk=0,resetn=0; always #5 clk=~clk;
-  wire hs,vs,de,vblank; wire [9:0] x,y;
+  wire hs,vs,de,vblank; wire [11:0] x; wire [10:0] y;
   reg [127:0] data=128'h00AABBCC_00112233_00445566_00778899;
   reg valid=0; wire ready; wire [7:0] r,g,b; wire pvalid,underflow;
   integer de_count=0,vblank_count=0,hs_low=0,vs_low=0;
-  video_timing_640x480 timing(.pixel_clk(clk),.resetn(resetn),.hsync(hs),.vsync(vs),
+  video_timing_1920x1080 timing(.pixel_clk(clk),.resetn(resetn),.hsync(hs),.vsync(vs),
     .data_enable(de),.vblank_pulse(vblank),.pixel_x(x),.pixel_y(y));
   pixel_unpack_xrgb8888 unpack(.pixel_clk(clk),.resetn(resetn),.pixel_request(de),
     .stream_data(data),.stream_valid(valid),.stream_ready(ready),.red(r),.green(g),
@@ -25,10 +25,10 @@ module tb_video_pipeline;
     if(!pvalid || {r,g,b}!==24'h778899) $fatal(1,"pixel0 unpack failed");
     // Let one whole timing frame elapse.
     @(negedge clk); de_count=0; hs_low=0; vs_low=0; vblank_count=0;
-    repeat(800*525) @(posedge clk);
+    repeat(2200*1125) @(posedge clk);
     #1;
-    if(de_count!=640*480 || hs_low!=96*525 || vs_low!=2*800 || vblank_count!=1)
+    if(de_count!=1920*1080 || hs_low!=44*1125 || vs_low!=5*2200 || vblank_count!=1)
       $fatal(1,"timing counts de=%0d hs=%0d vs=%0d vb=%0d",de_count,hs_low,vs_low,vblank_count);
-    $display("PASS: 640x480 timing and XRGB8888 pixel unpack"); $finish;
+    $display("PASS: 1920x1080 timing and XRGB8888 pixel unpack"); $finish;
   end
 endmodule

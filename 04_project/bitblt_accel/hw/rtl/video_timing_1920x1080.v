@@ -1,24 +1,26 @@
 `timescale 1ns/1ps
 
-// 640x480p60 timing: 25.2 MHz pixel clock, negative HSYNC/VSYNC.
-module video_timing_640x480 (
+// CTA-861 1920x1080p60 timing used by the board-tested HDMI color-bar demo.
+// The board PLL produces approximately 148.75 MHz from its 25 MHz reference.
+module video_timing_1920x1080 (
     input pixel_clk,
     input resetn,
     output hsync,
     output vsync,
     output data_enable,
     output reg vblank_pulse,
-    output [9:0] pixel_x,
-    output [9:0] pixel_y
+    output [11:0] pixel_x,
+    output [10:0] pixel_y
 );
-    localparam H_ACTIVE=640, H_FP=16, H_SYNC=96, H_BP=48, H_TOTAL=800;
-    localparam V_ACTIVE=480, V_FP=10, V_SYNC=2, V_BP=33, V_TOTAL=525;
-    reg [9:0] h_count, v_count;
+    localparam H_ACTIVE=1920, H_FP=88, H_SYNC=44, H_BP=148, H_TOTAL=2200;
+    localparam V_ACTIVE=1080, V_FP=4, V_SYNC=5, V_BP=36, V_TOTAL=1125;
+    reg [11:0] h_count;
+    reg [10:0] v_count;
     assign data_enable = (h_count < H_ACTIVE) && (v_count < V_ACTIVE);
-    assign hsync = ~((h_count >= H_ACTIVE+H_FP) &&
-                     (h_count < H_ACTIVE+H_FP+H_SYNC));
-    assign vsync = ~((v_count >= V_ACTIVE+V_FP) &&
-                     (v_count < V_ACTIVE+V_FP+V_SYNC));
+    assign hsync = (h_count >= H_ACTIVE+H_FP) &&
+                   (h_count < H_ACTIVE+H_FP+H_SYNC);
+    assign vsync = (v_count >= V_ACTIVE+V_FP) &&
+                   (v_count < V_ACTIVE+V_FP+V_SYNC);
     assign pixel_x = h_count;
     assign pixel_y = v_count;
 

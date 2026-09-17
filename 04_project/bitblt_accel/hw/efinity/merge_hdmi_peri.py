@@ -3,7 +3,7 @@
 
 The vendor projects use the same Ti60F225 and the same 25 MHz board clock.
 This script keeps the DDR peripheral database intact and adds only PLL_BR0 and
-GPIOR_PN_10..13. The HDMI PLL is retuned for 25.2/126 MHz (640x480p60).
+GPIOR_PN_10..13. The HDMI PLL retains the board-tested 1080p60 settings.
 """
 from __future__ import annotations
 
@@ -56,11 +56,11 @@ def main() -> None:
     for clock in pll.findall(Q("comp_output_clock")):
         name = clock.get("name")
         if name == "FB":
-            clock.set("out_divider", "126")
+            clock.set("out_divider", "119")
         elif name == "hdmi_tx_slow_clk":
-            clock.set("out_divider", "125")
+            clock.set("out_divider", "20")
         elif name == "hdmi_tx_fast_clk":
-            clock.set("out_divider", "25")
+            clock.set("out_divider", "4")
     ddr_plls.append(pll)
     for lvds in hdmi_lvds.findall(Q("lvds")):
         ddr_lvds.append(copy.deepcopy(lvds))

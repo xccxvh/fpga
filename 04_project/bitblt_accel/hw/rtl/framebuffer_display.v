@@ -39,7 +39,8 @@ module framebuffer_display (
     wire display_enable_user, swap_pending;
     wire [31:0] front_addr, cfg_width, cfg_height, cfg_stride, cfg_format;
     wire vblank_pixel, vblank_user, underflow_pixel, underflow_user;
-    wire [9:0] pixel_x, pixel_y;
+    wire [11:0] pixel_x;
+    wire [10:0] pixel_y;
     wire dma_busy, dma_done, dma_error;
     reg dma_start, vblank_user_d, display_enable_d;
     wire [127:0] dma_data;
@@ -111,7 +112,7 @@ module framebuffer_display (
         .r_valid(fifo_valid), .r_ready(fifo_ready), .r_empty(fifo_empty),
         .r_almost_empty(fifo_almost_empty));
 
-    video_timing_640x480 u_timing (
+    video_timing_1920x1080 u_timing (
         .pixel_clk(pixel_clk), .resetn(resetn), .hsync(video_hsync),
         .vsync(video_vsync), .data_enable(video_de),
         .vblank_pulse(vblank_pixel), .pixel_x(pixel_x), .pixel_y(pixel_y));

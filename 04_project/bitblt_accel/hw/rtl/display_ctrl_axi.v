@@ -82,9 +82,9 @@ module display_ctrl_axi #(
                             (candidate_next == FB_B_ADDR)) &&
                            (candidate_next != front_addr_reg) &&
                            (candidate_next[3:0] == 4'h0) &&
-                           (width_reg == 32'd640) &&
-                           (height_reg == 32'd480) &&
-                           (stride_reg >= 32'd2560) &&
+                           (width_reg == 32'd1920) &&
+                           (height_reg == 32'd1080) &&
+                           (stride_reg >= 32'd7680) &&
                            (stride_reg[3:0] == 4'h0) &&
                            (format_reg == 32'd0);
         end
@@ -130,9 +130,9 @@ module display_ctrl_axi #(
             error_reg <= 0;
             front_addr_reg <= FB_A_ADDR;
             next_addr_reg <= FB_B_ADDR;
-            width_reg <= 32'd640;
-            height_reg <= 32'd480;
-            stride_reg <= 32'd2560;
+            width_reg <= 32'd1920;
+            height_reg <= 32'd1080;
+            stride_reg <= 32'd7680;
             format_reg <= 0;
             frame_count_reg <= 0;
             underflow_count_reg <= 0;

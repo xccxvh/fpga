@@ -54,7 +54,7 @@ $(BUILD)/tb_display_dma_axi.vvp: tb_display_dma_axi.sv $(RTL)/display_dma_axi.v 
 	$(IVERILOG) -g2012 -Wall -s tb_display_dma_axi -o $@ $^
 
 $(BUILD)/tb_video_pipeline.vvp: tb_video_pipeline.sv \
-	$(RTL)/video_timing_640x480.v $(RTL)/pixel_unpack_xrgb8888.v | $(BUILD)
+	$(RTL)/video_timing_1920x1080.v $(RTL)/pixel_unpack_xrgb8888.v | $(BUILD)
 	$(IVERILOG) -g2012 -Wall -s tb_video_pipeline -o $@ $^
 
 $(BUILD)/tb_async_fifo.vvp: tb_async_fifo.sv $(RTL)/async_fifo.v | $(BUILD)
