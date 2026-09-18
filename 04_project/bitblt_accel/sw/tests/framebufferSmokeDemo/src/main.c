@@ -9,6 +9,14 @@
 
 #define TIMEOUT_LOOPS 50000000u
 
+#ifndef STRESS_FRAMES
+#define STRESS_FRAMES 32u
+#endif
+
+#ifndef STRESS_REPORT_INTERVAL
+#define STRESS_REPORT_INTERVAL 8u
+#endif
+
 static const uint32_t colors[8] = {
     XRGB8888(255, 255, 255), XRGB8888(255, 255, 0),
     XRGB8888(0, 255, 255),   XRGB8888(0, 255, 0),
@@ -167,19 +175,31 @@ static void stress_fill(uint32_t dst, uint32_t color,
 
 static void run_concurrent_stress(void) {
     volatile uint32_t *scratch = (volatile uint32_t *)SCRATCH_BASE;
-    uint32_t i, front, back;
+    uint32_t i, front, back, start_frames, completed_frames, underflows;
 
     for (i = 0u; i < 256u; ++i)
         scratch[i] = 0xA5000000u | i;
     __asm__ volatile ("fence rw,rw" ::: "memory");
 
-    for (i = 0u; i < 32u; ++i) {
+    start_frames = display_read(DISPLAY_FRAME_COUNT);
+    for (i = 0u; i < STRESS_FRAMES; ++i) {
         front = display_read(DISPLAY_FRONT_ADDR);
         back = (front == FB_A_BASE) ? FB_B_BASE : FB_A_BASE;
         stress_fill(back, colors[i & 7u], scratch);
         swap_to(back);
+#if STRESS_REPORT_INTERVAL > 0
+        if (((i + 1u) % STRESS_REPORT_INTERVAL) == 0u)
+            bsp_printf("  stress progress: %d/%d swaps\r\n",
+                       i + 1u, STRESS_FRAMES);
+#endif
     }
-    bsp_printf("Concurrent DDR/display stress: PASSED (32 frames)\r\n");
+    completed_frames = display_read(DISPLAY_FRAME_COUNT) - start_frames;
+    underflows = display_read(DISPLAY_UNDERFLOW_COUNT);
+    if (underflows != 0u || display_fault_status || unexpected_irq)
+        fail("stress display accounting");
+    bsp_printf("Concurrent DDR/display stress: PASSED (%d swaps, "
+               "%d display frames, %d underflows)\r\n",
+               STRESS_FRAMES, completed_frames, underflows);
 
     front = display_read(DISPLAY_FRONT_ADDR);
     back = (front == FB_A_BASE) ? FB_B_BASE : FB_A_BASE;
