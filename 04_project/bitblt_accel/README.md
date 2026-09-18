@@ -68,6 +68,8 @@ VBlank A→B换帧验证，串口全部返回`PASSED`。最初16-beat显示读Bu
   中断均由同一ISR正确识别和清除。
 - 32帧并发压力通过：HDMI持续扫描前台、BitBlt整帧写后台、CPU读取Scratch
   DDR并逐帧中断换页；测试后`UNDERFLOW_COUNT=0`，最终恢复8条竖向彩条。
+- 3600帧并发老化通过：连续3600次全屏Fill、共享中断及VBlank换页，显示计数
+  增加3600帧且`UNDERFLOW_COUNT=0`，结束后竖向彩条恢复正确。
 - CPU/BitBlt性能对比通过：1080p Fill为37.39/657.99 MiB/s（17.59×），
   Copy为15.87/127.62 MiB/s（8.04×）；测试期间显示扫描74帧且零欠流。
 
@@ -80,7 +82,7 @@ Framebuffer B vertical bars: READY
 Shared IRQ BitBlt source: PASSED (16 interrupts)
 VBlank A->B swap: PASSED
 Shared IRQ display source: PASSED
-Concurrent DDR/display stress: PASSED (32 frames)
+Concurrent DDR/display stress: PASSED (32 swaps, 32 display frames, 0 underflows)
 Vertical color bars restored: PASSED
 *** FRAMEBUFFER SMOKE DEMO PASSED ***
 ```
@@ -95,7 +97,8 @@ Vertical color bars restored: PASSED
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
 - HDMI TX 与 DDR/RISC-V 已完成联合编译、寄存器/DMA/VBlank 板测及目标屏
   8条竖向彩条目视确认。
-- CPU 与 BitBlt 的Fill/Copy端到端性能基线已完成；尚未完成长时间老化测试。
+- CPU 与 BitBlt 的Fill/Copy端到端性能基线及3600帧并发老化已完成；后续仍需
+  进行小时级持续运行测试。
 
 ## 创建 FPGA 工作副本
 
