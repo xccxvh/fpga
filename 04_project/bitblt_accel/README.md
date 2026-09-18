@@ -48,8 +48,9 @@ DDR Copy burst readback: PASSED (240 pixels)
 - `framebuffer_display.v` 已把控制、DMA、FIFO、时序和像素通路封装。
 - `bitblt_display_subsystem.v` 统一完成 `SYSTEM_AXI_A` 地址分发以及 BitBlt、
   显示寄存器控制。
-- 厂家 DDR/RISC-V 顶层已加入第三路 DDR 读仲裁；显示 DMA 具有最高读优先级，
-  BitBlt 和 CPU 共用另一输入。
+- 厂家 DDR/RISC-V 顶层已加入第三路 DDR 读仲裁；两级读仲裁均按Burst边界
+  round-robin，已接受的Burst保持所有权直到`RLAST`，避免显示持续请求造成
+  CPU/BitBlt饥饿。
 - 已合并官方 HDMI TX 的 DVI Encoder、148.75/743.75 MHz PLL 和 LVDS 引脚定义。
 - 隔离工作副本位于 `local/riscv_work/bitblt_display_mvp`，不修改稳定的
   `bitblt_mvp` 和厂家原始 Demo。
@@ -67,6 +68,8 @@ VBlank A→B换帧验证，串口全部返回`PASSED`。最初16-beat显示读Bu
   中断均由同一ISR正确识别和清除。
 - 32帧并发压力通过：HDMI持续扫描前台、BitBlt整帧写后台、CPU读取Scratch
   DDR并逐帧中断换页；测试后`UNDERFLOW_COUNT=0`，最终恢复8条竖向彩条。
+- CPU/BitBlt性能对比通过：1080p Fill为37.39/657.99 MiB/s（17.59×），
+  Copy为15.87/127.62 MiB/s（8.04×）；测试期间显示扫描74帧且零欠流。
 
 ```text
 *** BitBlt Framebuffer Smoke Demo ***
@@ -92,7 +95,7 @@ Vertical color bars restored: PASSED
 - 当前缓冲按“读完一个 Burst 后再写一个 Burst”工作，还没有命令 FIFO。
 - HDMI TX 与 DDR/RISC-V 已完成联合编译、寄存器/DMA/VBlank 板测及目标屏
   8条竖向彩条目视确认。
-- 还没有完成 CPU 绘制与 BitBlt 绘制的端到端显示性能对比和长时间老化测试。
+- CPU 与 BitBlt 的Fill/Copy端到端性能基线已完成；尚未完成长时间老化测试。
 
 ## 创建 FPGA 工作副本
 
@@ -138,8 +141,8 @@ cp project/04_project/bitblt_accel/hw/rtl/*.v \
 efx_run --prj -f compile ddr_demo_ti60
 ```
 
-本次生成的 JTAG bitstream SHA-256 为
-`aa4a91cd6078f1fa9625b47bf134db13924cbd1a79b0084b01dee0082c20f712`。
+本次公平读仲裁版本的 JTAG bitstream SHA-256 为
+`0278427468b6080a41b6fcf51a119fc0d8a809e346cb999a218464fb7fcbd659`。
 
 命令行通过 OpenOCD 装载软件时，必须先执行 `soft_reset_halt`；只使用
 `halt` 会使 VexRiscv 停在 `PC=0x8`，程序不会进入 `main()`：

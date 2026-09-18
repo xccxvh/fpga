@@ -208,6 +208,30 @@ module tb_axi_arbiters;
         m_rvalid = 0; m_rlast = 0;
         $display("Read arbiter tests: PASSED");
 
+        // With both requesters continuously valid, grants alternate by burst.
+        @(negedge clk);
+        s0_arvalid = 1; s1_arvalid = 1; m_arready = 1;
+        #1;
+        check(s1_arready && !s0_arready,
+              "round-robin must grant s1 after the previous s0 grant");
+        @(posedge clk); #1;
+        m_arready = 0; m_rvalid = 1; m_rlast = 1;
+        #1;
+        check(s1_rvalid && !s0_rvalid, "round-robin s1 response routing");
+        @(posedge clk); #1;
+        m_rvalid = 0; m_rlast = 0; m_arready = 1;
+        #1;
+        check(s0_arready && !s1_arready,
+              "round-robin must grant waiting s0 after s1");
+        @(posedge clk); #1;
+        s0_arvalid = 0; s1_arvalid = 0; m_arready = 0;
+        m_rvalid = 1; m_rlast = 1;
+        #1;
+        check(s0_rvalid && !s1_rvalid, "round-robin s0 response routing");
+        @(posedge clk); #1;
+        m_rvalid = 0; m_rlast = 0;
+        $display("Read arbiter fairness: PASSED");
+
         if (failures == 0) begin
             $display("AXI arbiter regression: PASSED");
             $finish;

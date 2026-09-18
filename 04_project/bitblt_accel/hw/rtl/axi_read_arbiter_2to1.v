@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 
 // Two-master AXI read arbiter. Ownership is retained until the RLAST handshake.
+// Simultaneous requesters alternate at burst boundaries so a continuously
+// requesting long-burst master cannot starve the other input.
 module axi_read_arbiter_2to1 (
     input clk, input resetn,
     input [7:0] s0_arid, input [31:0] s0_araddr, input [7:0] s0_arlen,
@@ -19,8 +21,9 @@ module axi_read_arbiter_2to1 (
     input [7:0] m_rid, input [127:0] m_rdata, input [1:0] m_rresp,
     input m_rlast, input m_rvalid, output m_rready
 );
-    reg active, owner;
-    wire choose1 = s1_arvalid;
+    reg active, owner, last_owner;
+    wire choose1 = s1_arvalid &&
+                   (!s0_arvalid || (last_owner == 1'b0));
     assign m_arid = choose1 ? s1_arid : s0_arid;
     assign m_araddr = choose1 ? s1_araddr : s0_araddr;
     assign m_arlen = choose1 ? s1_arlen : s0_arlen;
@@ -40,9 +43,17 @@ module axi_read_arbiter_2to1 (
     assign s1_rvalid = active && owner && m_rvalid;
     assign m_rready = active && (owner ? s1_rready : s0_rready);
     always @(posedge clk or negedge resetn) begin
-        if (!resetn) begin active <= 1'b0; owner <= 1'b0; end
+        if (!resetn) begin
+            active <= 1'b0;
+            owner <= 1'b0;
+            last_owner <= 1'b0;
+        end
         else begin
-            if (!active && m_arvalid && m_arready) begin active <= 1'b1; owner <= choose1; end
+            if (!active && m_arvalid && m_arready) begin
+                active <= 1'b1;
+                owner <= choose1;
+                last_owner <= choose1;
+            end
             else if (active && m_rvalid && m_rready && m_rlast) active <= 1'b0;
         end
     end
