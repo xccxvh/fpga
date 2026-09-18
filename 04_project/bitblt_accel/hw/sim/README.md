@@ -6,7 +6,8 @@
   4 KiB 边界、随机式 backpressure、非法参数及 AXI 错误响应。
 - `tb_bitblt_ctrl_axi.sv`：寄存器复位/读写、START/BUSY/DONE/ERROR、完成中断、
   CLEAR、WSTRB、非法地址、非单拍访问及AW/W独立握手。
-- `tb_axi_arbiters.sv`：读写仲裁优先级、事务所有权保持和响应路由。
+- `tb_axi_arbiters.sv`：写仲裁优先级、读仲裁Burst边界round-robin、持续双请求
+  公平性、事务所有权保持和响应路由。
 - `tb_axi_ctrl_demux_1to2.sv`：BitBlt/显示寄存器地址译码及未映射地址
   `DECERR` 响应。
 - `tb_display_ctrl_axi.sv`：显示寄存器、VBlank 原子换帧、欠载计数和中断。

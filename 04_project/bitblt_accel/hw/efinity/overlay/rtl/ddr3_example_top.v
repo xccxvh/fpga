@@ -734,8 +734,9 @@ axi_read_arbiter_2to1 u_cpu_bitblt_read_arbiter (
     .m_rlast(rd_mid_rlast), .m_rvalid(rd_mid_rvalid), .m_rready(rd_mid_rready)
 );
 
-// Display is the high-priority second stage so the active scanout cannot be
-// starved by CPU or BitBlt traffic. Ownership remains fixed for each burst.
+// The second stage arbitrates at burst boundaries. Round-robin grants prevent
+// CPU/BitBlt starvation while the display's 64-beat requests retain most of
+// the beat bandwidth. Ownership remains fixed for each accepted burst.
 axi_read_arbiter_2to1 u_display_read_arbiter (
     .clk(user_clk), .resetn(ddr_rstn),
     .s0_arid(rd_mid_arid), .s0_araddr(rd_mid_araddr), .s0_arlen(rd_mid_arlen),
