@@ -1,0 +1,290 @@
+# A0-2：统一两份 DDR3 控制器配置
+
+> 角色 A · 2026-09-18
+> 依据：`A_下一步行动方案.md` 第 9 节路线图 A0-2，以及第 5 节"决策 1"
+> **这一步卡住 A0-1（编译）和 A1-1（合并），必须先做。**
+
+---
+
+## 0. 结论速览
+
+两份配置的差异**只有 6 处**（全在 `ddr3_parameter.vh`，54 行的小文件）。逐条建议：
+
+| # | 参数 | `udp_image_demo` | `demo/08` | 建议 | 把握 |
+|---|---|---|---|---|---|
+| 1 | `ADDR_WIDTH` | **30** | **28** | **改成 28** | 高 ✅ |
+| 2 | `AXI_ADDR_WIDTH` | **32** | **28** | **保持 32** | 中 ⚠️ |
+| 3 | `tPRDI` | 未定义 | `1000000` | **补上**（无害） | 高 ✅ |
+| 4 | `TX_CLK_SEL` | 0 | 3 | **先别动**，合并后重跑校准 | 低 ❓ |
+| 5 | `TX_CLK_90EDGE_SEL` | 3 | 0 | **先别动**，同上 | 低 ❓ |
+| 6 | `ASYN_AXI_CLK` | **1** | **0** | **改成 0** | 高 ✅ |
+
+**4 项可以直接定，2 项需要实测。**
+
+### ⚠️ 一个重要限制：DDR3 控制器是加密 IP
+
+`ddr3_top.v` 里是 Efinix 的加密 IP：
+
+```verilog
+`pragma protect key_keyowner="Efinix Inc."
+`pragma protect key_method="rsa"
+`pragma protect key_block ...
+`pragma protect end_protected
+```
+
+**后果**：我**无法用静态分析确认**每个参数到底有没有被真正使用。
+`grep` 在可见文本里找不到 `` `ADDR_WIDTH `` 的引用，但这不代表加密块内部没用它 ——
+参数确实会传进去，只是内容看不到。
+
+所以下面每条的"把握"栏是按**外部证据**给的（芯片几何、引脚数、demo/08 实测），
+不是按代码追出来的。**这些改动的真实效果只能靠重编 + 上板验证。**
+
+---
+
+## 1. 为什么先做这个
+
+`udp_image_demo` 和 `demo/08` 用的是**同一个 DDR3 模块，但是两份独立的控制器实例**，参数不一致。
+
+合并时只能留一份。如果不先定下来：
+
+- A0-1（编译参考工程）不知道按哪份编
+- A1-1（合并）会在"DDR 到底能不能工作"这个最基础的问题上卡住
+- 而且 DDR 出问题的症状是**数据悄悄变错**，不是报错，极难定位
+
+这一步不需要板子、不需要重编，纯对着代码做决策 —— 成本最低的时候就是现在。
+
+---
+
+## 2. 先把硬件事实钉死：芯片到底多大
+
+之前两份工程参数不一致，容量推算也就对不上。现在查清了：
+
+### 2.1 存储阵列几何（两份完全相同）
+
+```
+BANK_WIDTH  3   → 8 banks
+ROW_WIDTH  14   → 16384 rows
+COL_WIDTH  10   → 1024 columns
+RANKS       1
+```
+
+单元总数 = 8 × 16384 × 1024 = **134,217,728**
+
+### 2.2 数据位宽 = 16 bit（引脚数实测）
+
+数 `peri.xml` 里的物理 DQ 引脚：
+
+| 工程 | DQ 引脚数 |
+|---|---|
+| `demo/08` | **16**（`ddr_dq[0]`–`ddr_dq[15]`） |
+| `udp_image_demo` | **16**（`dq[0]`–`dq[15]`） |
+
+> 注：`udp_image_demo` 的 `peri.xml` 里还能看到 `i_dq_hi[0..15]` / `o_dq_hi[0..15]`，
+> 看起来像 32 根，但那不是独立引脚 —— 同一个物理引脚 `dq[0]` 上挂了
+> `input_config name="i_dq_hi[0]"` 和 `name_ddio_lo="i_dq_lo[0]"`
+> 两条配置，是 **DDIO 双沿**的两个相位，不是两条线。
+
+### 2.3 容量
+
+```
+134,217,728 单元 × 16 bit = 2,147,483,648 bit = 2 Gbit = 256 MB
+```
+
+**两个工程都是同一颗 256 MB 的 x16 DDR3。**
+
+### 2.4 实测印证
+
+用 `riscv/projects/ddrtest` 在 `demo/08` 的 bit 上实测（1 MB 步长扫 `0x00100000`–`0x10000000`）：
+
+- 255 个探针全部正确
+- 连续 1 / 连续 0 / 交替位模式：0 错误
+- 地址写自身（16384 字）：全部正确
+
+→ **0x1000 – 0x0FFFFFFF（256 MB）整段可用。**
+
+---
+
+## 3. 差异清单（完整 diff）
+
+```diff
+ `define DATA_WIDTH	16
+-`define ADDR_WIDTH	30          ← ①
++`define ADDR_WIDTH	28
+ `define AXI_ID_WIDTH	4
+-`define AXI_ADDR_WIDTH	32      ← ②
++`define AXI_ADDR_WIDTH	28
+
+ `define tFAW	35000
++`define tPRDI	1000000             ← ③
+
+-`define TX_CLK_SEL	0                       ← ④
+-`define TX_CLK_90EDGE_SEL	3               ← ⑤
++`define TX_CLK_SEL	3
++`define TX_CLK_90EDGE_SEL	0
+
+-`define ASYN_AXI_CLK	1        ← ⑥
++`define ASYN_AXI_CLK	0
+```
+
+**就这 6 处，没有别的了。**
+
+---
+
+## 4. 逐条分析
+
+### ① `ADDR_WIDTH`：30 → **28** ✅ 建议改
+
+**这是最重要的一处。**
+
+配 256 MB 芯片，正确值是 `log2(256M) = 28`。
+
+`udp_image_demo` 写的 30 相当于声明 1 GB 寻址空间。**超出的地址位芯片会忽略 → 回卷**。
+
+**为什么一直没出事**：4 个槽位只用 8 MB（`SLOT_SHIFT=21`，`SLOT_COUNT=4` → 0x0–0x7FFFFF），从来没碰过高地址。
+
+**为什么必须改**：合并后要放 BitBlt 素材区、framebuffer、CPU 堆栈，256 MB 会用得比较满。一旦写超过 256 MB，数据会悄悄回卷到低地址 —— 可能覆盖正在用的图形数据，而且**不会有任何报错**。
+
+**建议：改成 28。**
+
+### ② `AXI_ADDR_WIDTH`：32 → **建议保持 32** ⚠️
+
+这一处需要谨慎，**不能简单跟着 ① 一起改成 28**。
+
+原因：`udp_image_demo` 的 RTL 全程按 32 位地址写的：
+
+```verilog
+// top.v
+function [31:0] slot_base;  ...          ← 返回 32 位
+wire [31:0] active_base = slot_base(...);
+```
+
+改成 28 会波及：
+- `top.v` 里所有地址运算
+- `ddr3_top` 的 AXI 端口位宽
+- 如果 SoC 接过来，还要和 `Axi_Mux` 的地址位宽对齐
+
+**建议**：`AXI_ADDR_WIDTH` 保持 32（AXI 总线地址比芯片容量宽是正常的，控制器只用低位），只把 `ADDR_WIDTH` 改成 28。
+
+⚠️ **但这一条要在 A1-2（插 Axi_Mux）时复核** —— 取决于上游 SoC 送过来的地址位宽。
+
+### ③ `tPRDI`：**补上**（无害）✅
+
+查了引用情况：
+
+| 位置 | 情况 |
+|---|---|
+| `memory_bus_ctl.v:61` | `parameter tPRDI = 1_000_000`（**两份工程都有这个默认值**） |
+| `ddr3_parameter.vh` | 只有 `demo/08` 定义了 `1000000` |
+| 别处 | **没有任何地方引用** |
+
+**结论：这是个死定义。** 没有任何模块用 `` `tPRDI `` 去覆盖 `memory_bus_ctl` 的默认值，所以两份工程实际跑的都是默认的 `1_000_000` —— **行为完全相同**。
+
+**建议**：补上这一行，让两份文件长得一样，纯粹为了减少以后 diff 时的噪音。功能上不影响。
+
+### ④⑤ `TX_CLK_SEL` / `TX_CLK_90EDGE_SEL`：**先别动** ❓
+
+```
+udp_image_demo:  TX_CLK_SEL=0   TX_CLK_90EDGE_SEL=3
+demo/08:         TX_CLK_SEL=3   TX_CLK_90EDGE_SEL=0
+```
+
+**注意是一对交换**，不是各自独立的变化。
+
+这两个参数控制 **DDR3 PHY 发送路径用哪个时钟相位**，和实际 PCB 布线延迟强相关。
+
+**关键事实**：**两个工程都能正常工作**（都跑完校准、都能读写 DDR）。
+
+⚠️ **但我不建议现在改任何一边。** 理由：
+
+- 这不是"哪个对"的问题，可能是两种配置都能校准通过
+- 它和物理布线绑定，**改了可能直接导致 DDR 校准失败**
+- 现在改无法验证（要重编 + 上板）
+
+**建议**：合并时**保留 `udp_image_demo` 的值**（因为合并后的顶层是它的 RTL，布线更接近它），
+然后**在 A1-1 之后的第一次上板时重点验证 DDR 校准**。如果校准失败，再换成 `demo/08` 的值重编。
+
+**这一条必须记进上板检查清单。**
+
+### ⑥ `ASYN_AXI_CLK`：1 → **0** ✅ 建议改
+
+控制 AXI 时钟和 core 时钟是否异步：
+
+```verilog
+// ddr3_top.v
+if (ASYN_AXI_CLK) user_clk = axi_clk;
+else              user_clk = core_clk;
+```
+
+查了实际接线：
+
+```verilog
+// udp_image_demo/top.v:164
+.ddr3_top u_ddr3 ( .axi_clk(sys_clk), .core_clk(sys_clk), ... );
+                                   ↑ 两个都接同一个时钟
+```
+
+**两个时钟是同一个源。**
+
+所以 `ASYN_AXI_CLK=1`（异步）**在名义上是错的** —— 它宣称异步，实际同源。
+设 0 和设 1 在这里功能等价（`user_clk` 都是 `sys_clk`）。
+
+**建议**：改成 **0**（同步）。理由：
+- 与实际接线一致，不会误导后面读代码的人
+- 和 `demo/08` 一致，减少差异
+- 同步模式下工具不会插多余的 CDC 处理，时序更好收敛
+
+⚠️ **但要注意**：如果 A1-3（统一时钟）最终决定让 AXI 和 core 用不同时钟，那这里要改回 1。
+
+---
+
+## 5. 需要实测验证的两项
+
+| 项 | 什么时候验 | 怎么验 | 失败了怎么办 |
+|---|---|---|---|
+| ④⑤ `TX_CLK_SEL` | A1-1 合并后第一次上板 | 看 DDR 校准是否通过；跑 `ddrtest` | 换成 `demo/08` 的值（0/3）重编 |
+| ② `AXI_ADDR_WIDTH` | A1-2 插 Axi_Mux 时 | 检查 SoC 送来多少位地址，两边对齐 | 按上游位宽调整 |
+
+---
+
+## 6. 推荐方案（可直接执行）
+
+改 `udp_image_demo/fpga/rtl/ddr3_controller/ddr3_parameter.vh`：
+
+```diff
+-`define ADDR_WIDTH	30
++`define ADDR_WIDTH	28
+
+ `define AXI_ADDR_WIDTH	32     （保持不变）
+
+ `define tFAW	35000
++`define tPRDI	1000000
+
+ `define TX_CLK_SEL	0      （保持不变，上板验证）
+ `define TX_CLK_90EDGE_SEL	3  （保持不变，上板验证）
+
+-`define ASYN_AXI_CLK	1
++`define ASYN_AXI_CLK	0
+```
+
+**改完这三处，A0-2 就算完成。**
+
+---
+
+## 7. 改完之后
+
+| 步骤 | 内容 | 依赖 |
+|---|---|---|
+| **A0-1** | 把参考工程（合并 HDMI 前）编译通过 | 本文档的决策 |
+| **A1-1** | 加 SoC 进 `udp_image_demo` 的 `top.v` | A0-1 |
+| — | 第一次上板：**重点验证 DDR 校准** | A1-1 |
+| **A1-2** | 插 `Axi_Mux`，复核 `AXI_ADDR_WIDTH` | A1-1 |
+
+---
+
+## 附：验收判据
+
+- [ ] `ADDR_WIDTH` = 28
+- [ ] `ASYN_AXI_CLK` = 0
+- [ ] `tPRDI` 已补
+- [ ] 上板后 DDR 校准通过（`ddrtest` 全过）
+- [ ] 上板后 UDP 图片 Demo 功能不回退（`udp_image_demo` 原 bit 已备份，可对照）

@@ -107,6 +107,7 @@ localparam F_END   = 1;
 localparam F_SWAP  = 2;
 localparam F_ACK   = 3;
 localparam F_DBUF  = 4;   // 双缓冲：由 FPGA 挑"当前没在显示"的那块写
+localparam F_AUTO  = 5;   // 自动轮播：START 包的 packet_idx = 间隔帧数
 
 assign DDR3_PLL_RSTN = nrst;
 assign SYS_PLL_RSTN = nrst;
@@ -330,6 +331,11 @@ reg        frame_swap;
 reg        frame_ack;
 reg        frame_done;     // 单拍：整帧完成
 reg        frame_seq_err;  // packet_idx 断号/重复，或 frame_id 与 START 不一致
+// DDR 写响应错误：AXI B 通道握手时 BRESP != 2'b00（SLVERR / DECERR）。
+// 之前 bresp 只连到 ddr3_top，没有任何逻辑读它 —— 也就是说字节数对得上、
+// 序号不断、FIFO 不溢出，frame_ok 就是 1，哪怕数据根本没写进 DDR。
+// 粘滞位：START 时清零，一帧内出过一次就保持到帧结束。
+reg        bresp_err;
 reg [15:0] exp_idx;        // 本帧期望的下一个 packet_idx
 
 // 帧校验和：对真正进 DDR 的每一个 128-bit 字累加。
@@ -358,6 +364,7 @@ always @(posedge sys_clk or negedge sys_rst_n) begin
         rx_bytes <= 0; frame_expect <= 0; frame_rx <= 0; frame_id_cur <= 0;
         frame_wslot <= 0; frame_swap <= 0; frame_ack <= 0; frame_done <= 0;
         frame_seq_err <= 0; exp_idx <= 0; ck_sum <= 0; ck_xor <= 0;
+        bresp_err <= 0;
     end else begin
         bready <= 0; ctrl_fifo_rd_en <= 0; frame_done <= 0;
         case (wstate)
@@ -390,9 +397,16 @@ always @(posedge sys_clk or negedge sys_rst_n) begin
                                             | ctrl_fifo_rdata[F_DBUF];
                             frame_ack    <= ctrl_fifo_rdata[F_ACK];
 
+                            // 自动轮播的间隔（帧）：0 = 关闭。
+                            // 借用 packet_idx 字段 —— START/END 控制包本来就不用它。
+                            // 不置 F_AUTO 就不动，所以普通发图不会误关轮播。
+                            if (ctrl_fifo_rdata[F_AUTO])
+                                auto_interval <= fid_fifo_rdata[15:0];
+
                             rx_bytes      <= 32'd0;
                             exp_idx       <= 16'd0;
                             frame_seq_err <= 1'b0;
+                            bresp_err     <= 1'b0;
                             ck_sum        <= 64'd0;
                             ck_xor        <= 128'd0;
                         end
@@ -462,6 +476,10 @@ always @(posedge sys_clk or negedge sys_rst_n) begin
                 bready <= 1;
                 if (bvalid) begin
                     bready <= 0;
+                    // 检查 DDR 写响应。2'b00 = OKAY，2'b01 = EXOKAY（也算成功），
+                    // 2'b10 = SLVERR，2'b11 = DECERR —— 后两种说明这拍数据没写进 DDR。
+                    if (bresp != 2'b00 && bresp != 2'b01)
+                        bresp_err <= 1'b1;
                     if (wbeats == 0) wstate <= W_IDLE;
                     else begin
                         wburst_len <= burst_len_next;
@@ -620,14 +638,43 @@ wire key_next_press = kn_stable_d & ~kn_stable;
 // ============================================================
 // 字节数对上 != 收全了：还要没有断号/重复，也没有 FIFO 溢出丢拍。
 // frame_ok 同时用来门控切屏 —— 宁可这一帧不显示，也不要显示半张残图。
+// 加入 !bresp_err 后：DDR 写响应出错时这一帧不切屏，屏上保持上一张完整的图。
+// PC 端有 --retry 重传，配合起来屏上永远是最新的一张完整图。
 wire frame_bytes_ok = (frame_expect != 32'd0) && (frame_rx == frame_expect);
-wire frame_ok       = frame_bytes_ok && !frame_seq_err && !fifo_ovf;
+wire frame_ok       = frame_bytes_ok && !frame_seq_err && !fifo_ovf && !bresp_err;
 
 // 校验和折叠到 32 位（PC 端按同样口径算）
 wire [31:0] ck_sum32 = ck_sum[31:0] ^ ck_sum[63:32];
 wire [31:0] ck_xor32 = ck_xor[31:0] ^ ck_xor[63:32]
                      ^ ck_xor[95:64] ^ ck_xor[127:96];
 
+// ============================================================
+// 自动轮播
+//
+// 让 FPGA 自己在槽位 0..SLOT_LAST 之间循环，最快每帧切一次（60 次/秒，
+// 这已经是本架构的上限 —— 切屏只是改一个读基地址，而且落在消隐期，
+// 不会撕裂）。PC 端定时发图会慢得多，而且必须一直开着。
+//
+// 开关和间隔由 START 包的 packet_idx 字段给出（这个字段对 START/END
+// 控制包本来就没意义，一直传 0），配合 flags 的 F_AUTO 位：
+//     F_AUTO=1  -> auto_interval <= packet_idx（0 = 关闭，N = 每 N 帧切一张）
+//     F_AUTO=0  -> 保持原来的设置不变
+// ============================================================
+reg [15:0] auto_interval = 16'd0;
+reg [15:0] auto_cnt      = 16'd0;
+
+// frame_tick_sys 是显示端每个消隐期开头的单拍脉冲（见上面帧边界对齐那节）
+wire auto_step = frame_tick_sys && (auto_interval != 16'd0)
+                               && (auto_cnt + 16'd1 >= auto_interval);
+
+always @(posedge sys_clk or negedge sys_rst_n) begin
+    if (!sys_rst_n) auto_cnt <= 16'd0;
+    else if (frame_tick_sys)
+        auto_cnt <= auto_step ? 16'd0 : (auto_cnt + 16'd1);
+end
+
+// 优先级：按键 > 整帧完成自动切屏 > 自动轮播
+// 这样轮播开着的时候，PC 发新图仍然能立刻切过去，不会被轮播抢掉。
 always @(posedge sys_clk or negedge sys_rst_n) begin
     if (!sys_rst_n) target_slot <= 3'd0;
     else if (key_prev_press)
@@ -636,6 +683,8 @@ always @(posedge sys_clk or negedge sys_rst_n) begin
         target_slot <= (target_slot == SLOT_LAST) ? 3'd0 : target_slot + 3'd1;
     else if (frame_done && frame_swap && frame_ok)
         target_slot <= frame_wslot;
+    else if (auto_step)
+        target_slot <= (target_slot == SLOT_LAST) ? 3'd0 : target_slot + 3'd1;
 end
 
 // ============================================================
@@ -667,8 +716,9 @@ always @(posedge sys_clk or negedge sys_rst_n) begin
                 frame_expect,                   // [127:96]  声明总字节数
                 {5'd0, frame_wslot},            // [95:88]   本帧实际写入的槽位
                 // [87:80] 状态：bit0 帧完整 bit1 DDR校准完 bit2 ARP未命中
-                //                bit3 断号/串帧 bit4 FIFO溢出 bit5 保留
-                {3'd0, fifo_ovf, frame_seq_err, arp_miss, cal_done, frame_ok},
+                //                bit3 断号/串帧 bit4 FIFO溢出
+                //                bit5 DDR写响应错(BRESP)  bit6-7 保留
+                {2'd0, bresp_err, fifo_ovf, frame_seq_err, arp_miss, cal_done, frame_ok},
                 {5'd0, active_slot},            // [79:72]   回执这一刻的显示槽位
                 8'd0,                           // [71:64]   保留
                 ck_sum32,                       // [63:32]   帧校验和（加）

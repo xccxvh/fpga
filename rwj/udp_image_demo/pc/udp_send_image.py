@@ -67,6 +67,7 @@ FLAG_END = 0x02
 FLAG_SWAP = 0x04
 FLAG_ACK = 0x08
 FLAG_DBUF = 0x10            # 双缓冲：由 FPGA 挑"当前没在显示"的那块
+FLAG_AUTO = 0x20            # 自动轮播：START 包的 packet_idx = 间隔帧数
 
 # magic / frame_id / packet_idx / total_pkts / payload_len / slot / flags / byte_offset
 HEADER_FMT = ">HHHHHBBI"
@@ -83,6 +84,7 @@ ACK_ST_CAL_DONE = 0x02      # DDR3 校准完成
 ACK_ST_NO_ARP = 0x04        # 板端 ARP 表未命中，回执本身可能没发出来
 ACK_ST_SEQ_ERR = 0x08       # packet_idx 断号/重复，或 frame_id 不一致
 ACK_ST_FIFO_OVF = 0x10      # 板端 FIFO 溢出，丢过拍
+ACK_ST_BRESP_ERR = 0x20     # DDR 写响应错误（SLVERR/DECERR），这帧有数据没写进 DDR
 
 DEFAULT_IP = "192.168.0.2"       # 板子 IP
 DEFAULT_PORT = 8080              # 板子 UDP 端口
@@ -166,7 +168,8 @@ def make_header(frame_id, pkt_idx, total, payload_len, slot, flags, byte_offset)
     )
 
 
-def build_packets(data, slot, frame_id, auto_swap, want_ack, chunk, dbuf=False):
+def build_packets(data, slot, frame_id, auto_swap, want_ack, chunk, dbuf=False,
+                  auto_cycle=None):
     """把整帧数据切成 [(header, payload_bytes), ...]，含 START / END。
 
     长度会补齐到 16 字节的倍数：板端 DDR3 AXI 是 128-bit，
@@ -174,6 +177,10 @@ def build_packets(data, slot, frame_id, auto_swap, want_ack, chunk, dbuf=False):
 
     dbuf=True 时 slot 字段没有意义 —— 板端会忽略它，自己挑"当前没在显示"
     的那一块写。这样 PC 不需要知道板子现在显示哪个槽位。
+
+    auto_cycle=N 时置 AUTO 标志，并把 N 写进 START 包的 packet_idx：
+    板端每 N 帧自动切下一张（N=1 就是每帧都切，60 次/秒）。N=0 关闭轮播。
+    auto_cycle=None 表示不动板端现有的轮播设置。
     """
     if len(data) % 16 != 0:
         data = data + bytes(16 - (len(data) % 16))
@@ -183,11 +190,14 @@ def build_packets(data, slot, frame_id, auto_swap, want_ack, chunk, dbuf=False):
 
     frame_flags = ((FLAG_SWAP if auto_swap else 0)
                    | (FLAG_ACK if want_ack else 0)
-                   | (FLAG_DBUF if dbuf else 0))
+                   | (FLAG_DBUF if dbuf else 0)
+                   | (FLAG_AUTO if auto_cycle is not None else 0))
 
     packets = [
-        # START：byte_offset 借用来放“本帧总字节数”
-        (make_header(frame_id, 0, total_pkts, 0, slot,
+        # START：byte_offset 借用来放"本帧总字节数"，
+        #        packet_idx 借用来放自动轮播间隔（不轮播时传 0，板端不看）
+        (make_header(frame_id, 0 if auto_cycle is None else auto_cycle,
+                     total_pkts, 0, slot,
                      FLAG_START | frame_flags, total_bytes), b"")
     ]
 
@@ -387,6 +397,15 @@ def report_ack(ack, chunk, dt, local_ck=None):
     else:
         print("板端 FIFO  : OK")
 
+    # ---- 4. DDR 写响应错误 ----
+    # 这一位是新增的。以前 BRESP 完全没被检查，字节数对得上就算成功，
+    # 哪怕 DDR 写响应报了 SLVERR/DECERR —— 数据根本没落盘也发现不了。
+    if status & ACK_ST_BRESP_ERR:
+        problems.append("DDR 写响应错误（BRESP），该帧有数据没写进 DDR")
+        print("DDR 写入   : ** 写响应错误 ** —— 数据没落盘，这一帧已作废")
+    else:
+        print("DDR 写入   : OK（BRESP 全部 OKAY）")
+
     # ---- 4. 帧校验和 ----
     if local_ck is not None:
         lsum, lxor = local_ck
@@ -488,6 +507,11 @@ def main():
 
     # ---- 回执 ----
     parser.add_argument(
+        "--auto-cycle", type=int, default=None, metavar="N",
+        help="自动轮播：板端每 N 帧自动切下一张。N=1 最快（每帧都切，60 次/秒），"
+             "N=0 关闭。不给这个参数就不动板端现有的轮播设置",
+    )
+    parser.add_argument(
         "--ack", action="store_true",
         help="要求板端整帧完成后回执，并报告帧完整性（默认不发回执）",
     )
@@ -577,6 +601,11 @@ def main():
     if frame_id is None:
         frame_id = int(time.time()) & 0xFFFF
 
+    if args.auto_cycle is not None:
+        if not (0 <= args.auto_cycle <= 0xFFFF):
+            print("[ERROR] --auto-cycle 必须在 0..65535 之间")
+            sys.exit(1)
+
     # ============================================================
     # 2. 打印分包信息
     # ============================================================
@@ -606,9 +635,16 @@ def main():
         print(f"目标槽位   : {slot}  (DDR 偏移 0x{slot * SLOT_SIZE:08X})")
     print(f"整帧切屏   : {'是（等 VSYNC 切过去）' if (args.auto_swap or args.dbuf) else '否（只写槽位）'}")
     print(f"板端回执   : {'要' if args.ack else '不要'}")
+    if args.auto_cycle is not None:
+        if args.auto_cycle == 0:
+            print("自动轮播   : 关闭")
+        else:
+            fps = 60.0 / args.auto_cycle
+            print(f"自动轮播   : 每 {args.auto_cycle} 帧切一张（约 {fps:.1f} 张/秒）")
 
     packets, total_pkts, total_bytes = build_packets(
-        data, slot, frame_id, args.auto_swap, args.ack, chunk_size, args.dbuf
+        data, slot, frame_id, args.auto_swap, args.ack, chunk_size, args.dbuf,
+        args.auto_cycle
     )
 
     print(f"总包数     : {total_pkts} 个 DATA 包 + START/END，共 {len(packets)} 包")
@@ -663,7 +699,7 @@ def main():
             frame_id = (frame_id + 1) & 0xFFFF
             packets, _, _ = build_packets(
                 data, slot, frame_id, args.auto_swap, args.ack,
-                chunk_size, args.dbuf
+                chunk_size, args.dbuf, args.auto_cycle
             )
 
         print()
