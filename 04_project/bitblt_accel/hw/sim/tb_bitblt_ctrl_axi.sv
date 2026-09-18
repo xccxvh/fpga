@@ -266,7 +266,7 @@ module tb_bitblt_ctrl_axi;
         expect_read(DST_STRIDE, 0, "DST_STRIDE reset value");
         expect_read(COLOR, 0, "COLOR reset value");
         expect_read(OPERATION, 0, "OPERATION reset value");
-        expect_read(VERSION, 32'h0001_0003, "VERSION value");
+        expect_read(VERSION, 32'h0001_0004, "VERSION value");
         $display("Register reset tests: PASSED");
 
         write_register(SRC_ADDR, 32'h0110_0000, 4'hf, 0);

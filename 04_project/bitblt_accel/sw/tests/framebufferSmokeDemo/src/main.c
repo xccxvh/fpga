@@ -215,7 +215,7 @@ void main(void) {
     uint32_t timeout, start_frame;
     bsp_init();
     bsp_printf("*** BitBlt Framebuffer Smoke Demo ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != 0x00010003u)
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4)
         fail("BitBlt version");
     if (display_read(DISPLAY_VERSION) != DISPLAY_VERSION_V0_2)
         fail("display version/address decode");

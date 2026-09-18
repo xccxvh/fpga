@@ -6,6 +6,7 @@ module tb_bitblt_engine;
     localparam integer TIMEOUT = 20000;
     localparam OP_FILL = 0;
     localparam OP_COPY = 1;
+    localparam OP_COLOR_KEY = 2;
 
     reg clk = 0;
     reg resetn = 0;
@@ -272,6 +273,34 @@ module tb_bitblt_engine;
         end
     endtask
 
+    task run_color_key;
+        integer pixel;
+        reg [31:0] value;
+        begin
+            initialise_memory();
+            src_addr = BASE + 32'h1000;
+            dst_addr = BASE + 32'h3000;
+            width = 20;
+            height = 1;
+            src_stride = 80;
+            dst_stride = 80;
+            color = 32'haa11_2233;
+            operation = OP_COLOR_KEY;
+            for (pixel = 0; pixel < 20; pixel = pixel + 1) begin
+                if ((pixel % 3) == 0)
+                    value = {pixel[7:0], 24'h11_2233};
+                else
+                    value = 32'h5a00_0000 | pixel;
+                put_pixel(src_addr + pixel * 4, value);
+                if ((pixel % 3) != 0)
+                    expect_pixel(dst_addr + pixel * 4, value);
+            end
+            pulse_start();
+            wait_for_done(0, "color key");
+            compare_memory("color key");
+        end
+    endtask
+
     task run_invalid;
         input [31:0] test_operation;
         input [31:0] test_src;
@@ -390,7 +419,10 @@ module tb_bitblt_engine;
         run_copy_4k_boundary();
         $display("Copy/stride/boundary tests: PASSED");
 
-        run_invalid(2, BASE, BASE + 32'h2000, 4, 1, 16, 16, "illegal operation");
+        run_color_key();
+        $display("Color Key tests: PASSED");
+
+        run_invalid(3, BASE, BASE + 32'h2000, 4, 1, 16, 16, "illegal operation");
         run_invalid(OP_FILL, BASE, BASE + 32'h2000, 0, 1, 16, 16, "zero width");
         run_invalid(OP_FILL, BASE, BASE + 32'h2000, 4, 0, 16, 16, "zero height");
         run_invalid(OP_FILL, BASE, BASE + 32'h2004, 4, 1, 16, 16, "unaligned destination");
