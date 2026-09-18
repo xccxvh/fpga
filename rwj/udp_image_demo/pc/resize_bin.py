@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 """把 RGB565 raw 图片自适应到 HDMI 帧大小（默认 1280x720）。
 
-默认 smart 模式允许有限拉伸，尽量铺满屏幕，同时避免宽高比差异很大时
-产生严重变形。输入旁边存在“文件名.bin.json”时会自动读取源分辨率。
+三种模式（默认 fit）：
+
+    fit      保持宽高比完整显示，多余部分补黑边 —— 默认
+    fill     保持宽高比铺满屏幕，超出部分居中裁掉
+    stretch  不保持比例，强行拉成 1280x720（只用于测试）
+
+输入旁边存在“文件名.bin.json”时会自动读取源分辨率。
+
+旧名字 contain / cover / smart 仍然接受（contain=fit，cover=fill，
+smart 是历史模式：允许有限拉伸，最多把宽高比朝屏幕方向修正 20%）。
 """
 
 import argparse
@@ -17,7 +25,30 @@ from PIL import Image
 DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 DEFAULT_MAX_STRETCH = 1.20
+DEFAULT_MODE = "fit"
 LANCZOS = getattr(Image, "Resampling", Image).LANCZOS
+
+# 对外统一用 fit / fill / stretch；内部沿用 contain / cover / stretch / smart
+MODE_ALIASES = {
+    "fit": "contain",
+    "contain": "contain",
+    "fill": "cover",
+    "cover": "cover",
+    "stretch": "stretch",
+    "smart": "smart",
+}
+
+MODE_CHOICES = ("fit", "fill", "stretch", "smart", "contain", "cover")
+
+
+def resolve_mode(mode):
+    """把对外模式名翻译成内部模式名，非法名字抛 ValueError。"""
+    try:
+        return MODE_ALIASES[mode]
+    except KeyError:
+        raise ValueError(
+            f"不支持的适配模式：{mode}（可选 fit / fill / stretch）"
+        ) from None
 
 
 def load_source_size(input_path, src_width, src_height):
@@ -44,7 +75,11 @@ def load_source_size(input_path, src_width, src_height):
 
 
 def resize_adaptive(img, target_size, mode, max_stretch):
-    """返回固定目标尺寸的图像，以及实际缩放内容尺寸。"""
+    """返回固定目标尺寸的图像，以及实际缩放内容尺寸。
+
+    mode 接受 fit / fill / stretch（也接受旧名 contain / cover / smart）。
+    """
+    mode = resolve_mode(mode)
     target_w, target_h = target_size
     src_w, src_h = img.size
     target_aspect = target_w / target_h
@@ -53,7 +88,7 @@ def resize_adaptive(img, target_size, mode, max_stretch):
     if mode == "stretch":
         return img.resize(target_size, LANCZOS), target_size
 
-    if mode == "cover":
+    if mode == "cover":  # fill
         scale = max(target_w / src_w, target_h / src_h)
         content_size = (
             max(1, round(src_w * scale)),
@@ -64,7 +99,7 @@ def resize_adaptive(img, target_size, mode, max_stretch):
         top = (content_size[1] - target_h) // 2
         return resized.crop((left, top, left + target_w, top + target_h)), content_size
 
-    if mode == "contain":
+    if mode == "contain":  # fit
         content_aspect = src_aspect
     else:  # smart：把宽高比朝屏幕方向最多修正 max_stretch 倍
         aspect_ratio = target_aspect / src_aspect
@@ -129,9 +164,9 @@ def main():
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT, help="屏幕高度，默认 720")
     parser.add_argument(
         "--mode",
-        choices=("smart", "stretch", "contain", "cover"),
-        default="smart",
-        help="smart=有限拉伸（默认），stretch=完全铺满，contain=完整显示，cover=铺满裁边",
+        choices=MODE_CHOICES,
+        default=DEFAULT_MODE,
+        help="fit=保持比例完整显示补黑边（默认），fill=保持比例铺满裁边，stretch=强行拉伸",
     )
     parser.add_argument(
         "--max-stretch",

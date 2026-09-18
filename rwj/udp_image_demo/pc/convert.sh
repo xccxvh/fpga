@@ -59,11 +59,21 @@ usage() {
   --ext EXT     批量转换的图片扩展名，逗号分隔，默认 jpg,jpeg,png,bmp,webp
   -h, --help    显示本帮助
 
+环境变量:
+  RESIZE        目标尺寸，默认 1280x720
+  FIT_MODE      适配方式，默认 fit
+                fit=保持比例完整显示补黑边 / fill=铺满裁边 / stretch=强行拉伸
+  PYTHON_BIN    指定 python 解释器
+  CONDA_ENV     指定 conda 环境，默认 cross_modal
+
 示例:
   $0 ./img/logo.png
   $0 ./img/logo.png ./out/logo.bin --endian big
   $0 ./img ./out
   $0 ./img ./out -r --ext jpg,png
+  FIT_MODE=fill $0 ./img/background.jpg
+
+提示: 日常直接发图用 send_image.py 更省事，不用先转 .bin。
 EOF
 }
 
@@ -170,10 +180,14 @@ main() {
     echo "字节序  : $endian"
     echo
 
-    # 默认缩放到 1280x720（FPGA HDMI 固定按此分辨率显示）
+    # 默认自适应到 1280x720（FPGA HDMI 固定按此分辨率显示）
+    # 注意：这里走的是 resize_bin 的自适应缩放，不是硬拉伸，
+    #       非 16:9 的图会按 FIT_MODE 补黑边 / 裁边，不会变形。
     local resize="${RESIZE:-1280x720}"
+    local fit_mode="${FIT_MODE:-fit}"
 
-    local -a py_args=("$PY_SCRIPT" "$input" "$output" "--endian" "$endian" "--resize" "$resize")
+    local -a py_args=("$PY_SCRIPT" "$input" "$output" "--endian" "$endian"
+                      "--resize" "$resize" "--fit-mode" "$fit_mode")
 
     if [[ "$recursive" -eq 1 ]]; then
         py_args+=("--recursive")
