@@ -13,8 +13,28 @@ class ConversionError(Exception):
 
 DEFAULT_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
+# 自适应模式（详见 resize_bin.py）
+FIT_MODE_CHOICES = ("fit", "fill", "stretch", "smart", "contain", "cover")
+DEFAULT_FIT_MODE = "fit"
 
-def convert_to_rgb565(input_path, output_path, endian="little", target_size=None):
+
+def _resize_adaptive(img, target_size, fit_mode):
+    """调用 resize_bin.resize_adaptive；失败时抛 ConversionError。"""
+    try:
+        from resize_bin import resize_adaptive
+    except ImportError as e:
+        raise ConversionError(
+            f"自适应缩放需要同目录的 resize_bin.py：{e}"
+        ) from e
+
+    try:
+        return resize_adaptive(img, target_size, fit_mode, 1.20)
+    except ValueError as e:
+        raise ConversionError(str(e)) from e
+
+
+def convert_to_rgb565(input_path, output_path, endian="little", target_size=None,
+                      fit_mode=DEFAULT_FIT_MODE):
     """
     将 JPG / PNG 转换为 RGB565 raw 二进制数据。
 
@@ -55,6 +75,8 @@ def convert_to_rgb565(input_path, output_path, endian="little", target_size=None
     except Exception as e:
         raise ConversionError(f"无法打开图片：{e}")
 
+    source_size = (img.width, img.height)
+
     print("========== 输入图片 ==========")
     print(f"文件       : {input_path}")
     print(f"原始模式   : {img.mode}")
@@ -82,10 +104,31 @@ def convert_to_rgb565(input_path, output_path, endian="little", target_size=None
 
     img_rgb = background.convert("RGB")
 
-    # 可选：缩放到目标尺寸（如 1280x720）
+    # 可选：自适应到目标尺寸（如 1280x720）
+    #
+    # 注意：这里绝不能直接用 img.resize()，那是不保持宽高比的硬拉伸，
+    # 任何非 16:9 的图都会变形。统一走 resize_bin.resize_adaptive。
+    content_size = None
     if target_size is not None:
-        img_rgb = img_rgb.resize(target_size, Image.LANCZOS)
+        target_size = (int(target_size[0]), int(target_size[1]))
+        print(f"目标尺寸   : {target_size[0]} x {target_size[1]}")
+        print(f"适配模式   : {fit_mode}")
+
+        img_rgb, content_size = _resize_adaptive(img_rgb, target_size, fit_mode)
+
         print(f"缩放后尺寸 : {img_rgb.width} x {img_rgb.height}")
+
+        # fit 补黑边 / fill 裁边 / stretch 变形，提示要说清楚
+        if fit_mode in ("fit", "contain") and content_size != target_size:
+            note = "（上下或左右补黑边）"
+        elif fit_mode in ("fill", "cover"):
+            note = "（超出部分居中裁掉）"
+        elif fit_mode == "stretch" and content_size != target_size:
+            note = "（已强行拉伸，宽高比失真）"
+        else:
+            note = ""
+
+        print(f"有效内容   : {content_size[0]} x {content_size[1]}{note}")
 
     width, height = img_rgb.size
 
@@ -166,8 +209,15 @@ def convert_to_rgb565(input_path, output_path, endian="little", target_size=None
     metadata = {
         "source_filename": os.path.basename(input_path),
 
+        "source_width": source_size[0],
+        "source_height": source_size[1],
+
         "width": width,
         "height": height,
+
+        "resize_mode": fit_mode if target_size is not None else None,
+        "content_width": content_size[0] if content_size else width,
+        "content_height": content_size[1] if content_size else height,
 
         "pixel_format": "RGB565",
 
@@ -385,7 +435,8 @@ def list_image_files(input_dir, recursive=False, extensions=None):
 
 
 def convert_directory(input_dir, output_dir, endian="little",
-                      recursive=False, extensions=None):
+                      recursive=False, extensions=None,
+                      target_size=None, fit_mode=DEFAULT_FIT_MODE):
     """
     批量转换目录下所有图片。
 
@@ -440,7 +491,8 @@ def convert_directory(input_dir, output_dir, endian="little",
         print(f"[{i}/{len(image_files)}] {img_path}")
 
         try:
-            convert_to_rgb565(img_path, out_path, endian)
+            convert_to_rgb565(img_path, out_path, endian,
+                              target_size=target_size, fit_mode=fit_mode)
             success += 1
         except ConversionError as e:
             failed += 1
@@ -511,7 +563,19 @@ def main():
     parser.add_argument(
         "--resize",
         default=None,
-        help="缩放图片到 WxH（如 1280x720），默认不缩放"
+        help="自适应到 WxH（如 1280x720），默认不缩放"
+    )
+
+    parser.add_argument(
+        "--fit-mode",
+        choices=FIT_MODE_CHOICES,
+        default=DEFAULT_FIT_MODE,
+        help=(
+            "配合 --resize 使用的适配方式："
+            "fit=保持比例完整显示补黑边（默认），"
+            "fill=保持比例铺满裁边，"
+            "stretch=强行拉伸（不推荐）"
+        )
     )
 
     args = parser.parse_args()
@@ -537,6 +601,8 @@ def main():
                 endian=args.endian,
                 recursive=args.recursive,
                 extensions=extensions,
+                target_size=target_size,
+                fit_mode=args.fit_mode,
             )
         except ConversionError as e:
             print(f"[ERROR] {e}")
@@ -551,6 +617,7 @@ def main():
             output_path=args.output,
             endian=args.endian,
             target_size=target_size,
+            fit_mode=args.fit_mode,
         )
     except ConversionError as e:
         print(f"[ERROR] {e}")

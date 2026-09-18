@@ -24,6 +24,11 @@ echo "开始编译（综合 + 布局布线 + bitstream）..."
 echo "=============================================="
 echo
 
+# 先把上一次的 bit 删掉。
+# efx_run 即使 map 失败也可能返回 0，如果旧 bit 还在，
+# 后面的检查就会误报"可以烧录" —— 让人烧到一个过期的 bit 上。
+rm -f outflow/ddr3_hdmi_test.bit
+
 "$EFX_BIN/efx_run" --prj -f compile ddr3_hdmi_test.xml
 
 echo

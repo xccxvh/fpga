@@ -152,6 +152,12 @@
         <efxpt:comp_gpio name="b_led[1]" gpio_def="GPIOR_22" mode="output" bus_name="b_led" io_standard="3.3 V LVCMOS">
             <efxpt:output_config name="b_led[1]" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" delay="0" is_serial="false" drive_strength="4" fastclk_name=""/>
         </efxpt:comp_gpio>
+        <efxpt:comp_gpio name="key_next" gpio_def="GPIOL_03" mode="input" bus_name="" io_standard="3.3 V LVCMOS">
+            <efxpt:input_config name="key_next" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="weak pullup" is_schmitt_trigger="false" ddio_type="none" is_bus_hold="false" delay="0" is_serial="false" is_dyn_delay="false" fastclk_name="" pullup_ena_name="key_next_PULL_UP_ENA" dyn_delay_en_name="key_next_DLY_ENA" dyn_delay_reset_name="key_next_DLY_RST" dyn_delay_ctrl_name="key_next_DLY_CTRL" clkmux_buf_name=""/>
+        </efxpt:comp_gpio>
+        <efxpt:comp_gpio name="key_prev" gpio_def="GPIOL_07" mode="input" bus_name="" io_standard="3.3 V LVCMOS">
+            <efxpt:input_config name="key_prev" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="weak pullup" is_schmitt_trigger="false" ddio_type="none" is_bus_hold="false" delay="0" is_serial="false" is_dyn_delay="false" fastclk_name="" pullup_ena_name="key_prev_PULL_UP_ENA" dyn_delay_en_name="key_prev_DLY_ENA" dyn_delay_reset_name="key_prev_DLY_RST" dyn_delay_ctrl_name="key_prev_DLY_CTRL" clkmux_buf_name=""/>
+        </efxpt:comp_gpio>
         <efxpt:comp_gpio name="ba[0]" gpio_def="GPIOB_N_06" mode="output" bus_name="ba" io_standard="1.5 V SSTL">
             <efxpt:output_config name="ba[0]" name_ddio_lo="" register_option="register" clock_name="tdqss_clk" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" delay="0" is_serial="false" drive_strength="8" fastclk_name=""/>
         </efxpt:comp_gpio>

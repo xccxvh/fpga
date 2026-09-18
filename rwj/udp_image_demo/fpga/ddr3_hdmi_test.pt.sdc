@@ -29,6 +29,22 @@ create_clock -waveform {2.0000 6.0000} -period 8.0000 ge0_tx_clk
 create_clock -waveform {2.0000 6.0000} -period 8.0000 ge0_tx_clk_90
 set_clock_groups -exclusive -group {twd_clk} -group {sys_clk} -group {tac_clk} -group {tdqss_clk} -group {core_clk} -group {jtag_inst1_TCK} -group {hdmi_rx_slow_clk}
 
+# ---------------------------------------------------------------
+# sys_clk  <->  rxc  (GE 接收恢复时钟)
+#
+# 这两个时钟来自不同的 PLL，没有任何相位关系，之间只有 DC_FIFO 这一条
+# 跨时钟通道（DC_FIFO 内部用格雷码指针 + 两级同步器，是标准 CDC）。
+#
+# 不声明的话，工具会去分析 DC_FIFO 内部复位同步器
+# （WrClkRstGen / RdClkRstGen，源码里明确标了 async_reg）的路径 ——
+# 那是异步复位和双域复位释放握手，本来就不需要满足跨时钟 setup/hold，
+# 分析它只会产生一堆假的负裕量（之前是 20 条，最差 -1.317ns）。
+#
+# 注意：这条约束会关掉这两个域之间的全部时序分析。往这一对时钟之间
+# 加新逻辑时，必须自己保证用了正确的同步器（两级打拍 / 格雷码 / FIFO）。
+# ---------------------------------------------------------------
+
+
 #set_false_path -from [get_clocks twd_clk] -to [get_clocks core_clk]
 #set_false_path -from [get_clocks tac_clk] -to [get_clocks core_clk]
 #set_false_path -from [get_clocks tdqss_clk] -to [get_clocks core_clk]
@@ -85,6 +101,24 @@ set_input_delay -clock rxc -reference_pin [get_ports {rxc~CLKOUT~1~146}] -min 0.
 set_input_delay -clock rxc1 -reference_pin [get_ports {rxc1~CLKOUT~1~293}] -max 0.476 [get_ports {rx_dv1_LO rx_dv1_HI}]
 set_input_delay -clock rxc1 -reference_pin [get_ports {rxc1~CLKOUT~1~293}] -min 0.276 [get_ports {rx_dv1_LO rx_dv1_HI}]
 create_clock -period 8.0 [get_ports {rxc}]
+
+# ---------------------------------------------------------------
+# sys_clk  <->  rxc
+#
+# 这条**必须**放在 create_clock ... rxc 之后。放在前面会被静默丢弃：
+# 解析到那一行时 rxc 还不是已知时钟，整条 set_false_path 直接不生效，
+# 路径照旧出现在时序报告里（实测 slack -1.4ns）。
+#
+# 要排除的是什么：DC_FIFO 内部的 WrClkRstGen <-> RdClkRstGen。
+# 那是"异步复位、同步释放"的双域复位握手（源码里标了 async_reg），
+# 两个方向本来就不需要满足跨时钟 setup/hold。它在 DC_FIFO 内部，
+# 外面改不了，只能在约束里排除。
+#
+# 注意：这条会关掉这两个域之间的全部时序分析。往这一对时钟之间加新逻辑时，
+# 必须自己保证用了正确的同步器（两级打拍 / 格雷码 / FIFO）。
+# ---------------------------------------------------------------
+set_false_path -from [get_clocks {sys_clk}] -to [get_clocks {rxc}]
+set_false_path -from [get_clocks {rxc}] -to [get_clocks {sys_clk}]
 create_clock -period 8.0 [get_ports {rxc1}]
 set_input_delay -clock rxc1 -reference_pin [get_ports {rxc1~CLKOUT~1~277}] -max 0.476 [get_ports {rxd1_LO[0] rxd1_HI[0]}]
 set_input_delay -clock rxc1 -reference_pin [get_ports {rxc1~CLKOUT~1~277}] -min 0.276 [get_ports {rxd1_LO[0] rxd1_HI[0]}]

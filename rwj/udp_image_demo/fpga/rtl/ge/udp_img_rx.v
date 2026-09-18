@@ -37,7 +37,22 @@ module udp_img_rx (
     output         img_data_valid,    // 数据有效
     output [31:0]  img_byte_offset,   // 本包数据在帧内的字节偏移
     output [15:0]  img_payload_len,   // 本包图片数据字节数
-    output         img_sof            // 包首拍标记
+    output [7:0]   img_slot,          // 目标图片槽位
+    output [7:0]   img_flags,         // START/END/SWAP/ACK/DBUF 标志
+    output [31:0]  img_pkt_hdr,       // {frame_id, packet_idx}，上层用来查断号和串帧
+    output         fifo_ovf,          // FIFO 溢出粘滞标志（rxc 域，上层自行同步）
+    output         arp_miss,          // ARP 表未命中（gmii_tx_clk 域，上层自行同步）
+    output         img_sof,           // 包首拍标记（同时也是控制 FIFO 的写使能）
+
+    // ---- FIFO 满指示（来自上层三个跨时钟 FIFO 的写侧，都是 rxc 域）----
+    input          rx_fifo_full,      // 数据 FIFO 满：这一拍的数据会丢
+    input          ctrl_fifo_full,    // 控制字 FIFO 满
+    input          fid_fifo_full,     // frame_id/packet_idx FIFO 满
+
+    // ---- 回执（ACK）发送请求：sys_clk 域 <-> gmii_tx_clk 域 ----
+    input          ack_tgl,           // sys 域请求翻转一次 = 请求发一条回执
+    input  [127:0] ack_payload,       // 回执内容，在 tgl 翻转期间必须保持稳定
+    output         ack_done_tgl       // 回执发完，翻转一次回到 sys 域
 );
 
 //==========================================================================
@@ -65,6 +80,15 @@ wire [15:0] udp_rec_data_length;
 wire        udp_rec_data_valid;
 wire        arp_found;
 wire        mac_not_exist;
+
+// 发送侧（只给 ACK 模块用，本版不主动发图片）
+wire        mac_send_end;
+wire [7:0]  ack_ram_wr_data;
+wire        ack_ram_wr_en;
+wire        ack_udp_tx_req;
+wire        ack_ram_data_req;
+wire        ack_arp_request_req;
+wire [15:0] ack_send_data_length;
 
 // 本地网络参数（与 PC 端约定一致）
 localparam [47:0] SRC_MAC  = 48'h00_0a_35_01_fe_c0;
@@ -145,15 +169,15 @@ mac_top u_mac (
     .destination_ip_addr        (DST_IP),
     .udp_send_source_port       (SRC_PORT),
     .udp_send_destination_port  (DST_PORT),
-    // 发送侧（不主动发 UDP，置 0）
-    .ram_wr_data                (8'd0),
-    .ram_wr_en                  (1'b0),
-    .udp_ram_data_req           (),
-    .udp_send_data_length       (16'd0),
-    .udp_tx_req                 (1'b0),
-    .arp_request_req            (1'b0),
+    // 发送侧（只有 ACK 模块会用到；ACK 默认关闭时这几个信号恒为 0）
+    .ram_wr_data                (ack_ram_wr_data),
+    .ram_wr_en                  (ack_ram_wr_en),
+    .udp_ram_data_req           (ack_ram_data_req),
+    .udp_send_data_length       (ack_send_data_length),
+    .udp_tx_req                 (ack_udp_tx_req),
+    .arp_request_req            (ack_arp_request_req),
     .mac_data_valid             (gmii_tx_en),
-    .mac_send_end               (),
+    .mac_send_end               (mac_send_end),
     .mac_tx_data                (gmii_txd),
     // 接收侧
     .rx_dv                      (e_rx_dv),
@@ -190,6 +214,10 @@ reg [127:0] hdr_buf;          // 包头移位寄存器（左移）
 reg [127:0] word_reg;         // 数据 word（右移，保证低地址像素在低位）
 reg         word_valid;
 reg [15:0]  payload_len;
+reg [7:0]   slot;
+reg [7:0]   flags;
+reg [15:0]  frame_id;
+reg [15:0]  packet_idx;
 reg [31:0]  byte_offset;
 reg         sof;
 
@@ -197,10 +225,43 @@ reg         sof;
 reg  udp_valid_d;
 wire udp_valid_pulse;
 
+//--------------------------------------------------------------------------
+// FIFO 溢出粘滞检测（rxc 域）
+//
+// 三个 FIFO 的写侧都在 rxc 域，写进去的那一刻如果 WrFull 是高的，这一拍
+// 就永久丢了 —— 必须当场抓，事后再看已经晚了。
+//
+// 判据：数据/控制字写使能 与 对应的 WrFull 同拍为高。
+// 清除：收到新的 START 包时清掉，所以每个 ACK 报的都是"这一帧"的溢出。
+//--------------------------------------------------------------------------
+localparam F_START_BIT = 32;         // 包头里 flags 字节的最低位 = START
+
+reg ovf_sticky;
+
+always @(posedge gmii_rx_clk or negedge e_rst_n) begin
+    if (!e_rst_n) begin
+        ovf_sticky <= 1'b0;
+    end
+    else if (state == S_HDR_CHECK && hdr_buf[127:112] == 16'hA55A &&
+             hdr_buf[63:48] == 16'd0 && hdr_buf[F_START_BIT]) begin
+        ovf_sticky <= 1'b0;                      // 新帧开始，清上一帧的记录
+    end
+    else if ((word_valid && rx_fifo_full) ||
+             (sof        && ctrl_fifo_full) ||
+             (sof        && fid_fifo_full)) begin
+        ovf_sticky <= 1'b1;
+    end
+end
+
 assign img_data        = word_reg;
 assign img_data_valid  = word_valid;
 assign img_byte_offset = byte_offset;
 assign img_payload_len = payload_len;
+assign img_slot        = slot;
+assign img_flags       = flags;
+assign img_pkt_hdr     = {frame_id, packet_idx};
+assign fifo_ovf        = ovf_sticky;
+assign arp_miss        = mac_not_exist;
 assign img_sof         = sof;
 
 // udp_rec_data_valid 上升沿检测（打一拍做边沿检测）
@@ -221,6 +282,10 @@ always @(posedge gmii_rx_clk or negedge e_rst_n) begin
         word_reg     <= 128'd0;
         word_valid   <= 1'b0;
         payload_len  <= 16'd0;
+        slot         <= 8'd0;
+        flags        <= 8'd0;
+        frame_id     <= 16'd0;
+        packet_idx   <= 16'd0;
         byte_offset  <= 32'd0;
         sof          <= 1'b0;
         udp_rec_ram_read_addr <= 11'd0;
@@ -275,19 +340,33 @@ always @(posedge gmii_rx_clk or negedge e_rst_n) begin
             // 包头解析（此时 hdr_buf 已含完整 16 字节）
             // 左移累积：最早读的 RAM[0] 在最高位 [127:120]
             //   [127:112]=magic [111:96]=frame [95:80]=pkt_idx
-            //   [79:64]=total  [63:48]=payload_len [47:32]=reserved
+            //   [79:64]=total  [63:48]=payload_len
+            //   [47:40]=slot   [39:32]=flags
             //   [31:0]=byte_offset
             S_HDR_CHECK: begin
                 if (hdr_buf[127:112] == 16'hA55A) begin   // magic
                     payload_len <= hdr_buf[63:48];        // RAM[8:10]
+                    slot        <= hdr_buf[47:40];        // RAM[10]
+                    flags       <= hdr_buf[39:32];        // RAM[11]
+                    frame_id    <= hdr_buf[111:96];       // RAM[2:4]
+                    packet_idx  <= hdr_buf[95:80];        // RAM[4:6]
                     byte_offset <= hdr_buf[31:0];         // RAM[12:16]
                     word_cnt    <= 4'd0;
                     word_reg    <= 128'd0;
                     word_valid  <= 1'b0;
-                    sof         <= 1'b1;
-                    // RAM[16] 已在读数据端，提前给出下一个地址。
-                    udp_rec_ram_read_addr <= 11'd17;
-                    state       <= S_READ_DATA;
+                    sof         <= 1'b1;                  // 控制字在这一拍写进 ctrl FIFO
+
+                    if (hdr_buf[63:48] == 16'd0) begin
+                        // START / END 控制包：没有数据，直接结束。
+                        // 绝不能走 S_READ_DATA —— 那会读进 16 个垃圾字节
+                        // 并把 word_valid 拉高，凭空写坏 DDR。
+                        state <= S_DONE;
+                    end
+                    else begin
+                        // RAM[16] 已在读数据端，提前给出下一个地址。
+                        udp_rec_ram_read_addr <= 11'd17;
+                        state <= S_READ_DATA;
+                    end
                 end
                 else begin
                     state <= S_IDLE;   // magic 不对，丢弃
@@ -330,5 +409,31 @@ always @(posedge gmii_rx_clk or negedge e_rst_n) begin
         endcase
     end
 end
+
+//==========================================================================
+// 回执发送（UDP ACK）
+//
+// 只在 PC 端用 --ack 时才会被触发；没人请求时整个状态机停在 IDLE，
+// udp_tx_req / ram_wr_en / arp_request_req 全部为 0，对原有收图链路零影响。
+//==========================================================================
+
+udp_ack_tx u_ack_tx (
+    .clk                (gmii_tx_clk),
+    .rst_n              (e_rst_n),
+
+    .req_tgl            (ack_tgl),
+    .req_payload        (ack_payload),
+    .done_tgl           (ack_done_tgl),
+
+    .mac_not_exist      (mac_not_exist),
+    .mac_send_end       (mac_send_end),
+
+    .udp_ram_data_req   (ack_ram_data_req),
+    .udp_tx_req         (ack_udp_tx_req),
+    .ram_wr_data        (ack_ram_wr_data),
+    .ram_wr_en          (ack_ram_wr_en),
+    .udp_send_data_length(ack_send_data_length),
+    .arp_request_req    (ack_arp_request_req)
+);
 
 endmodule
