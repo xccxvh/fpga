@@ -3,8 +3,9 @@
 赛题二正式 BitBlt 工程。RISC-V 通过 `SYSTEM_AXI_A` 配置寄存器，硬件引擎
 作为第二个 AXI 主机访问 DDR，并通过状态寄存器和 PLIC 中断报告完成。
 
-当前版本 `0x00010003` 已实现 Solid Fill 和带内部 16×128-bit 缓冲的 Block
-Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI 仲裁器共享 DDR 数据通路。
+当前版本 `0x00010004` 已实现 Solid Fill、带内部 16×128-bit 缓冲的 Block
+Copy及XRGB8888 Color Key Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI
+仲裁器共享 DDR 数据通路。
 
 完整软硬件约定见 `../../07_docs/interfaces/bitblt_interface_v0.2.md`。
 
@@ -16,6 +17,10 @@ Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI 仲裁器共享 DDR �
   HDMI 像素域 Setup/Hold 余量分别约 2.542 ns/0.042 ns。
 - Solid Fill：寄存器、BUSY/DONE、PLIC 中断和 240 像素 DDR 回读通过。
 - Block Copy：80×3 像素、源 stride 384 B、目标 stride 416 B，240 像素逐项回读通过。
+- Color Key：20×5像素DDR回读通过，RGB键值忽略X字节；目标padding、哨兵
+  和完成中断均通过。
+- V0.4详细板测证据及旧功能待复测状态见
+  `../../07_docs/test_records/2026-09-18_bitblt_color_key_v0.4.md`。
 - 每次 AXI Burst 最多 16 个 128-bit beat，并自动避免跨越 4 KiB 边界。
 - `hw/sim` 自检回归已覆盖 Fill/Copy、Burst边界、backpressure、非法参数、
   AXI错误响应和读写仲裁。
