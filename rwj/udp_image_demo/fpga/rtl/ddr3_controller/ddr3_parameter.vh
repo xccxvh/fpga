@@ -17,11 +17,18 @@
 `define RANKS	1
 //AXI
 `define DATA_WIDTH	16
-// [A0-2] 原为 30（=1GB），但板上芯片实际 256MB：
-//   BANK 3 / ROW 14 / COL 10 → 128M 单元，x16 位宽 → 256MB，故 ADDR_WIDTH = 28。
-//   原值 30 会让 256MB 以上的地址被芯片忽略而回卷 —— 不报错，但数据悄悄写错地方。
-//   之前一直没暴露，是因为 4 个槽位只用 8MB。合并后要用高地址，必须修正。
-`define ADDR_WIDTH	28
+// [2026-09-19 上板实测回退] A0-2 曾按"芯片实际 256MB，故 ADDR_WIDTH 应为 28"
+//   把这里从 30 改成 28，同时把 ASYN_AXI_CLK 从 1 改成 0（见文件末尾），
+//   但保留了本工程自己的 PHY 时钟相位（TX_CLK_SEL=0 / TX_CLK_90EDGE_SEL=3）。
+//   **实测结果是画面花屏**；两个参数退回原值（30 / 1）后重建，画面恢复干净。
+//
+//   在数值上"28 才是芯片的真实地址宽度"这个推算没错，但 DDR3 控制器是加密 IP：
+//   这 6 个参数是**一整套互相绑定的配置**，两份工程各有一套完整可用的组合，
+//   **不能逐参数互换**。demo/08 的 (28,0,3,0) 和本工程的 (30,1,0,3) 各自都板测正常，
+//   混搭则坏。详见 A0-2_DDR3配置统一.md 顶部红框。
+//
+//   要改必须整份替换 + 上板重跑校准，不能逐条拍板。
+`define ADDR_WIDTH	30
 `define AXI_ID_WIDTH	4
 `define AXI_ADDR_WIDTH	32
 `define AXI_DATA_WIDTH	128
@@ -58,9 +65,10 @@
 `define TX_CLK_SEL	0
 `define TX_CLK_90EDGE_SEL	3
 `define CK_RATIO	4
-// [A0-2] 原为 1（异步）。但 top.v 里 ddr3_top 的例化是
+// [2026-09-19 上板实测回退] A0-2 曾把这里从 1 改成 0，理由是 top.v 里
 //     .axi_clk(sys_clk), .core_clk(sys_clk)
-//   两个时钟同源，宣称异步与实际不符。改 0 让配置与接线一致，
-//   也和 demo/08 对齐。注意：若 A1-3 统一时钟时决定 AXI 与 core 分频，
-//   这里要改回 1。
-`define ASYN_AXI_CLK	0
+//   两个时钟同源，"宣称异步与实际不符"。该推理只看了加密块**外面**的 wrapper，
+//   但这个参数在加密块内部还控制着什么，静态分析看不到。
+//   实测：与 ADDR_WIDTH=28 一起改动后画面花屏，退回 1 后恢复干净。
+//   详见 A0-2_DDR3配置统一.md 顶部红框。
+`define ASYN_AXI_CLK	1
