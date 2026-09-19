@@ -25,7 +25,9 @@
         <efx:design_file name="rtl/ddr3_controller/lb2_axi_clk.v" version="default" library="default" />
         <efx:design_file name="rtl/ddr3_controller/common/efx_fifo_v2.3/efx_fifo_wrapper.v" version="default" library="default" />
         <efx:design_file name="rtl/ge/udp_img_rx.v" version="default" library="default" />
+        <efx:design_file name="rtl/ge/udp_hdr_parse.v" version="default" library="default" />
         <efx:design_file name="rtl/ge/udp_ack_tx.v" version="default" library="default" />
+        <efx:design_file name="rtl/frame_status_apb.v" version="default" library="default" />
         <efx:design_file name="rtl/ge/mac/crc.v" version="default" library="default" />
         <efx:design_file name="rtl/ge/mac/arp_cache.v" version="default" library="default" />
         <efx:design_file name="rtl/ge/mac/mac_top.v" version="default" library="default" />
