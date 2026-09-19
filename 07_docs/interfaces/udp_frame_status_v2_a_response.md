@@ -46,18 +46,31 @@ C 的 `frame_swap` 流程应先读 `AUTH_PENDING`，为 0 时才写 `ARM`。
 - **不接受** —— A 改成"pending 期间新 ARM 覆盖旧的"（需要在事件域加一层保护，
   或用双缓冲影子；复杂度更高，且仍需要一个状态位告诉软件"旧的那次没生效"）
 
-### 回答 AUTH.4 的待确认项
+### 回答草案「待 A 确认无实现冲突（1 项）」
 
-草案 AUTH.4 问：
+草案最新版把无授权语义扩成了 6 点，并注明「A 若无实现上的冲突，按此冻结」。
+**A 逐点核对实现并逐点写了断言，结论：无冲突，可以按此冻结。**
 
-> START 无授权产生 `AUTH_ERR` 后，硬件是否仍发布一份坏 snapshot 并推进 SEQ？
+| # | 草案语义 | 实现 | TB 断言 |
+|---|---|---|---|
+| ① | 拒绝本帧（不写 DDR） | 事件域在 `frame_start` 判定无授权则不锁存地址、不写 | 用例 9：`BASE_ADDR == 0` |
+| ② | `AUTH_ERR = 1` | `fin_auth_e = ~cur_auth_ok` → `FRAME_STATUS.bit6` | 用例 9：`AUTH_ERR == 1` |
+| ③ | `FRAME_OK = 0` | `FRAME_OK = bit1~bit6 全 0`，含 `AUTH_ERR` | 用例 9：`FRAME_OK == 0` |
+| ④ | 仍然发布坏 snapshot 并推进 `SEQ` | `frame_done` 无条件发布，`st_seq <= st_seq + 1` | 用例 9：`SEQ == N+1`、`FRAME_ID`/`RX_BYTES` 可读（不是全 0 哑值） |
+| ⑤ | 可正常 ACK | `ACK_SEQ` 对任何已发布快照都生效，与帧好坏无关 | 用例 9：写 `ACK_SEQ = N+1` 后 `ERR_STICKY` 清零 |
+| ⑥ | 授权不延续，下一帧需重新 `ARM` | `auth_pending` 在 `frame_start` 被消费即清 | 用例 9：授权帧之后的第二帧（未重新 ARM）确实报 `AUTH_ERR` |
 
-**A 的答案：是，两者都做。** 理由与草案一致 —— 不发布的话软件侧表现为
-"这一帧凭空消失了"，无法诊断。
+**`tb_frame_status_apb` 现在 74 项检查全过**（原 66 项，新增用例 9 共 8 点断言）。
 
-**已实现并验证**：`tb_frame_status_apb` 用例 2 断言
-「无授权 → `FRAME_STATUS.AUTH_ERR=1`、`FRAME_OK=0`、`BASE_ADDR=0`」，
-且该帧照常发布、`SEQ` 照常递增。
+> 补充说明 ④ 的判据：草案强调"软件要能通过 Frame Status 接口观察到这个
+> `AUTH_ERR`"。**只置错误位不够** —— 如果 `SEQ` 不推进，软件的
+> `seq != last_seq` 判据根本不会触发，它会一直等一个永远不来的新快照。
+> 所以"发布 + 推进 SEQ"是这条语义的**必要条件**，不是可选项。
+
+### （历史）AUTH.4 的原始单点提问
+
+草案早期版本只问「硬件是否仍发布坏 snapshot 并推进 SEQ」。A 当时答"是"，
+现已由上面的 6 点逐条验证覆盖。
 
 ### 对 B 那份答复的一点回应
 

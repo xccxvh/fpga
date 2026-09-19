@@ -7,7 +7,8 @@
 //
 // 覆盖：
 //   基础   复位值、VERSION、地址译码（含未映射区的 PREADY 必须为 1）
-//   授权   AUTH_BASE + ARM → START 锁存 → 快照 BASE_ADDR；无授权 → AUTH_ERR
+//   授权   AUTH_BASE + ARM → START 锁存 → 快照 BASE_ADDR
+//   AUTH   AUTH_ERR 六点完整语义（草案「待 A 确认无实现冲突」那一项）
 //   快照   好帧/各种坏帧、字段、SEQ 递增
 //   ACK    匹配清 / 不匹配保留
 //   G.2    ACK 与同拍发布的【坏帧】
@@ -332,7 +333,57 @@ initial begin
     join
 
     //------------------------------------------------------------------
-    $display("-- 用例 9：G.3 —— ACK 与【同拍】发布 --");
+    $display("-- 用例 9：AUTH_ERR 完整语义（C 侧确认的 6 点）--");
+    // 草案「待 A 确认无实现冲突」要求的完整语义，逐点验证：
+    //   ① 拒绝本帧（不写 DDR，BASE_ADDR=0）
+    //   ② AUTH_ERR = 1
+    //   ③ FRAME_OK = 0
+    //   ④ 仍然发布坏 snapshot 并推进 SEQ
+    //   ⑤ 可正常 ACK
+    //   ⑥ 授权不延续，下一帧需重新 ARM
+    begin
+        // 复位干净起步
+        @(negedge clk); rst_n = 0;
+        repeat (4) @(negedge clk); rst_n = 1;
+        repeat (4) @(negedge clk);
+        cal_done = 1'b0;
+
+        // 先授权并成功收一帧 -> SEQ = 1
+        do_auth(32'h0100_0000);
+        do_frame(16'h8000, 32'd100, 32'd100, 1'b0, 1'b0, 1'b0);
+        settle;
+        apb_rd(O_SEQ, s0);
+        if (s0 !== 32'd1) begin
+            errors++;
+            $display("  [FAIL] 用例 9 前置：授权帧后 SEQ 应为 1，实际 %0d", s0);
+        end
+
+        // ⑥ 不重新授权，直接发第二帧 —— 授权不应延续
+        do_frame(16'h8001, 32'd100, 32'd100, 1'b0, 1'b0, 1'b0);
+        settle;
+
+        apb_rd(O_SEQ, rd);    ck32 ("④ SEQ 仍推进 (N+1)", rd, s0 + 32'd1);
+        apb_rd(O_FST, rd);
+        ckbit("② AUTH_ERR = 1", rd[FS_AUTH], 1'b1);
+        ckbit("③ FRAME_OK = 0",  rd[FS_OK],   1'b0);
+        apb_rd(O_BASE, rd);   ck32 ("① BASE_ADDR = 0（未写 DDR）", rd, 32'd0);
+        // ④ 坏 snapshot 的其它字段也必须可读（不是全 0 的哑值）
+        apb_rd(O_FID, rd);
+        ck32 ("④ 坏 snapshot 字段完整：FRAME_ID", rd, 32'h0000_8001);
+        apb_rd(O_RX, rd);
+        ck32 ("④ 坏 snapshot 字段完整：RX_BYTES", rd, 32'd100);
+
+        apb_rd(O_ERRST, rd);
+        ckbit("AUTH_ERR 累积到 sticky", rd[6], 1'b1);
+
+        // ⑤ 坏帧也应能正常 ACK（软件消费了"这是坏帧"这个事实）
+        apb_wr(O_ACK, s0 + 32'd1);
+        apb_rd(O_ERRST, rd);
+        ck32 ("⑤ 坏帧可正常 ACK 并清 sticky", rd, 32'd0);
+    end
+
+    //------------------------------------------------------------------
+    $display("-- 用例 10：G.3 —— ACK 与【同拍】发布 --");
     // 注意：只有当 ACK 写与 snap_pulse 真的落在同一个 clk 周期时，
     // G.3 的推论才适用。不同拍时 ACK 先到是合法的清除行为。
     // 所以本用例先检测同拍，只在同拍时断言。
