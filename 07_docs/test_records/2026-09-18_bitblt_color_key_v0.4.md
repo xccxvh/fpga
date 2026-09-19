@@ -32,7 +32,7 @@ Stride/padding/guards: PASSED
   (`0403:6011`)，因此尚未在V0.4位流上复测旧Fill/Copy、HDMI换帧及零欠流。
 - Color Key尚未完成Framebuffer可视化验证。
 - A组UDP Demo采用1280×720 RGB565，与本分支1920×1080 XRGB8888不是
-  同一位流/帧缓冲协议；联合方案待团队确认。
+  同一位流/帧缓冲协议；团队现已确定迁移目标，见接口迁移文档，但尚未联合板测。
 
 在开发板USB恢复后，先重新JTAG下载上述V0.4位流，每运行一个程序前再次下载
 以复位SoC/PLIC/显示外设，然后依次运行`framebufferSmokeDemo`与
