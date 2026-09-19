@@ -1,7 +1,7 @@
 /*
  * 换帧状态机测试 —— C 组软件作为唯一 SWAP 提交者的强制顺序。
  *
- * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.0.md
+ * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.1.md
  *       「单一换帧控制与缓冲区所有权」
  *
  * 本文件要钉住的不是"能不能换成功"，而是【顺序不许被绕过】：
@@ -339,10 +339,10 @@ static void test_ping_pong(void)
 
 
 /* ------------------------------------------------------------------ */
-/* 6. 未冻结协议项必须走能力检测                                       */
+/* 6. 已冻结但尚未接入的 UDP 实现必须走能力检测                         */
 /* ------------------------------------------------------------------ */
 
-static void test_udp_completion_still_unfrozen(void)
+static void test_udp_completion_not_integrated(void)
 {
     frame_swap_t fs;
     uintptr_t back = 0;
@@ -352,14 +352,14 @@ static void test_udp_completion_still_unfrozen(void)
     (void)frame_swap_init(&fs, FB_A, FB_B, FB_A);
 
     /*
-     * 协议已冻结两项（FORMAT 枚举 + 两个 VERSION），但 UDP 完成通知
-     * 的寄存器/中断/ACK 仍然【没有分配】—— 这一项还是 UNKNOWN。
+     * UDP 地址、寄存器和 polling 语义都已冻结，但正式 V2.0 驱动/硬件
+     * 尚未接入，所以运行期能力仍然是 UNKNOWN。
      */
     assert(protocol_caps_get()->udp_completion == PROTOCOL_CAP_UNKNOWN);
     assert(protocol_caps_get()->udp_completion_reg_addr == 0u);
     assert(protocol_udp_completion_available() == 0);
 
-    /* UDP 通路整个不存在：即使生产者已经就位也不接受它的完成通知 */
+    /* UDP V2.0 尚未接入：即使生产者已经就位也不接受它的完成通知 */
     assert(frame_swap_acquire_back(&fs, FRAME_PRODUCER_UDP, &back) == FRAME_SWAP_OK);
     assert(frame_swap_udp_frame_ready(&fs, back, 1) == FRAME_SWAP_ERR_NOT_READY);
     assert(frame_swap_front(&fs) == FB_A);
@@ -555,7 +555,7 @@ int main(void)
     test_front_readback_is_authoritative();
     test_timeout_and_late_swap();
     test_ping_pong();
-    test_udp_completion_still_unfrozen();
+    test_udp_completion_not_integrated();
     test_display_init_format_and_version();
     test_display_init_writes_frozen_format();
     test_display_init_rejects_wrong_version();

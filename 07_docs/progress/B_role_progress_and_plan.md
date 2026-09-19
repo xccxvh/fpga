@@ -2,7 +2,7 @@
 
 - 角色：联合 SoC/DDR 平台、BitBlt、Display DMA 与 HDMI
 - 更新日期：2026-09-19
-- 唯一协议：[`../interfaces/unified_fpga_interface_spec_v1.0.md`](../interfaces/unified_fpga_interface_spec_v1.0.md)
+- 唯一协议：[`../interfaces/unified_fpga_interface_spec_v1.1.md`](../interfaces/unified_fpga_interface_spec_v1.1.md)
 - 当前结论：**XRGB8888/1080p V0.4 历史路径已板测；RGB565/720p 联合版本尚未完成**
 
 本文件只记录 B 的实现进度和待办。寄存器、版本、像素、地址、仲裁和换帧语义只允许由
@@ -38,7 +38,7 @@ B 禁止：
 - PLIC 30 共享判源、32 帧并发和 3600 帧零欠流老化；
 - Efinity 编译、时序和目标板显示。
 
-这些结果可以作为回归基线，但其像素格式、显示时序和 VERSION 均不符合联合 V1.0。
+这些结果可以作为回归基线，但其像素格式、显示时序和 VERSION 均不符合联合 V1.1。
 
 ## 3. 当前不符合统一协议的地方
 
@@ -66,12 +66,15 @@ B 禁止：
 - WIDTH 粒度改为 8；地址/stride 16 B 对齐，stride `>= width×2`。
 - 非法参数在发出任何 DDR 请求前以 `DONE|ERROR` 完成。
 - 保持源目标不重叠、4 KiB 拆分、ID/RESP/RLAST 和哨兵回归。
+- 使用 checked-64/65-bit 计算完整矩形范围，拒绝溢出、跨区域、系统区和保留区访问；
+  Display enabled 时通过统一前台侧带拒绝与当前前台相交的目标矩形。
 
 ### B-P2：Display V3.0
 
 - 固定 1280×720、2560 B、FORMAT=1、74.25 MHz。
 - RGB565 按统一位复制规则扩展到 RGB888。
 - 按规范修复初始化、旧 SWAP_DONE、PENDING 重复请求和 enabled 配置写入语义。
+- 接受 SWAP_REQUEST 时锁存 PENDING_ADDR，PENDING 期间拒绝改写 NEXT_ADDR。
 - Reset：FRONT=FB_A、NEXT=FB_B、几何为 720p、FORMAT=RGB565、ENABLE=0。
 - UNDERFLOW 输出黑色，连续扫描必须零欠流。
 
@@ -80,14 +83,16 @@ B 禁止：
 - 采用一个 256 MiB DDR 配置和 100 MHz user_clk。
 - 写侧扩为 CPU+BitBlt+UDP，读侧覆盖 CPU+BitBlt+Display。
 - 已接收 Burst 保持所有权到 B/RLAST，W 通道不交错，所有请求方无饥饿。
-- 接入 A 的 APB block、UDP 写 master 和 active FRONT 安全检查。
-- 保持 BitBlt/Display `SYSTEM_AXI_A` 基址以及 PLIC 30 共享判源。
+- 接入 A 的 APB block、UDP 写 master，以及 Display→UDP/BitBlt 的 active FRONT 安全侧带。
+- 固定 BitBlt/Display 的 64 KiB `SYSTEM_AXI_A` 窗口和错误响应，并按电平语义实现
+  `plic_irq30 = bitblt_irq | display_irq`。
 
 ### B-P4：验证
 
 - RGB565 BitBlt 全套 RTL 回归和 DDR 数据回读；
-- Display 时序、像素颜色、VBlank、陈旧完成位和欠流仿真；
-- UDP 未授权/越界绝不出现在 DDR AW 端；
+- Display 时序、像素颜色、PENDING_ADDR 锁存、VBlank、陈旧完成位和欠流仿真；
+- UDP 未授权/前台变化/越界绝不出现在 DDR AW 端；
+- BitBlt 溢出/非法区域/当前前台拒绝，以及 PLIC 30 双源电平中断回归；
 - 四类 DDR 访问并发压力、Efinity 时序和 3600 帧真板老化。
 
 ## 5. B 的完成判据

@@ -2,7 +2,8 @@
 
 - 日期：2026-09-19
 - 开发板：Ti60F225 Demo Board v4
-- 目标规范：[`../interfaces/unified_fpga_interface_spec_v1.0.md`](../interfaces/unified_fpga_interface_spec_v1.0.md)
+- 目标规范：当时为 V1.0；现行澄清版为
+  [`../interfaces/unified_fpga_interface_spec_v1.1.md`](../interfaces/unified_fpga_interface_spec_v1.1.md)
 - 总结论：**当前不能宣称统一协议通过真板验证**
 
 本记录区分三件事：板卡是否连接、现有独立 Demo 是否可运行、统一三方协议是否通过。
@@ -79,7 +80,7 @@ SHA-256 75d34160cc28a35dbd455a3e42989109ff8d433b1f258cf9411a06dcd9360412
 | Display | `0x00020000`，旧显示协议 | `0x00030000` | 不兼容 |
 | UDP Frame RX | `0x00010000` 原型 | `0x00020000` | 不兼容 |
 
-所以即使找回旧 B 位流并成功运行，也只能复现旧 V0.4 结果，不能作为统一 V1.0 的验收。
+所以即使找回旧 B 位流并成功运行，也只能复现旧 V0.4 结果，不能作为统一 V1.1 的验收。
 
 ## 4. 以太网探测
 

@@ -1,6 +1,6 @@
-# FPGA 赛题二三方统一接口规范 V1.0
+# FPGA 赛题二三方统一接口规范 V1.1
 
-- 协议标识：`FPGA-IF-1.0`
+- 协议标识：`FPGA-IF-1.1`
 - 冻结日期：2026-09-19
 - 状态：**接口冻结；联合 RTL、驱动和位流尚未全部实现或板测**
 - 适用角色：A（网络接收与平台接入）、B（BitBlt、显示与 SoC/DDR 集成）、C（RISC-V 软件与游戏）
@@ -92,7 +92,12 @@ B8 = {B5, B5[4:2]}
 2. UDP 只能写本次由 C 授权的 FB_A 或 FB_B 有效帧范围。
 3. Display ENABLED 时，BitBlt 不得写当前 `FRONT_ADDR`；唯一例外是启动阶段确认
    Display 已禁用、DMA 未运行后，由 C 初始化复位前台 FB_A。
-4. 所有地址计算必须使用至少 33 bit 的中间值检查溢出，再截成 32 bit AXI 地址。
+4. `base + offset` 这类单次加法必须使用至少 33 bit 中间值；BitBlt 矩形尾后地址
+   `end_exclusive = base + (height - 1) * stride + width * 2` 必须使用 65 bit 中间值，或使用带逐步
+   溢出检查的 64 bit 运算。任何中间步骤溢出、结果超出 DDR 物理范围或跨越下述单一
+   合法区域，都必须在发出 DDR 请求前拒绝：FB_A 有效帧、FB_B 有效帧、图片素材区、
+   Scratch。系统/程序保留区和未分配保留区禁止 BitBlt 访问；UDP 仍只能写本次授权的
+   FB 有效帧范围。
 5. 帧缓冲基址、素材区和 Scratch 的数字常量只允许出现在权威共享头文件与契约测试中。
 
 ---
@@ -107,6 +112,16 @@ B8 = {B5, B5[4:2]}
 - AXI 控制访问必须是单 beat：`AxLEN=0`、`AxSIZE=2`、`AxBURST=INCR`；写入必须
   `WSTRB=4'b1111`、`WLAST=1`。
 - 非法传输、写只读寄存器、访问未定义寄存器必须完成总线事务并返回错误，禁止挂死总线。
+
+`SYSTEM_AXI_A` 地址窗口固定为：
+
+| Block | 地址窗口 | 窗口内未定义偏移 | 窗口外未映射地址 |
+|---|---:|---|---|
+| BitBlt | `0xE1000000–0xE100FFFF` | `SLVERR` | 由顶层返回 `DECERR` |
+| Display | `0xE1100000–0xE110FFFF` | `SLVERR` | 由顶层返回 `DECERR` |
+
+窗口内写只读寄存器、错误访问宽度、错误 Burst 属性或非法 `WSTRB` 同样返回 `SLVERR`；
+顶层不得把未映射访问静默路由到任一 block。
 
 ### 4.2 DDR 数据面
 
@@ -130,6 +145,24 @@ Display 三个主机。具体 ID 数值不是软件 ABI，但仲裁器必须原�
 - 多 bit 状态禁止逐位两级同步；必须使用异步 FIFO，或“稳定数据 + toggle/握手”原子跨域。
 - 每个异步域的复位可以异步置位，但必须在各自时钟域同步释放。
 - `CAL_DONE=0` 时，UDP、BitBlt 和 Display 禁止发起 DDR 事务。
+
+### 4.4 前台安全侧带
+
+B 的 Display 控制器必须在 100 MHz `sys_clk` 域输出以下内部侧带，并直接连接到 UDP
+授权门控和 BitBlt 参数检查；它不是软件 ABI，但属于联合顶层的强制硬件契约：
+
+| 信号 | 宽度 | 复位值 | 语义 |
+|---|---:|---:|---|
+| `display_front_addr` | 32 bit | `0x01000000` | 与 Display `FRONT_ADDR` 同源、同周期更新 |
+| `display_enabled` | 1 bit | 0 | 与 Display `STATUS.ENABLED` 同源 |
+
+UDP 在 ARM 时必须比较 `AUTH_BASE` 与 `display_front_addr`，并在合法 START 消费授权时再次
+比较；任一次相等都不得产生 DDR AW/W。ARM 阶段返回 APB 错误；START 阶段消费该授权并
+发布 `AUTH_ERR` snapshot。BitBlt 在接受 START 前必须检查整个目标矩形；Display enabled
+时只要目标范围与当前前台有效帧范围相交，就按非法参数完成且不得发出 DDR 请求。
+
+侧带与消费者处于同一时钟域，不得另行逐位 CDC。C 仍负责编排所有权；这组硬门控用于在
+软件错误、陈旧状态或异常控制写入时保证当前前台不被覆盖。
 
 ---
 
@@ -365,6 +398,8 @@ CLEAR 不取消正在运行的命令；软件不得依赖 CLEAR 实现 abort。
 
 - WIDTH、HEIGHT 必须非 0；WIDTH 必须是 8 像素倍数。
 - 所有使用的地址和 stride 必须 16 B 对齐；stride 必须 `>= WIDTH×2`。
+- 源矩形与目标矩形的完整尾后地址必须按 §3 的 65 bit/checked-64 规则计算，并各自完整落在
+  一个合法区域内；不得依赖 32 bit 回绕、跨区域或跨 DDR 末端的结果。
 - COPY/COLOR_KEY 源目标区域禁止重叠，不提供 memmove 语义。
 - FILL：向目标矩形写 `COLOR[15:0]`。
 - COPY：逐像素复制 RGB565，行尾 padding 不得修改。
@@ -374,6 +409,19 @@ CLEAR 不取消正在运行的命令；软件不得依赖 CLEAR 实现 abort。
 
 V2.0 不支持非对齐矩形。C 对任意精灵坐标必须选择“整项 CPU 回退”或先在软件中拆分；
 禁止截断坐标、扩大矩形或静默跳过边缘。MVP 默认采用整项 CPU 回退。
+
+### 7.3 BitBlt 中断
+
+BitBlt V2.0 不设独立 IRQ_ENABLE。`bitblt_irq` 是 100 MHz 域的高电平有效电平中断：
+
+```text
+bitblt_irq = STATUS.DONE
+```
+
+正常完成和错误完成都置 `DONE=1`，因此都产生中断；`ERROR` 只说明完成结果，不能单独产生
+一个没有 DONE 的中断。软件写 CLEAR 或硬件接受下一条合法 START 时清 DONE，并在同周期
+撤销 `bitblt_irq`。BUSY 时被拒绝的 START 只置 ERROR，不得制造伪完成中断或改变正在运行
+命令的 DONE/BUSY 进程。
 
 ---
 
@@ -402,6 +450,16 @@ V2.0 不支持非对齐矩形。C 对任意精灵坐标必须选择“整项 CPU
 同时带 `ENABLE=1`。CLEAR 清 SWAP_DONE、UNDERFLOW、ERROR 和 UNDERFLOW_COUNT，
 但不取消 PENDING。
 
+`display_irq` 同样是高电平有效电平中断：
+
+```text
+display_irq = (SWAP_DONE & IRQ_ENABLE[0]) |
+              (UNDERFLOW & IRQ_ENABLE[1]) |
+              (ERROR & IRQ_ENABLE[2])
+```
+
+清除相应粘滞状态或清除对应 IRQ_ENABLE 位后，中断必须在同一控制时钟域撤销。
+
 ### 8.2 初始化与换帧
 
 初始化必须按以下顺序：
@@ -416,17 +474,23 @@ V2.0 不支持非对齐矩形。C 对任意精灵坐标必须选择“整项 CPU
 1. 确认 PENDING=0；写 `CONTROL=ENABLE|CLEAR` 清除旧完成状态。
 2. 写 NEXT_ADDR，必须是 FB_A/FB_B 且不等于 FRONT_ADDR。
 3. 写 `CONTROL=ENABLE|SWAP_REQUEST`。
-4. 硬件接受请求时必须自动清旧 SWAP_DONE，并置 PENDING。
-5. 只在 VBlank 起点令 FRONT_ADDR=NEXT_ADDR，然后清 PENDING、置 SWAP_DONE。
+4. 硬件接受请求时必须把 NEXT_ADDR 原子锁存到内部 `PENDING_ADDR`，自动清旧
+   SWAP_DONE，并置 PENDING。
+5. 只在 VBlank 起点令 FRONT_ADDR=PENDING_ADDR，然后清 PENDING、置 SWAP_DONE。
 6. C 等到 SWAP_DONE 后必须再读 FRONT_ADDR；只有等于提交地址才算成功。
 
 PENDING 时重复请求、配置非法、请求当前前台、enabled 时修改几何/格式，都必须置 ERROR
 且不改变有效配置。PENDING 时禁止关闭显示；硬件应拒绝并保持 ENABLE。
+PENDING 时写 NEXT_ADDR 也必须返回 `SLVERR`、置 ERROR，并保持 NEXT_ADDR/PENDING_ADDR
+不变；已经接受的换帧目标在完成或复位前不可被重新定向。
 
 UNDERFLOW 时输出黑色并累计计数，禁止重复随机旧像素。SWAP_DONE、UNDERFLOW、ERROR
 都是粘滞状态，直到 CLEAR。
 
-BitBlt 与 Display 完成中断共享 PLIC 源 30；顶层 OR 后，ISR 必须读取两个 STATUS 判源。
+BitBlt 与 Display 完成中断共享 PLIC 源 30；顶层固定实现
+`plic_irq30 = bitblt_irq | display_irq`，并按电平源接入 PLIC。ISR 必须读取两个 STATUS
+判源、分别清除已处理状态，并在退出前确认两个内部 IRQ 均已撤销；禁止把任一内部 IRQ
+转换为可能丢失的单周期脉冲。
 UDP V1 MVP 使用轮询，不接入该中断。
 
 ---
@@ -465,7 +529,7 @@ BitBlt 流程：
 → 校验 FRONT_ADDR → 旧前台变为可写后台
 ```
 
-V1.0 一帧只允许一个生产者。UDP 背景后再由 BitBlt 叠加属于后续扩展；在所有权状态机
+本版本一帧只允许一个生产者。UDP 背景后再由 BitBlt 叠加属于后续扩展；在所有权状态机
 增加显式 handoff 并补测试之前，禁止通过绕过状态机实现。
 
 失败帧绝不换屏。换帧超时后也不得立即复用任一 buffer，必须读取 `FRONT_ADDR` 判断硬件
@@ -539,13 +603,17 @@ C 只能通过 include path 引用，禁止复制、软链或在调用点重写�
 
 - UDP：正常帧、丢包、重复、乱序、错 frame_id/total/version/flags、实际 UDP 长度错误、
   offset 间隙/重叠/越界、无授权、重复 ARM、ABORT、两个超时、FIFO 溢出、BRESP/BID 错误、
-  ACK/publish 同周期、SEQ 回绕、APB 未映射不挂死。
+  ACK/publish 同周期、SEQ 回绕、APB 未映射不挂死，以及 ARM 后、START 前前台变化时
+  `AUTH_ERR` 且无 DDR AW/W。
 - BitBlt：RGB565 Fill/Copy/Color Key、padding/哨兵、8/16/17 beat、4 KiB 边界、backpressure、
-  非对齐、重叠、非法 op、总线错误、忙时 START。
+  非对齐、重叠、非法 op、总线错误、忙时 START、32 bit 回绕诱导值、矩形乘加溢出、跨合法
+  区域、系统/保留区、当前前台相交，以及 DONE/CLEAR 对电平 IRQ 的置位和撤销。
 - Display：720p 时序、RGB565 展开、初始化不自换帧、旧 SWAP_DONE 清除、重复请求、当前前台
-  拒绝、VBlank 原子切换、欠流黑屏。
+  拒绝、PENDING 期间 NEXT_ADDR 写入拒绝且目标不变、VBlank 使用锁存 PENDING_ADDR 原子切换、
+  欠流黑屏，以及三个 IRQ_ENABLE 位对应的电平 IRQ。
 - C：版本 fail-fast、snapshot 撕裂重试、SEQ 回绕、旧 snapshot resync、坏帧 ACK、不用
-  ERR_STICKY 判当前帧、所有权状态机、换帧超时恢复、非对齐 CPU 回退。
+  ERR_STICKY 判当前帧、所有权状态机、换帧超时恢复、非对齐 CPU 回退、checked-64 地址预检、
+  PENDING 期间不改 NEXT_ADDR，以及共享 PLIC 30 双源清除。
 
 ### 12.3 联合仿真与板测
 
@@ -567,7 +635,7 @@ C 只能通过 include path 引用，禁止复制、软链或在调用点重写�
 |---|---|---|
 | A | 新 UDP V1 parser、严格完整性、V2 APB、授权/ABORT/超时、UDP AXI master | 当前独立 Demo 仍使用 slot/自动换帧；V1 状态 RTL 未接真实写 FSM |
 | B | RGB565 BitBlt V2、Display V3/720p、三写三读仲裁、唯一联合顶层 | 当前主线 RTL 是 XRGB8888/1080p，写仲裁只有 CPU+BitBlt |
-| C | UDP V2 驱动、版本探测、所有权闭环、显示 stale 状态修复、CPU 回退 | 当前 UDP 能力仍标未冻结，尚无正式 MMIO 驱动 |
+| C | UDP V2 驱动、版本探测、所有权闭环、显示 stale 状态修复、CPU 回退 | UDP 协议已冻结，但当前仍使用旧命名的能力探测兼容层，尚无正式 MMIO 驱动 |
 | 三方 | 共享常量检查、端到端仿真、联合位流和板测记录 | 当前没有通过本规范的联合 bitstream |
 
 旧 XRGB8888/1080p 位流和 A 的独立 UDP Demo 可以作为回归资产保留，但不得用于证明本规范
@@ -579,4 +647,5 @@ C 只能通过 include path 引用，禁止复制、软链或在调用点重写�
 
 | 版本 | 日期 | 内容 |
 |---|---|---|
+| V1.1 | 2026-09-19 | 澄清 checked-64/65-bit 地址安全、合法 DDR 区域、Display→UDP/BitBlt 前台侧带、PENDING_ADDR 锁存、SYSTEM_AXI_A 窗口及 PLIC 30 电平中断语义；寄存器布局和三块 IP VERSION 不变 |
 | V1.0 | 2026-09-19 | 合并 RGB565/720p、DDR 布局、BitBlt、Display、UDP wire/APB、所有权、错误恢复和验收规则；取代此前全部接口草案/迁移稿/问题清单 |

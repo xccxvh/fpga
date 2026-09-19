@@ -5,7 +5,7 @@
 ## C 组统一接口接入要求（2026-09-19）
 
 三方唯一协议是
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
 本文件只记录 C 工作区的实现与验证状态，不再复制完整地址表、寄存器表或协议草案。
 
 C 是联合系统唯一的 framebuffer 所有权管理者和换帧提交者，必须负责：
@@ -18,8 +18,10 @@ C 是联合系统唯一的 framebuffer 所有权管理者和换帧提交者，�
 6. 好帧、坏帧都写 matching `ACK_SEQ`，但只对好帧提交换帧；
 7. Display 请求前清旧 `SWAP_DONE`，完成后必须回读 `FRONT_ADDR`；
 8. 换帧失败时重新读取真实前台，未确认前禁止复用任何 buffer；
-9. BitBlt 非 16 B 对齐或非 8 像素宽度时，V1 默认整项 CPU 回退；
-10. 所有轮询都有 100 MHz CLINT tick 超时，禁止无限等待。
+9. BitBlt 非 16 B 对齐或非 8 像素宽度时，当前 MVP 默认整项 CPU 回退；
+10. BitBlt 矩形地址使用 checked-64 运算预检，PENDING 期间不改写 NEXT_ADDR；
+11. PLIC 30 ISR 同时检查并清除 BitBlt/Display 电平来源，退出前确认两者都已撤销；
+12. 所有轮询都有 100 MHz CLINT tick 超时，禁止无限等待。
 
 当前 C 的 RGB565 软件模型、渲染层和所有权状态机已有 host 测试，但 UDP V2.0 驱动、
 Display 陈旧完成位修复以及与真实 RGB565 联合位流的板测仍未完成。B 当前共享头文件仍是
@@ -122,7 +124,7 @@ M1 阶段的 CPU 参考实现，作为后续 RTL 渲染加速器（BitBlt）的�
 | 目录 | 内容 |
 |---|---|
 | `render/` | CPU 参考实现 `renderer_sw.*`（**冻结**）；统一层 `renderer.*`、`render_status.*`；后端 `renderer_cpu.c`、`renderer_fpga.*`；扩展参考 `renderer_sw_ext.*`（Color Key / Alpha）；换帧状态机 `frame_swap.*` |
-| `driver/` | BitBlt 驱动 `bitblt_api.c`（实现 B 冻结的 `bitblt_fill/copy`，**全工程唯一引用 `bitblt_regs.h` 的文件**）；显示驱动 `display_api.c`（实现 B 冻结的 `display_*`，**唯一引用 `display_regs.h` 的文件**）+ 平台钩子 `display_platform.h`；格式与几何 `framebuffer_format.*`；**已冻结协议 `protocol_frozen.*`**；仍未冻结项 `protocol_unfrozen.*`（只剩 UDP）；硬件约束校验 `gpu_validate.*`；`gpu.*` 已降级为兼容层 |
+| `driver/` | BitBlt 驱动 `bitblt_api.c`（实现 B 冻结的 `bitblt_fill/copy`，**全工程唯一引用 `bitblt_regs.h` 的文件**）；显示驱动 `display_api.c`（实现 B 冻结的 `display_*`，**唯一引用 `display_regs.h` 的文件**）+ 平台钩子 `display_platform.h`；格式与几何 `framebuffer_format.*`；**已冻结协议 `protocol_frozen.*`**；旧命名的 UDP 能力探测兼容层 `protocol_unfrozen.*`（只表示实现尚未接入，不表示协议未冻结）；硬件约束校验 `gpu_validate.*`；`gpu.*` 已降级为兼容层 |
 | `tests/` | 冻结基线 `test_renderer.c` + 统一层测试 `test_render_api.c` + 像素格式/几何/Color Key/Alpha 测试 `test_pixel_format.c` + 换帧状态机测试 `test_frame_swap.c` |
 | `input/` | 输入处理（待填） |
 | `game/` | 游戏逻辑（待填） |
@@ -298,7 +300,7 @@ CPU 参考实现已从 16-bit 迁移到 XRGB8888 / 32-bit。当前 `pixel_t` 是
 
 **2026-09-19：C 侧软件已迁移到 RGB565 / 1280x720@60**，作为默认格式。
 团队统一目标与依据见
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
 
 改动的落点：
 
@@ -325,14 +327,25 @@ RGB565 版 BitBlt/显示 RTL 与联合位流尚未完成、未板测。详见下
 
 ### 协议冻结与 C 的迁移状态
 
-统一规范已经冻结三块 IP：BitBlt V2.0、Display V3.0、UDP Frame RX V2.0；
+统一规范 V1.1 已经冻结三块 IP：BitBlt V2.0、Display V3.0、UDP Frame RX V2.0；
 UDP MVP 使用 polling。C 侧不得再把 UDP 地址、ACK 或授权方式标记为“未冻结”。
+
+V1.1 是对 V1.0 可实施性的澄清，没有改变三块 IP 的 VERSION、寄存器偏移、UDP 包格式或
+DDR 布局。C 侧新增的明确约束是：
+
+- 所有矩形范围计算使用 checked-64/65-bit 语义，先验证完整源/目标区域，再提交 BitBlt；
+- UDP AUTH_PENDING/RX_ACTIVE 期间禁止提交 Display swap；硬件仍会在 ARM 和 START 时通过
+  `display_front_addr` 侧带复核，软件不能依赖硬件兜底代替所有权状态机；
+- Display PENDING 期间不得改写 NEXT_ADDR；完成条件仍是 SWAP_DONE 与 FRONT_ADDR 同时正确；
+- PLIC 30 是 BitBlt/Display 的共享电平源，ISR 必须处理并清除两个来源，退出前确认源已撤销；
+- BitBlt/Display 驱动只能使用统一规范和权威头文件定义的控制窗口，不得访问窗口外或
+  未定义偏移。
 
 现有 `driver/protocol_frozen.*` 和 `driver/protocol_unfrozen.*` 是统一前的临时结构：
 
 - 在 B 的权威头文件尚未升级前，原有 BitBlt/Display 代持可以暂时保留，但必须由契约测试
   盯住，并在 B 同步后删除；
-- `protocol_unfrozen.*` 中关于 UDP 未分配的能力模型已经过期，下一步必须由正式
+- `protocol_unfrozen.*` 中关于 UDP 未接入的能力模型只是过渡兼容层，下一步必须由正式
   `udp_frame_rx` 驱动和唯一共享头文件取代；
 - 禁止仅修改能力表让旧 A RTL 看起来可用。驱动必须先读 `VERSION=0x00020000`，
   并实现 snapshot、AUTH、ABORT、ACK 和错误位的完整语义；
@@ -340,6 +353,8 @@ UDP MVP 使用 polling。C 侧不得再把 UDP 地址、ACK 或授权方式标�
 
 Display 初始化和换帧还必须按统一规范修正两处风险：初始化时不能向复位 FRONT 再提交
 一次同地址 swap；每次新请求前必须清旧 `SWAP_DONE`，请求完成后再核对 FRONT_ADDR。
+硬件接受请求后会锁存 `PENDING_ADDR`，但软件在 PENDING 期间仍禁止写 NEXT_ADDR；若写入
+返回 `SLVERR`，必须进入失败恢复，不能继续猜测实际换帧目标。
 
 ### 待板测（不能用软件测试代替的项）
 

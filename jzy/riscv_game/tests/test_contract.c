@@ -75,7 +75,7 @@ CONTRACT_ASSERT(reserved_below_fb,
                 SYSTEM_RESERVED_BASE + SYSTEM_RESERVED_SIZE <= FB_A_BASE);
 
 /* ---- 现行统一目标：几何数值必须与统一规范一致 ---- */
-/* 见 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md 的固定系统参数 */
+/* 见 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md 的固定系统参数 */
 #if RENDER_PIXEL_FORMAT_RGB565
 CONTRACT_ASSERT(fmt_width,              FMT_WIDTH == 1280u);
 CONTRACT_ASSERT(fmt_height,             FMT_HEIGHT == 720u);
@@ -119,7 +119,7 @@ CONTRACT_ASSERT(fmt_frame_fits_slot,    FMT_FRAME_BYTES <= FB_SLOT_SIZE);
  * B 组权威头文件尚未迁移。下面这组断言把这个事实钉住：
  *
  *   - B 一旦迁移完，这些断言会失败，提醒把 FMT_* 的几何改为直接引用 B 的
- *     头文件（driver/framebuffer_format.h 顶部的 UNFROZEN_PROTOCOL 注记）。
+ *     头文件（driver/framebuffer_format.h 顶部的临时几何代持注记）。
  *   - 在此之前，C 侧的 RGB565 几何由 framebuffer_format.h 持有，
  *     地址仍然全部来自 B 的 framebuffer_layout.h。
  */

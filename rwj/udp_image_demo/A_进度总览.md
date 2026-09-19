@@ -2,7 +2,7 @@
 
 - 角色：网络接收、UDP 帧完整性、授权写门控和联合平台接入
 - 更新日期：2026-09-19
-- 唯一协议：[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)
+- 唯一协议：[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)
 - 当前结论：**独立 UDP Demo 已验证；统一协议实现尚未完成，不能合入联合位流**
 
 本文件只记录 A 的实现进度和待办，不再定义地址、寄存器或包格式。若本文与统一协议冲突，
@@ -69,6 +69,8 @@ A 禁止在联合工程中：
 - 正式 block 固定在 `0xF8100100–0xF81001FF`，时钟为 100 MHz。
 - VERSION 改为 `0x00020000`，实现统一规范全部寄存器位。
 - ARM 只接受非前台 FB_A/FB_B；pending/active 重复 ARM返回错误，不能静默丢弃。
+- 通过 B 提供的 100 MHz `display_front_addr` 侧带在 ARM 和 START 两个时点检查前台；
+  任一次冲突都不得发出 DDR AW/W。
 - 实现 ABORT、无授权坏 snapshot、原子 snapshot、matching ACK 和 publish 优先。
 - 64 KiB wrapper 对未映射访问必须完成并 `PSLVERR=1`，禁止 CPU 挂死。
 - 创建唯一头文件 `04_project/udp_frame_rx/sw/udp_frame_rx_regs.h`。
@@ -83,7 +85,8 @@ A 禁止在联合工程中：
 ### A-P3：验证
 
 - parser 单测覆盖实际长度、版本、flags、序号、total、offset、边界。
-- APB TB 覆盖授权、重复 ARM、ABORT、超时、SEQ 回绕、ACK/publish 和未映射访问。
+- APB TB 覆盖授权、重复 ARM、ARM 后前台变化、ABORT、超时、SEQ 回绕、ACK/publish 和
+  未映射访问。
 - 联合仿真证明坏帧不换屏、无授权不产生 AW、前台永不被 UDP 写。
 - 板测记录必须包含 VERSION、帧状态、实际前台、DDR 错误和至少 3600 帧结果。
 

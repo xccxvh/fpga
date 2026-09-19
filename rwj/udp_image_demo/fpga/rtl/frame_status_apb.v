@@ -3,7 +3,7 @@
 // frame_status_apb.v —— UDP 帧完成状态寄存器（APB3 slave 内核）
 //
 // 历史 V1 原型。联合目标依据：
-// `07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`。
+// `07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`。
 // 本模块当前尚不满足该规范的 UDP Frame RX V2.0 全部要求。
 //
 // **本模块只是内核**，只响应 `paddr[15:8] == 8'h01`（即 0xF8100100–0xF81001FF）。

@@ -8,7 +8,7 @@ Copy 及 XRGB8888 Color Key Copy。CPU 与引擎分别通过读、写两组 2-to
 仲裁器共享 DDR 数据通路。
 
 团队联合接口以
-[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)
+[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)
 为唯一依据。本目录当前 RTL、位流和大部分测试仍是历史 XRGB8888/1080p V0.4 实现，
 不能按规范中的 RGB565/720p BitBlt V2.0、Display V3.0 使用。
 

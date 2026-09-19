@@ -8,7 +8,7 @@
  *
  *   1（默认）= RGB565 / 1280x720@60
  *              团队 2026-09-18 选定的统一目标，
- *              见 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md
+ *              见 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md
  *   0        = XRGB8888 / 1920x1080@60
  *              2026-09-17 的历史基线，已板测通过。
  *              保留为回退路径：B 组 RGB565 RTL/位流落地前，

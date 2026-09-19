@@ -1,7 +1,7 @@
 # Team
 
 本目录记录团队任务分工、进度和周计划。三方接口的唯一权威来源是
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
 
 ## 固定职责
 

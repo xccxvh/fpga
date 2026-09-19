@@ -4,7 +4,7 @@
 `ip/` 和 `constraints/` 保存可复现的工程输入，`scripts/` 保存自动化工具。
 
 所有正式模块必须遵守
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
 正式联合工程只能存在一个 SoC 顶层和一个 DDR 控制器；独立 Demo 不得直接复制进本目录后
 同时保留自己的地址、像素格式、换帧或 DDR 配置。
 

@@ -7,7 +7,7 @@
  * 统一协议之前留下的能力探测兼容层。
  *
  * UDP Frame RX 地址和 V2.0 语义已经由
- * 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md 冻结；本文件名和
+ * 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md 冻结；本文件名和
  * UNFROZEN_PROTOCOL 宏仅为避免在正式 UDP 驱动落地前破坏现有 host 测试，
  * 【不再表示协议仍待确认】。
  *
@@ -55,6 +55,7 @@ typedef struct
        在此之前保持 0：0 不是"某个地址"，而是"没有地址"。
        换帧状态机会拒绝把 0 当成有效寄存器地址来读写。 */
     uint32_t udp_completion_reg_addr;
+    /* 旧结构保留字段；统一 V1.1 的 UDP MVP 固定 polling，必须保持 0。 */
     uint32_t udp_completion_irq_id;
 } protocol_caps_t;
 
