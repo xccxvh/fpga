@@ -43,7 +43,7 @@ A组独立`udp_image_demo/fpga/rtl/top.v`则用`slot_base={8'd0,slot,21'd0}`，
 集成前置条件。此地址布局已选定，但A/B/C仍需把同一地址落实到linker、RTL、
 驱动与发送侧，并做联合板测；不能把“布局已选”写成“合并位流已验证”。
 
-## 联合控制寄存器（已选路径；新格式枚举待实现）
+## 联合控制寄存器（枚举已冻结；联合RTL待实现）
 
 **沿用B组已板测的SYSTEM_AXI_A路径和原寄存器偏移**，不同时另起一套APB
 寄存器协议。BitBlt为`0xE1000000`，显示控制为`0xE1100000`；两者经
@@ -58,15 +58,29 @@ A组独立`udp_image_demo/fpga/rtl/top.v`则用`slot_base={8'd0,slot,21'd0}`，
 | `0x10` | WIDTH（像素） | WIDTH=`1280` |
 | `0x14` | HEIGHT（行） | HEIGHT=`720` |
 | `0x18` | SRC_STRIDE（字节） | STRIDE=`2560` |
-| `0x1C` | DST_STRIDE（字节） | FORMAT：**建议**`1=RGB565`，旧`0=XRGB8888`仅历史版本 |
+| `0x1C` | DST_STRIDE（字节） | FORMAT：`0=XRGB8888`、`1=RGB565`；联合工程固定写`1` |
 | `0x20` | COLOR：**建议**低16位为RGB565 | FRAME_COUNT |
 | `0x24` | OPERATION：`0=FILL,1=COPY,2=COLOR_KEY` | UNDERFLOW_COUNT |
-| `0x28` | VERSION：新值待联合实现后确定 | VERSION：新值待联合实现后确定 |
+| `0x28` | VERSION：RGB565版固定`0x00020000` | VERSION：RGB565版固定`0x00030000` |
 | `0x2C` | — | IRQ_ENABLE |
 
 `COLOR[15:0]`用于Fill和Color Key，`COLOR[31:16]`建议要求写0，避免新旧
 驱动误配。BitBlt按16 B对齐、宽度8像素倍数、`stride>=width×2`检查；
 128-bit AXI一次承载8像素。原START/BUSY/DONE/ERROR及VBlank换帧顺序不变。
+
+格式与版本号最终约定如下；版本编码高16位为主版本、低16位为次版本：
+
+```c
+#define DISPLAY_FORMAT_XRGB8888  0u
+#define DISPLAY_FORMAT_RGB565    1u
+#define BITBLT_VERSION_RGB565    0x00020000u
+#define DISPLAY_VERSION_RGB565   0x00030000u
+```
+
+RGB565改变像素宽度、stride、对齐和Color Key语义，属于不兼容升级，因此
+BitBlt由V1.x升级为V2.0；显示控制器由现有V2.0升级为V3.0。未识别的FORMAT
+必须拒绝并置ERROR。枚举和版本号已经冻结，但当前B组V0.4 RTL/位流仍返回
+历史版本值，只有完成RGB565实现和验证后才允许返回上述新版VERSION。
 A组文档提出的`0xF8100000` APB寄存器表是**另一份草案**；该地址虽见SoC
 `soc.h`，当前B组BitBlt并未接到APB slave。BitBlt和显示不迁到这套APB表。
 UDP接收器新增的“完成通知”可使用单独的CPU可见接口，但不能占用上述寄存器
@@ -127,7 +141,8 @@ UDP完成通知的具体寄存器/中断地址和ACK方式尚未分配，不能�
 - 确认A组UDP输入的行填充、端序、丢包处理及硬件写后台的仲裁方式。
 - 确认A/B合并使用的DDR控制器配置、100 MHz SoC时钟与74.25 MHz像素时钟，
   以及AXI master ID分配；这些尚未由统一位流实测。
-- 新FORMAT/VERSION枚举仍为提案，在联合位流确定前不要让C软件硬编码新值。
+- FORMAT与VERSION枚举已经冻结；A/B/C需同步头文件和RTL。当前旧位流仍是
+  历史版本，软件必须读取VERSION并拒绝不匹配的位流。
 
 ## 验收顺序
 
