@@ -26,6 +26,13 @@ Efinity RISC-V IDE 2026.1.0.7
 
 `/home/user/fpga_workspace/tools/` 中提供软链接，避免搬动已安装软件导致路径失效。
 
+## 项目基线
+
+- 三方唯一接口：[`interfaces/unified_fpga_interface_spec_v1.2.md`](interfaces/unified_fpga_interface_spec_v1.2.md)
+- 官方资料索引：[`../resource/README.md`](../resource/README.md)
+- 当前联合 SoC：100 MHz，4 KiB 单路 D-cache，64 B cache line；DDR 共享缓冲区必须执行
+  V1.2 定义的 `dma_sync_for_device()`/`dma_sync_for_cpu()`。
+
 ## USB/JTAG
 
 ```text

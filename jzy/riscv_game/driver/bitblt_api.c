@@ -179,8 +179,9 @@ static bitblt_result_t submit(uint32_t src_addr, uint32_t dst_addr,
 
     /*
      * CPU 刚写过的 DDR 源数据必须在 BitBlt 读之前可见。
-     * 当前 CPU 只有指令缓存、没有数据缓存，fence 就足够了。
-     * （不需要 data_cache_invalidate_address()。）
+     * 当前 SoC 已启用 D-cache；这里的 fence 只有排序作用，尚不能满足
+     * V1.2 的 dma_sync_for_device() 契约。cache 同步封装落地前，本路径
+     * 仍属于待迁移实现，不能据此宣称联合协议通过。
      */
     __asm__ volatile ("fence rw,rw" ::: "memory");
 

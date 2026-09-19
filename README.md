@@ -20,7 +20,7 @@
 | RISC-V AXI4 | 已验证（补全硬件） | 接入 2 KiB AXI RAM 后，官方读写比较与中断测试均通过 |
 | RISC-V APB3 | 待修正硬件设计 | 官方软件已运行，厂家 Hard-JTAG 位流缺少示例要求的 LFSR 外设 |
 | BitBlt/Display 历史路径 | 已验证 | XRGB8888/1080p V0.4 的 Fill/Copy/Color Key、双缓冲和 3600 帧老化已板测 |
-| 三方统一接口 V1.1 | 已冻结 | RGB565/720p、UDP/BitBlt/Display、所有权及错误恢复已统一 |
+| 三方统一接口 V1.2 | 已冻结 | V1.1 ABI 不变；补充官方平台依据、D-cache 一致性和 FPS 验收 |
 | 联合 RGB565 位流 | 未完成 | A/B/C 仍需按统一规范迁移、联合仿真并完成目标板验收 |
 
 ## 协作规则
@@ -34,7 +34,7 @@
 7. 测试代码依赖 `assert` 判定，测试构建禁止定义 `NDEBUG`——断言会被整体移除，测试将假通过
    （打印 `[FAIL]` 但不中止，退出码仍为 0）。CPU 渲染器测试见 `jzy/riscv_game/tests/`。
 8. 三方跨模块接口只能由
-   [`unified_fpga_interface_spec_v1.1.md`](07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)
+   [`unified_fpga_interface_spec_v1.2.md`](07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)
    定义；个人进度文档不得另建寄存器表、地址表或协议草案。
 9. 跨角色协议修改必须先更新统一规范并提升版本，经 A/B/C 三方审阅后，再同步修改
    共享头文件、RTL、驱动和契约测试。单方代码先行不视为接口已变更。
@@ -44,9 +44,12 @@
 详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
 
 赛题二三方唯一接口基线见
-[`07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
+[`07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)。
 该规范已经冻结 RGB565/720p、DDR、UDP、BitBlt、Display、所有权和验收规则；
 当前联合实现仍未完成，独立 Demo 或旧位流通过不等于联合协议通过。
+
+官方赛题、开发板手册和参考 Demo 的本地索引见 [`resource/README.md`](resource/README.md)。
+资料中的地址 0、三缓冲、自动切换等独立 Demo 行为不属于联合协议。
 
 角色进度入口：
 

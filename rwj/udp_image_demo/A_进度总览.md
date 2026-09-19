@@ -1,8 +1,8 @@
 # A 组进度与统一接口接入要求
 
 - 角色：网络接收、UDP 帧完整性、授权写门控和联合平台接入
-- 更新日期：2026-09-19
-- 唯一协议：[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)
+- 更新日期：2026-09-20
+- 唯一协议：[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)
 - 当前结论：**独立 UDP Demo 已验证；统一协议实现尚未完成，不能合入联合位流**
 
 本文件只记录 A 的实现进度和待办，不再定义地址、寄存器或包格式。若本文与统一协议冲突，
@@ -52,6 +52,8 @@ A 禁止在联合工程中：
 7. 当前授权 CDC 是 pending level + shadow，尚未证明 START 与消费在所有边界上恰好一次。
 8. A 独立 DDR 控制器和 108 MHz 路径不得并入联合工程；联合数据面使用 B 的单一 DDR
    控制器和 100 MHz user_clk。
+9. 当前 SoC 已启用 4 KiB D-cache。UDP 完成只表示 DDR 写事务完成，不表示 CPU cache
+   已同步；C 若要读取 UDP 写入的 framebuffer，必须先执行 V1.2 的 `dma_sync_for_cpu()`。
 
 ## 4. 必须按顺序完成的工作
 
@@ -81,6 +83,8 @@ A 禁止在联合工程中：
 - 每 Burst 最多 16 beat、不跨 4 KiB，WSTRB 固定全 1。
 - 等全部 B 响应后才能 frame_done；非 OKAY、错误 BID 或 outstanding 非 0 都是 AXI_ERR。
 - 向 B 提供清晰的 128-bit AXI master 端口和 100 MHz 同步接口，不携带独立 DDR IP。
+- `frame_done/snapshot` 只能在全部 DDR 写响应完成后发布；不得尝试从 A RTL 直接操作 CPU
+  cache，cache invalidate 属于 C 在重新取得缓冲区所有权后的职责。
 
 ### A-P3：验证
 
@@ -88,6 +92,8 @@ A 禁止在联合工程中：
 - APB TB 覆盖授权、重复 ARM、ARM 后前台变化、ABORT、超时、SEQ 回绕、ACK/publish 和
   未映射访问。
 - 联合仿真证明坏帧不换屏、无授权不产生 AW、前台永不被 UDP 写。
+- cache 一致性板测先由 CPU 预热目标 cache line，再由 UDP 覆盖 DDR，C 执行
+  `dma_sync_for_cpu()` 后必须读到新数据；省略同步的负向用例应能暴露旧 cache 数据。
 - 板测记录必须包含 VERSION、帧状态、实际前台、DDR 错误和至少 3600 帧结果。
 
 ## 5. A 的完成判据

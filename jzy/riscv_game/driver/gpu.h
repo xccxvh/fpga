@@ -32,8 +32,9 @@
  *   gpu_set_timebase      局部时基注入，与本文件外的代码无关
  *
  * 调用方约定（由真正的驱动 bitblt_api.c 承担）：
- *   当前 CPU 只有 4 KiB 指令缓存、没有数据缓存，CPU 写过源数据后
- *   执行 fence rw,rw 即可，不需要 data_cache_invalidate_address()。
+ *   当前 SoC 已启用 4 KiB D-cache；共享 DDR 范围必须按统一规范 V1.2
+ *   通过 dma_sync_for_device()/dma_sync_for_cpu() 交接。当前生产驱动尚未
+ *   完成该同步封装，不能把 fence rw,rw 当作 cache invalidate。
  *
  * 硬件格式事实（2026-09-18 更新）：
  *   统一目标            RGB565 / 1280x720@60，2 Byte/像素，8 像素/128-bit beat

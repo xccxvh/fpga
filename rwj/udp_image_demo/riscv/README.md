@@ -4,10 +4,11 @@
 
 > 本文记录 A 的 bring-up 环境和历史测试。涉及 DDR 布局、UDP APB、BitBlt/Display、
 > framebuffer 所有权的内容，必须以
-> [`../../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)
+> [`../../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)
 > 为准。下文早期地址建议不能用于联合工程。
 
-板子：Efinix Titanium Ti60F225，片上 Sapphire SoC（RV32IM，100 MHz，无 FPU/C 扩展）。
+板子：Efinix Titanium Ti60F225，片上 Sapphire SoC（RV32IM，100 MHz，无 FPU/C 扩展，
+4 KiB 单路 D-cache，64 B cache line）。
 
 ---
 
@@ -77,6 +78,10 @@ cp -r projects/p1test projects/我的程序
 
 **应用本身就运行在 DDR 里** —— `0x1000` 是 DDR 窗口起点，不是片上 RAM。
 所以能跑程序就说明 DDR3 控制器上电校准是成功的。
+
+CPU 与 UDP/BitBlt 等硬件主机共享 DDR 时存在 cache 一致性问题。硬件写完后 CPU 读取前
+必须按统一协议执行 `dma_sync_for_cpu()`；CPU 写完交给硬件前执行
+`dma_sync_for_device()`。`fence rw,rw` 只能排序，不能替代 D-cache invalidate。
 
 ### 启动链（决定了调试流程）
 

@@ -58,7 +58,7 @@
 
 > 角色 A · 2026-09-18
 > 本文是已失败方案的历史排障记录；现行联合 DDR 要求见
-> `../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`。
+> `../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`。
 > **这一步卡住 A0-1（编译）和 A1-1（合并），必须先做。**
 
 ---

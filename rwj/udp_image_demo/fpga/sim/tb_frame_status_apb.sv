@@ -3,7 +3,7 @@
 // tb_frame_status_apb.sv —— 帧完成状态寄存器回归测试
 //
 // 被测：frame_status_apb.v（内核）+ frame_status_apb_slave.v（64KB 窗口包装）
-// 历史 V1 原型；联合目标见 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md。
+// 历史 V1 原型；联合目标见 07_docs/interfaces/unified_fpga_interface_spec_v1.2.md。
 // 本 TB 通过不代表 V2.0 联合协议通过。
 //
 // 覆盖：

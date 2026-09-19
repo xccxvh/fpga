@@ -1,8 +1,8 @@
 # B 组进度与统一接口接入要求
 
 - 角色：联合 SoC/DDR 平台、BitBlt、Display DMA 与 HDMI
-- 更新日期：2026-09-19
-- 唯一协议：[`../interfaces/unified_fpga_interface_spec_v1.1.md`](../interfaces/unified_fpga_interface_spec_v1.1.md)
+- 更新日期：2026-09-20
+- 唯一协议：[`../interfaces/unified_fpga_interface_spec_v1.2.md`](../interfaces/unified_fpga_interface_spec_v1.2.md)
 - 当前结论：**XRGB8888/1080p V0.4 历史路径已板测；RGB565/720p 联合版本尚未完成**
 
 本文件只记录 B 的实现进度和待办。寄存器、版本、像素、地址、仲裁和换帧语义只允许由
@@ -38,7 +38,7 @@ B 禁止：
 - PLIC 30 共享判源、32 帧并发和 3600 帧零欠流老化；
 - Efinity 编译、时序和目标板显示。
 
-这些结果可以作为回归基线，但其像素格式、显示时序和 VERSION 均不符合联合 V1.1。
+这些结果可以作为回归基线，但其像素格式、显示时序和 VERSION 均不符合联合 V1.2。
 
 2026-09-19 已对历史 `display_ctrl_axi.v` 做控制语义加固并加入仿真回归：显示开启时拒绝
 几何/格式写，PENDING 时拒绝关闭显示和改写 NEXT_ADDR，请求接受时锁存 PENDING_ADDR 并
@@ -54,6 +54,8 @@ B 禁止：
 5. 写仲裁器只有 CPU 和 BitBlt，没有 UDP 第三写主机。
 6. 旧 Display AXI 写响应仍固定为 OKAY，尚未按 V3.0 对拒绝的 PENDING 写返回 `SLVERR`。
 7. 旧显示初始化若向复位 FRONT=FB_A 再请求 FB_A，会因 NEXT==FRONT 失败。
+8. 联合 SoC 实际启用 4 KiB 单路 D-cache/64 B cache line，但现有 C 文档和驱动仍按
+   “无 D-cache、只需 fence”处理，尚未实现 V1.2 的 cache 所有权交接。
 
 ## 4. 必须按顺序完成的工作
 
@@ -86,11 +88,15 @@ B 禁止：
 ### B-P3：联合顶层和仲裁
 
 - 采用一个 256 MiB DDR 配置和 100 MHz user_clk。
+- 保持官方 SoC 的 4 KiB 单路 D-cache/64 B cache line 配置，并向 C 提供一致的 BSP
+  `soc.h`/`vexriscv.h`；不得通过关闭 D-cache 掩盖共享缓冲区一致性问题。
 - 写侧扩为 CPU+BitBlt+UDP，读侧覆盖 CPU+BitBlt+Display。
 - 已接收 Burst 保持所有权到 B/RLAST，W 通道不交错，所有请求方无饥饿。
 - 接入 A 的 APB block、UDP 写 master，以及 Display→UDP/BitBlt 的 active FRONT 安全侧带。
 - 固定 BitBlt/Display 的 64 KiB `SYSTEM_AXI_A` 窗口和错误响应，并按电平语义实现
   `plic_irq30 = bitblt_irq | display_irq`。
+- `CAL_DONE=0` 时门控所有 UDP/BitBlt/Display DDR 请求；官方 Demo 只用于确认接口和时钟，
+  其地址 0、三缓冲、自动换页及 128-beat burst 不进入联合顶层。
 
 ### B-P4：验证
 
@@ -98,6 +104,7 @@ B 禁止：
 - Display 时序、像素颜色、PENDING_ADDR 锁存、VBlank、陈旧完成位和欠流仿真；
 - UDP 未授权/前台变化/越界绝不出现在 DDR AW 端；
 - BitBlt 溢出/非法区域/当前前台拒绝，以及 PLIC 30 双源电平中断回归；
+- CPU 预热 cache line 后由 BitBlt 改写、C invalidate 后读回新值的 cache 一致性回归；
 - 四类 DDR 访问并发压力、Efinity 时序和 3600 帧真板老化。
 
 ## 5. B 的完成判据
@@ -106,4 +113,5 @@ B 禁止：
 - C 不再需要 `protocol_frozen` 中的临时代持常量；
 - 联合顶层只含一个 DDR 控制器并真实接入 UDP 第三写主机；
 - RGB565 Fill/Copy/Color Key、720p 显示和 C 唯一换帧全部通过；
+- CPU/BitBlt 同场景 FPS 实时对比、cache 双向交接和 `CAL_DONE` 门控均完成板测；
 - 独立模块、联合仿真和目标板结果分别记录，不混写为同一种“通过”。

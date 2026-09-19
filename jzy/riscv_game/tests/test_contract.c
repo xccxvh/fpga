@@ -75,7 +75,7 @@ CONTRACT_ASSERT(reserved_below_fb,
                 SYSTEM_RESERVED_BASE + SYSTEM_RESERVED_SIZE <= FB_A_BASE);
 
 /* ---- 现行统一目标：几何数值必须与统一规范一致 ---- */
-/* 见 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md 的固定系统参数 */
+/* 见 07_docs/interfaces/unified_fpga_interface_spec_v1.2.md 的固定系统参数 */
 #if RENDER_PIXEL_FORMAT_RGB565
 CONTRACT_ASSERT(fmt_width,              FMT_WIDTH == 1280u);
 CONTRACT_ASSERT(fmt_height,             FMT_HEIGHT == 720u);

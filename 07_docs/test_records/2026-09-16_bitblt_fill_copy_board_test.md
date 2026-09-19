@@ -62,7 +62,9 @@ DDR Copy burst readback: PASSED (240 pixels)
 ## 已知问题和未覆盖项
 
 - 厂家 `soc_write_buffer_flush()` 在当前 CPU 配置下不会返回；测试改用标准
-  `fence rw,rw` 后正常。正式驱动必须保留内存顺序屏障。
+  `fence rw,rw` 后正常。该现象只记录本次历史小块测试，不能证明 cache 一致性已经解决；
+  现行 V1.2 要求正式驱动实现 `dma_sync_for_device()`/`dma_sync_for_cpu()`，并单独复测
+  write-buffer flush 和硬件写后 D-cache invalidate。
 - 当前只完成小矩形/小块实板回读，没有完成保护区哨兵、实际跨4 KiB地址、
   backpressure、CPU/BitBlt/显示并发和整帧吞吐测试。
 - Framebuffer、HDMI扫描、Double Buffer和VSync换帧不属于本次板测范围。

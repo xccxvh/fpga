@@ -1,7 +1,7 @@
 # Team
 
 本目录记录团队任务分工、进度和周计划。三方接口的唯一权威来源是
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)。
 
 ## 固定职责
 
@@ -22,3 +22,7 @@
 4. 独立 Demo 只能标记“独立验证”；联合完成必须有端到端仿真、联合位流和目标板记录。
 5. 未通过 VERSION 探测的组合禁止继续运行或用肉眼画面宣称兼容。
 6. 旧协议草案不得留在 `07_docs/interfaces/`；历史结果只保留在 `test_records/` 或 Git 历史。
+7. CPU 与 UDP/BitBlt/Display 交接 DDR 缓冲区时，必须执行 V1.2 的 cache 同步契约；
+   `fence rw,rw` 不能替代硬件写后 D-cache invalidate。
+8. 最终 Demo 必须在同一场景实时显示纯 CPU 与 BitBlt 的 FPS，测试条件和最低/平均 FPS
+   写入 `05_benchmark/` 或 `07_docs/test_records/`。

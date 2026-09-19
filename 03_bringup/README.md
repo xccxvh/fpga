@@ -1,5 +1,9 @@
 # Board Bring-up Status
 
+本目录的厂家 Demo 和兼容性修改只用于板级 bring-up。联合接口以
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)
+为准；官方 Demo 的地址 0、三缓冲、自动换页和 cache 处理方式不能直接成为联合协议。
+
 ## 01_led/LED_8bit_Test
 
 - 来源：厂家 `01_Ti60F225_Key_led_osc_demo`

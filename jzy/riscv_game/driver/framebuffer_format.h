@@ -12,7 +12,7 @@
  *
  * ┌─ 临时几何代持（协议已冻结，B 权威头文件尚未迁移）───────────────┐
  * │ 本文件的【几何参数】来自团队 2026-09-18 的决定：                   │
- * │   07_docs/interfaces/unified_fpga_interface_spec_v1.1.md         │
+ * │   07_docs/interfaces/unified_fpga_interface_spec_v1.2.md         │
  * │                                                                   │
  * │ 那份文档同时写明「B组尚未迁移」——B 的权威 framebuffer_layout.h    │
  * │ 里仍然是 XRGB8888/1080p 的几何。所以几何参数暂时只能由本文件持有， │

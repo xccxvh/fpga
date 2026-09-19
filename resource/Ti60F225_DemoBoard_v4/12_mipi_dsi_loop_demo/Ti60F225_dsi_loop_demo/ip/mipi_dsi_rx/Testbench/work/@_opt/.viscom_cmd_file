@@ -1,0 +1,1 @@
+C:/questasim64_2021.1/win64/VisualizerRls/bin/viscom.exe -nolock -quiet work.TI60F225_MIPI_dsi_tb -quiet -auto_acc_if_foreign -work work -debug +designfile -allow_unnamed -o _opt -id 1-5847ca77e289-674830d5-32d-4efc

@@ -1,0 +1,179 @@
+# //  Questa Sim-64
+# //  Version 10.7c win64 Aug 18 2018
+# //
+# //  Copyright 1991-2018 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  QuestaSim and its associated documentation contain trade
+# //  secrets and commercial or financial information that are the property of
+# //  Mentor Graphics Corporation and are privileged, confidential,
+# //  and exempt from disclosure under the Freedom of Information Act,
+# //  5 U.S.C. Section 552. Furthermore, this information
+# //  is prohibited from disclosure under the Trade Secrets Act,
+# //  18 U.S.C. Section 1905.
+# //
+# do tb_soc.do
+# tb_soc
+# EFX_SIM
+# ./modelsim/sapphire_soc.v
+# QuestaSim-64 vlog 10.7c Compiler 2018.08 Aug 18 2018
+# Start time: 10:47:26 on Sep 25,2023
+# vlog -reportprogress 300 "+define+EFX_SIM" ./W25Q32JVxxIM.v ./design_modules.v ./sapphire_soc.v ./sim_modules.v ./tb_soc.v ./top_soc.v 
+# -- Compiling module W25Q32JVxxIM
+# -- Compiling module apb3_slave
+# -- Compiling module axi4_slave
+# -- Compiling module memory_checker
+# -- Compiling module timer_start
+# -- Compiling module ext_mem
+# -- Compiling module custom_instruction_tea
+# -- Compiling module tiny_encrytion
+# -- Compiling module fd_to_hd_wrapper
+# -- Compiling module sapphire_soc
+# -- Compiling module EfxSapphireSoc_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbToApb3Bridge_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbGpio2_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbI2cCtrl_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbSpiXdrMasterCtrl_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbUartCtrl_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbClint_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbDecoder_3_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbUnburstify_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbOnChipRam_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbDecoder_2_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbToAxi4SharedBridge_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbArbiter_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbDecoder_1_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbExclusiveMonitor_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BmbDecoder_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_3_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module SystemDebugger_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module JtagBridgeNoTap_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_2_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module VexRiscv_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_1_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module I2cSlave_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module StreamFifo_1_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module StreamFifo_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module TopLevel_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module StreamFifo_2_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module UartCtrl_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module StreamFifo_4_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module StreamArbiter_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module FlowCCByToggle_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module DataCache_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module InstructionCache_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_4_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module UartCtrlRx_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module UartCtrlTx_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_6_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module BufferCC_7_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module EfxCPUSp1_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module EfxCPUSp2_197c2ff8b64a4e2a861ddc683ba943d8
+# -- Compiling module clock_gen
+# -- Compiling module io_sim
+# -- Compiling module ext_mem_controller
+# -- Compiling module ext_mem_sim
+# -- Compiling module tb_soc
+# -- Compiling module top_soc_wrapper
+# -- Compiling module top_soc
+# 
+# Top level modules:
+# 	memory_checker
+# 	custom_instruction_tea
+# 	fd_to_hd_wrapper
+# 	ext_mem_controller
+# 	tb_soc
+# End time: 10:47:27 on Sep 25,2023, Elapsed time: 0:00:01
+# Errors: 0, Warnings: 0
+# vsim -t ps "+notimingchecks" -gui -voptargs=""+acc"" work.tb_soc 
+# Start time: 10:47:28 on Sep 25,2023
+# ** Note: (vsim-3812) Design is being optimized...
+# ** Note: (vopt-143) Recognized 1 FSM in module "VexRiscv_197c2ff8b64a4e2a861ddc683ba943d8(fast)".
+# ** Note: (vopt-143) Recognized 2 FSMs in module "BmbI2cCtrl_197c2ff8b64a4e2a861ddc683ba943d8(fast)".
+# ** Note: (vopt-143) Recognized 1 FSM in module "axi4_slave(fast)".
+# ** Note: (vopt-143) Recognized 1 FSM in module "UartCtrlRx_197c2ff8b64a4e2a861ddc683ba943d8(fast)".
+# ** Note: (vopt-143) Recognized 1 FSM in module "apb3_slave(fast)".
+# Loading work.tb_soc(fast)
+# Loading work.clock_gen(fast)
+# Loading work.clock_gen(fast__1)
+# Loading work.top_soc_wrapper(fast)
+# Loading work.io_sim(fast)
+# Loading work.io_sim(fast__1)
+# Loading work.io_sim(fast__2)
+# Loading work.top_soc(fast)
+# Loading work.timer_start(fast)
+# Loading work.axi4_slave(fast)
+# Loading work.ext_mem(fast)
+# Loading work.apb3_slave(fast)
+# Loading work.sapphire_soc(fast)
+# Loading work.EfxSapphireSoc_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_1_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.VexRiscv_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.InstructionCache_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.DataCache_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.EfxCPUSp1_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.EfxCPUSp2_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_2_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.JtagBridgeNoTap_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.FlowCCByToggle_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_6_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.SystemDebugger_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_3_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbDecoder_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbExclusiveMonitor_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbDecoder_1_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbArbiter_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.StreamArbiter_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbToAxi4SharedBridge_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.StreamFifo_4_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbDecoder_2_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbOnChipRam_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbUnburstify_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbDecoder_3_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbClint_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbUartCtrl_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.UartCtrl_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.UartCtrlTx_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.UartCtrlRx_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_7_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.StreamFifo_2_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbSpiXdrMasterCtrl_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.TopLevel_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.StreamFifo_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.StreamFifo_1_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbI2cCtrl_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.I2cSlave_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BufferCC_4_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbGpio2_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.BmbToApb3Bridge_197c2ff8b64a4e2a861ddc683ba943d8(fast)
+# Loading work.W25Q32JVxxIM(fast)
+# hexadecimal
+#                    0 -----------------------------------------
+#                    0 [EFX_INFO]: Executing custom binary file...
+#                    0 [EFX_WARN]: Skipped testbench default driver and monitor sequences.
+#                    0 [EFX_INFO]: Running simulation...
+#                    0 -----------------------------------------
+# ** Warning: (vsim-PLI-3407) Too many data words read on line 1025 of file "EfxSapphireSoc.v_toplevel_system_ramA_logic_ram_symbol0.bin". (Current address [1024], address range [0:1023])    : ./sapphire_soc.v(8087)
+#    Time: 0 ps  Iteration: 0  Instance: /tb_soc/dut_wrapper/dut/soc_inst/u_EfxSapphireSoc/system_ramA_logic
+# ** Warning: (vsim-PLI-3407) Too many data words read on line 1025 of file "EfxSapphireSoc.v_toplevel_system_ramA_logic_ram_symbol1.bin". (Current address [1024], address range [0:1023])    : ./sapphire_soc.v(8088)
+#    Time: 0 ps  Iteration: 0  Instance: /tb_soc/dut_wrapper/dut/soc_inst/u_EfxSapphireSoc/system_ramA_logic
+# ** Warning: (vsim-PLI-3407) Too many data words read on line 1025 of file "EfxSapphireSoc.v_toplevel_system_ramA_logic_ram_symbol2.bin". (Current address [1024], address range [0:1023])    : ./sapphire_soc.v(8089)
+#    Time: 0 ps  Iteration: 0  Instance: /tb_soc/dut_wrapper/dut/soc_inst/u_EfxSapphireSoc/system_ramA_logic
+# ** Warning: (vsim-PLI-3407) Too many data words read on line 1025 of file "EfxSapphireSoc.v_toplevel_system_ramA_logic_ram_symbol3.bin". (Current address [1024], address range [0:1023])    : ./sapphire_soc.v(8090)
+#    Time: 0 ps  Iteration: 0  Instance: /tb_soc/dut_wrapper/dut/soc_inst/u_EfxSapphireSoc/system_ramA_logic
+add wave  \
+sim:/tb_soc/system_i2c_0_io_sda \
+sim:/tb_soc/system_i2c_0_io_scl
+#             50000000 -----------------------------------------
+#             50000000 [EFX_FATAL]: Simulation timeout, aborting simulation  
+#             50000000 -----------------------------------------
+# ** Note: $finish    : ./tb_soc.v(231)
+#    Time: 50 ms  Iteration: 0  Instance: /tb_soc
+# 1
+# Break in NamedBeginStat timeout at ./tb_soc.v line 231
+# 0 ps
+# 52500 us
+# End time: 14:23:27 on Sep 25,2023, Elapsed time: 3:35:59
+# Errors: 0, Warnings: 4

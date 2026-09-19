@@ -4,6 +4,11 @@
 > 项目：易灵思 FPGA 创新设计赛题二  
 > 文档版本：V1.0（2026-09-08）
 
+> 三方联合接口以
+> [`../interfaces/unified_fpga_interface_spec_v1.2.md`](../interfaces/unified_fpga_interface_spec_v1.2.md)
+> 为唯一依据；官方资料索引见 [`../../resource/README.md`](../../resource/README.md)。本文只说明
+> 开发工具和 bring-up 流程，不定义联合寄存器、DDR 布局或 framebuffer 所有权。
+
 ## 1. 这两个 IDE 分别做什么
 
 ### 1.1 Efinity

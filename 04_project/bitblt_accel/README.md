@@ -8,9 +8,13 @@ Copy 及 XRGB8888 Color Key Copy。CPU 与引擎分别通过读、写两组 2-to
 仲裁器共享 DDR 数据通路。
 
 团队联合接口以
-[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)
+[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)
 为唯一依据。本目录当前 RTL、位流和大部分测试仍是历史 XRGB8888/1080p V0.4 实现，
 不能按规范中的 RGB565/720p BitBlt V2.0、Display V3.0 使用。
+
+V1.2 没有修改 BitBlt/Display 的寄存器 ABI，但确认联合 SoC 已启用 D-cache。CPU 写源数据后
+不能把普通 `fence rw,rw` 当作完整同步；正式驱动必须通过平台层
+`dma_sync_for_device()`/`dma_sync_for_cpu()` 交接共享 DDR 范围。
 
 迁移时必须保持旧回归可运行，但不得从旧 RTL/头文件反向修改统一协议。完成标志是共享头文件、
 RTL、C 驱动、模块仿真、联合仿真和目标板结果同时符合规范，而不是只修改 VERSION 常量。
@@ -86,6 +90,9 @@ VBlank A→B换帧验证，串口全部返回`PASSED`。最初16-beat显示读Bu
   增加3600帧且`UNDERFLOW_COUNT=0`，结束后竖向彩条恢复正确。
 - CPU/BitBlt性能对比通过：1080p Fill为37.39/657.99 MiB/s（17.59×），
   Copy为15.87/127.62 MiB/s（8.04×）；测试期间显示扫描74帧且零欠流。
+
+以上是历史带宽基线，不等同于赛题要求的实时 FPS 对比。V1.2 最终 Demo 仍需在同一
+RGB565/720p 场景中并列上屏显示纯 CPU 与 BitBlt FPS，并记录平均值和最低值。
 
 ```text
 *** BitBlt Framebuffer Smoke Demo ***

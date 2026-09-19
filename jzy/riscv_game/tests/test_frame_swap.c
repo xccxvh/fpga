@@ -1,7 +1,7 @@
 /*
  * 换帧状态机测试 —— C 组软件作为唯一 SWAP 提交者的强制顺序。
  *
- * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.1.md
+ * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.2.md
  *       「单一换帧控制与缓冲区所有权」
  *
  * 本文件要钉住的不是"能不能换成功"，而是【顺序不许被绕过】：

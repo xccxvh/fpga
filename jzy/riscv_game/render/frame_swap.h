@@ -6,7 +6,7 @@
 /*
  * 换帧状态机 —— C 组软件是【唯一】的 SWAP 提交者。
  *
- * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.1.md
+ * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.2.md
  *       「帧缓冲所有权状态机」
  *
  * 硬件（A 组的 UDP 接收、B 组的 BitBlt 引擎）都【不允许】直接改显示控制器的

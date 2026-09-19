@@ -7,7 +7,7 @@
  * 统一协议之前留下的能力探测兼容层。
  *
  * UDP Frame RX 地址和 V2.0 语义已经由
- * 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md 冻结；本文件名和
+ * 07_docs/interfaces/unified_fpga_interface_spec_v1.2.md 冻结；本文件名和
  * UNFROZEN_PROTOCOL 宏仅为避免在正式 UDP 驱动落地前破坏现有 host 测试，
  * 【不再表示协议仍待确认】。
  *

@@ -2,6 +2,10 @@
 
 记录 FPS、DDR 带宽、时序、资源利用率和可复现的测试结果。大型日志与原始构建输出不进入 Git。
 
+统一接口 V1.2 的赛题验收必须在同一分辨率、场景和对象数量下，实时并列显示纯 CPU 与
+BitBlt 硬件渲染 FPS，并记录平均 FPS、最低 FPS、持续时间、位流 VERSION 和测试提交。
+详细门禁见 [`../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)。
+
 ## 2026-09-18 BitBlt Fill/Copy 实板性能
 
 测试平台为 Ti60F225、100 MHz RISC-V/DDR 用户时钟及持续工作的

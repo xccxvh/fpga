@@ -1,7 +1,7 @@
 /*
  * 像素格式、几何参数与软件参考绘制（Color Key / Alpha）的测试。
  *
- * 覆盖 07_docs/interfaces/unified_fpga_interface_spec_v1.1.md 里 C 侧要落地的部分：
+ * 覆盖 07_docs/interfaces/unified_fpga_interface_spec_v1.2.md 里 C 侧要落地的部分：
  *   - RGB888/XRGB8888 -> RGB565 打包，RGB565 -> 通道值解包
  *   - 几何：宽高、stride、整帧字节数、宽度粒度、16 B 对齐
  *   - Color Key 按 16-bit 精确比较

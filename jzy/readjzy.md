@@ -2,10 +2,10 @@
 
 本文件（`jzy/readjzy.md`）是 `jzy/` 目录的 README，负责记录**本目录内部**的工程结构、开发环境、版本基准、编译调试步骤与目录说明。
 
-## C 组统一接口接入要求（2026-09-19）
+## C 组统一接口接入要求（2026-09-20）
 
 三方唯一协议是
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)。
 本文件只记录 C 工作区的实现与验证状态，不再复制完整地址表、寄存器表或协议草案。
 
 C 是联合系统唯一的 framebuffer 所有权管理者和换帧提交者，必须负责：
@@ -22,10 +22,15 @@ C 是联合系统唯一的 framebuffer 所有权管理者和换帧提交者，�
 10. BitBlt 矩形地址使用 checked-64 运算预检，PENDING 期间不改写 NEXT_ADDR；
 11. PLIC 30 ISR 同时检查并清除 BitBlt/Display 电平来源，退出前确认两者都已撤销；
 12. 所有轮询都有 100 MHz CLINT tick 超时，禁止无限等待。
+13. 通过平台层 `dma_sync_for_device()`/`dma_sync_for_cpu()` 完成 CPU 与硬件间的 DDR
+    所有权交接；普通 `fence rw,rw` 不得代替 D-cache invalidate。
+14. 在相同场景、分辨率和对象数量下统计纯 CPU 与 BitBlt 的平均/最低 FPS，并在最终 Demo
+    中实时并列显示。
 
 当前 C 的 RGB565 软件模型、渲染层和所有权状态机已有 host 测试，但 UDP V2.0 驱动、
-Display 陈旧完成位修复以及与真实 RGB565 联合位流的板测仍未完成。B 当前共享头文件仍是
-旧 XRGB8888/1080p，因此 C 的临时代持定义只能作为迁移措施，B 更新后必须删除。
+Display 陈旧完成位修复、cache 同步封装以及与真实 RGB565 联合位流的板测仍未完成。
+B 当前共享头文件仍是旧 XRGB8888/1080p，因此 C 的临时代持定义只能作为迁移措施，B 更新后
+必须删除。
 
 所有地址只能从模块所有者的权威头文件取得。MMIO 访问只允许出现在对应驱动 `.c` 中；
 游戏、渲染和状态机层不得硬编码地址或直接 include 寄存器头文件。
@@ -157,8 +162,8 @@ make clean
   （现在是 `driver/bitblt_api.c`；B 组的寄存器定义不复制、不软链），
   以及 `render/`、`driver/` 里没有任何硬编码的真实地址。
 - `make riscv-build-hw` 会真的把 `bitblt_api.c` 的寄存器分支编进去
-  （include B 的 `bitblt_regs.h`、用 `fence rw,rw`、用寄存器枚举值），
-  确保那段代码不是死代码。
+  （include B 的 `bitblt_regs.h`、用寄存器枚举值），确保那段代码不是死代码。当前实现仍只
+  执行 `fence rw,rw`，尚未接入 V1.2 cache 同步封装，因此只能算待迁移实现。
 - `make riscv-build` 的 `-march/-mabi` 取自 2026.1 BSP 实际产物的
   `Tag_RISCV_arch`（`rv32i2p1_m2p0_zicsr2p0_zifencei2p0_zmmul1p0`，ABI `ilp32`）。
   换 BSP 时可用 `make riscv-build RV_ARCH=... RV_ABI=...` 覆盖。
@@ -300,7 +305,7 @@ CPU 参考实现已从 16-bit 迁移到 XRGB8888 / 32-bit。当前 `pixel_t` 是
 
 **2026-09-19：C 侧软件已迁移到 RGB565 / 1280x720@60**，作为默认格式。
 团队统一目标与依据见
-[`../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.1.md)。
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.2.md)。
 
 改动的落点：
 
@@ -318,6 +323,9 @@ CPU 参考实现已从 16-bit 迁移到 XRGB8888 / 32-bit。当前 `pixel_t` 是
 `renderer_sw.c` **一行未改** —— 它完全由 `pixel_t` 参数化，这正是当初把它设计成
 "只依赖 pixel_t、不硬编码宽度"的回报。
 
+`renderer_sw_ext.*` 中的 Alpha 仅是 CPU 参考/高阶挑战准备，不表示 BitBlt V2.0 已冻结
+硬件 Alpha ABI。硬件 Alpha 若立项，必须单独升级统一协议和 BitBlt block VERSION。
+
 **回退路径必须保持可用**：`-DRENDER_PIXEL_FORMAT_RGB565=0` 切回 XRGB8888/1080p，
 `make test-legacy` 会在该格式下把整套 host 测试再跑一遍。
 B 组 RGB565 位流落地前，那是唯一能上板的路径。
@@ -327,11 +335,11 @@ RGB565 版 BitBlt/显示 RTL 与联合位流尚未完成、未板测。详见下
 
 ### 协议冻结与 C 的迁移状态
 
-统一规范 V1.1 已经冻结三块 IP：BitBlt V2.0、Display V3.0、UDP Frame RX V2.0；
+统一规范 V1.2 已经冻结三块 IP：BitBlt V2.0、Display V3.0、UDP Frame RX V2.0；
 UDP MVP 使用 polling。C 侧不得再把 UDP 地址、ACK 或授权方式标记为“未冻结”。
 
-V1.1 是对 V1.0 可实施性的澄清，没有改变三块 IP 的 VERSION、寄存器偏移、UDP 包格式或
-DDR 布局。C 侧新增的明确约束是：
+V1.2 延续 V1.1 的寄存器、UDP 包格式和 DDR 布局，没有改变三块 IP VERSION；本次根据官方
+资料补充平台来源、D-cache 一致性和 CPU/硬件 FPS 验收。C 侧明确约束是：
 
 - 所有矩形范围计算使用 checked-64/65-bit 语义，先验证完整源/目标区域，再提交 BitBlt；
 - UDP AUTH_PENDING/RX_ACTIVE 期间禁止提交 Display swap；硬件仍会在 ARM 和 START 时通过
@@ -340,6 +348,8 @@ DDR 布局。C 侧新增的明确约束是：
 - BitBlt FILL/COLOR_KEY 必须令 `COLOR[31:16]=0`，V2.0 硬件对非零高位按非法参数拒绝；
   COPY 完全忽略 COLOR，避免无关的旧寄存器值阻塞复制命令；
 - PLIC 30 是 BitBlt/Display 的共享电平源，ISR 必须处理并清除两个来源，退出前确认源已撤销；
+- 当前 SoC 已启用 4 KiB 单路 D-cache，cache line 为 64 B。CPU 把写过的范围交给硬件前
+  调用 `dma_sync_for_device()`；硬件写完、CPU 读取前调用 `dma_sync_for_cpu()`；
 - BitBlt/Display 驱动只能使用统一规范和权威头文件定义的控制窗口，不得访问窗口外或
   未定义偏移。
 
@@ -670,8 +680,13 @@ bitblt_result_t bitblt_copy(uint32_t src_addr, uint32_t dst_addr,
   避免 32 位溢出）。
 - 旧的 `gpu_fill()` / `gpu_copy()` 是 V0.1 时期命名的遗留，**已降级为兼容层**，
   恒返回 `RENDER_ERR_UNSUPPORTED`，不含任何寄存器访问。新代码不要用。
-- **缓存**：当前 CPU 只有 4 KiB 指令缓存、**没有数据缓存**，CPU 写过源数据后
-  执行 `fence rw,rw` 即可，不需要 `data_cache_invalidate_address()`。
-  （B 的旧 demo 里仍有 invalidate 调用，那是防御性写法，本次未擅自删除。）
+- **缓存**：当前 SoC 配置确认启用了 4 KiB 单路 D-cache，cache line 为 64 B。现有
+  `bitblt_api.c` 只执行 `fence rw,rw`，不符合 V1.2，不能视为已完成。
+- C 必须新增平台 cache 同步封装：`dma_sync_for_device(addr,len)` 返回前保证 write buffer
+  已排空并执行顺序屏障；厂商 `soc_write_buffer_flush()` 曾在 2026-09-16 板测中不返回，必须
+  修复并加入有限超时/DDR 可见性验证后才能采用。`dma_sync_for_cpu(addr,len)` 在硬件完成后
+  按 64 B 范围调用 `data_cache_invalidate_address()`（或全 cache invalidate），再执行屏障。
+- cache 板测必须先让 CPU 读取并预热目标 cache line，再由 UDP/BitBlt 覆盖 DDR；只有同步后
+  读到新值才算通过。共享缓冲区由硬件持有期间 CPU 禁止访问。
 - `display_api.*` 和 `frame_swap.*` 已有软件实现与 host 模型，但仍需按统一规范修复
   初始化同地址 swap、陈旧 `SWAP_DONE` 和 UDP V2.0 接入，再进行真实联合板测。
