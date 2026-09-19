@@ -33,7 +33,26 @@
 7. 测试代码依赖 `assert` 判定，测试构建禁止定义 `NDEBUG`——断言会被整体移除，测试将假通过
    （打印 `[FAIL]` 但不中止，退出码仍为 0）。CPU 渲染器测试见 `jzy/riscv_game/tests/`。
 
-详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
+## 目录导航
+
+| 目录 | 用途 |
+|---|---|
+| `01_board/` | 开发板、原理图、数据手册及厂家资料索引 |
+| `02_learning/` | 学习和独立实验，不作为比赛正式实现 |
+| `03_bringup/` | 厂家Demo工作副本及板级功能验证 |
+| `04_project/bitblt_accel/` | B组BitBlt/显示正式工程与测试 |
+| `05_benchmark/` | 性能、时序、资源利用率和可复现结果 |
+| `06_demo/` | 经过板测后进入的最终演示程序 |
+| `07_docs/` | 接口、进展、手册和板测记录；入口见`07_docs/README.md` |
+| `08_team/` | 分工、周计划和团队协作文档 |
+| `09_release/` | 发布清单、版本说明与校验值 |
+
+`jzy/`和`rwj/`是队友工作区，各自维护；整理公共/B组文件时不得移动或批量修改。
+本地`outflow/`、`work_*`、仿真波形和临时位流属于可再生产物，不进入Git，
+也不应因为整理目录而直接删除。
+
+详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`，文档总索引见
+`07_docs/README.md`。
 
 赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.2.md`，B 组当前进度与计划见
 `07_docs/progress/B_role_progress_and_plan.md`。
