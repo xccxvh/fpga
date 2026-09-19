@@ -47,6 +47,8 @@ logic  [15:0] paddr;
 logic         psel, penable, pwrite;
 logic  [31:0] pwdata, prdata;
 logic         pready, pslverr;
+logic         evt_write_enable;
+logic [31:0]  evt_write_base;
 
 frame_status_apb_slave dut (
     .clk(clk), .rst_n(rst_n),
@@ -57,7 +59,8 @@ frame_status_apb_slave dut (
     .frame_id(frame_id), .frame_rx_bytes(frame_rx_bytes),
     .frame_expect_bytes(frame_expect_bytes),
     .frame_seq_err(frame_seq_err), .fifo_ovf(fifo_ovf),
-    .bresp_err(bresp_err), .arp_miss(arp_miss), .cal_done(cal_done)
+    .bresp_err(bresp_err), .arp_miss(arp_miss), .cal_done(cal_done),
+    .evt_write_enable(evt_write_enable), .evt_write_base(evt_write_base)
 );
 
 //----------------------------------------------------------------------
@@ -211,6 +214,8 @@ initial begin
 
     //------------------------------------------------------------------
     $display("-- 用例 2：无授权 -> AUTH_ERR，BASE_ADDR=0 --");
+    ckbit("无授权时禁止 DDR 写", evt_write_enable, 1'b0);
+    ck32("无授权时写基址为 0", evt_write_base, 32'd0);
     do_frame(16'h0001, 32'd1000, 32'd1000, 1'b0, 1'b0, 1'b0);
     settle;
     apb_rd(O_FST, rd);
@@ -225,6 +230,8 @@ initial begin
     ckbit("ARM 后 AUTH_PENDING 置位", rd[1], 1'b1);
 
     do_frame(16'h0002, 32'd1000, 32'd1000, 1'b0, 1'b0, 1'b0);
+    ckbit("授权帧允许 DDR 写", evt_write_enable, 1'b1);
+    ck32("写状态机看到 FB_A", evt_write_base, 32'h0100_0000);
     settle;
     apb_rd(O_BASE, rd);   ck32("BASE_ADDR = 授权地址", rd, 32'h0100_0000);
     apb_rd(O_SLOT, rd);   ck32("SLOT = 0 (FB_A)", rd, 32'd0);
@@ -240,6 +247,17 @@ initial begin
     settle;
     apb_rd(O_BASE, rd);   ck32("BASE_ADDR = FB_B", rd, FB_B);
     apb_rd(O_SLOT, rd);   ck32("SLOT = 1 (FB_B)", rd, 32'd1);
+
+    // 非 framebuffer 地址即使被 ARM 也必须被硬件拒绝。
+    // 这是内存安全约束，不能只依赖 C 软件不写错地址。
+    do_auth(32'h0400_0000);
+    do_frame(16'h0003, 32'd1000, 32'd1000, 1'b0, 1'b0, 1'b0);
+    ckbit("非法 AUTH_BASE 禁止 DDR 写", evt_write_enable, 1'b0);
+    ck32("非法 AUTH_BASE 不对外暴露", evt_write_base, 32'd0);
+    settle;
+    apb_rd(O_FST, rd);
+    ckbit("非法 AUTH_BASE 上报 AUTH_ERR", rd[FS_AUTH], 1'b1);
+    apb_rd(O_BASE, rd);   ck32("非法 AUTH_BASE 快照为 0", rd, 32'd0);
 
     //------------------------------------------------------------------
     $display("-- 用例 4：坏帧各位 --");
@@ -343,8 +361,10 @@ initial begin
     //   ⑥ 授权不延续，下一帧需重新 ARM
     begin
         // 复位干净起步
-        @(negedge clk); rst_n = 0;
-        repeat (4) @(negedge clk); rst_n = 1;
+        // CDC 通道两侧必须一起复位。只复位 APB 侧会把事件域
+        // 保留的 toggle 误当成一个新 snapshot，这不是真实的系统复位时序。
+        @(negedge clk); rst_n = 0; evt_rst_n = 0;
+        repeat (4) @(negedge clk); rst_n = 1; evt_rst_n = 1;
         repeat (4) @(negedge clk);
         cal_done = 1'b0;
 
@@ -395,8 +415,8 @@ initial begin
 
         for (int ph = 0; ph < 30; ph++) begin
             // 复位寄存器侧，重新开始
-            @(negedge clk); rst_n = 0;
-            repeat (4) @(negedge clk); rst_n = 1;
+            @(negedge clk); rst_n = 0; evt_rst_n = 0;
+            repeat (4) @(negedge clk); rst_n = 1; evt_rst_n = 1;
             repeat (4) @(negedge clk);
             cal_done   = 1'b0;
             coincident = 1'b0;

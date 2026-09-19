@@ -34,6 +34,7 @@
 //==========================================================================
 module frame_status_apb_slave #(
     parameter [31:0] VERSION_INIT     = 32'h0001_0000,
+    parameter [31:0] FB_A_BASE        = 32'h0100_0000,
     parameter [31:0] FB_B_BASE        = 32'h0180_0000,
     parameter        UNMAPPED_PSLVERR = 1'b1    // 未映射区是否报错，见头注
 )(
@@ -65,7 +66,11 @@ module frame_status_apb_slave #(
     input         fifo_ovf,
     input         bresp_err,
     input         arp_miss,
-    input         cal_done
+    input         cal_done,
+
+    // 联合顶层接到 UDP AXI 写状态机。
+    output        evt_write_enable,
+    output [31:0] evt_write_base
 );
 
 // 本模块负责的段：paddr[15:8] == 0x01，即 0xF8100100–0xF81001FF
@@ -75,6 +80,7 @@ wire [31:0] fs_prdata;
 
 frame_status_apb #(
     .VERSION_INIT (VERSION_INIT),
+    .FB_A_BASE    (FB_A_BASE),
     .FB_B_BASE    (FB_B_BASE)
 ) u_frame_status (
     .evt_clk            (evt_clk),
@@ -88,6 +94,8 @@ frame_status_apb #(
     .fifo_ovf           (fifo_ovf),
     .bresp_err          (bresp_err),
     .arp_miss           (arp_miss),
+    .evt_write_enable   (evt_write_enable),
+    .evt_write_base     (evt_write_base),
     .cal_done           (cal_done),
     .clk                (clk),
     .rst_n              (rst_n),

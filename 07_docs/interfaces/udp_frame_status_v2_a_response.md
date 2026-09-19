@@ -380,4 +380,17 @@ A 会完整读一遍 C 的 API 草案和测试清单，如有异议另提。本�
 6. 补 64 KB 窗口包装模块（含 `PREADY` 恒高的修正）
 7. 扩展 `tb_frame_status_apb.sv`：新增 G.3 变体用例、授权通路用例
 
+### 2026-09-19 实现追记
+
+上述 1–7 在 A 侧模块/TB 中已完成。另补上了一条必要的数据面约束：
+
+- `frame_status_apb_slave` 输出 `evt_write_enable/evt_write_base`；
+- 硬件只接受 FB_A=`0x01000000` 或 FB_B=`0x01800000`；
+- 无授权/非法地址强制禁止写，并上报 `AUTH_ERR`；
+- `tb_frame_status_apb` 已增加写门控和非法地址检查，共 82 项通过。
+
+仍未完成的是：将这两个输出接到 **B 的联合 SoC 顶层**的
+UDP AXI 写状态机。A 的独立 `top.v` 没有 RISC-V/APB master，不在该 Demo
+中伪造软件授权输入。
+
 **确认后即可冻结 UDP Frame Status V2，C 不必等 A 的最终位流。**

@@ -71,6 +71,7 @@
 //==========================================================================
 module frame_status_apb #(
     parameter [31:0] VERSION_INIT = 32'h0001_0000,  // 待 B/C 分配，见答复 §L
+    parameter [31:0] FB_A_BASE    = 32'h0100_0000,
     parameter [31:0] FB_B_BASE    = 32'h0180_0000   // 用于推导 SLOT（仅诊断）
 )(
     //======================================================================
@@ -88,6 +89,11 @@ module frame_status_apb #(
     input         fifo_ovf,
     input         bresp_err,
     input         arp_miss,          // 异步，来自 MAC
+
+    // 给 UDP AXI 写状态机的强制授权门控。联合顶层必须用这两个
+    // 信号决定是否发写请求及写基址，不得再使用网络包内的 slot。
+    output        evt_write_enable,
+    output [31:0] evt_write_base,
 
     //======================================================================
     // 寄存器域：APB3 slave 内核
@@ -162,6 +168,14 @@ reg        cur_auth_ok;
 reg        cur_seq_err, cur_fifo_ovf, cur_bresp_err;
 reg        cons_tgl;
 
+wire auth_addr_ok = (auth_shadow == FB_A_BASE) ||
+                    (auth_shadow == FB_B_BASE);
+
+// START 后整帧保持不变。无授权或非法基址时 base 必须为 0，
+// write_enable 必须为 0，从硬件上防止 UDP 覆盖系统区或前台外的地址。
+assign evt_write_enable = cur_auth_ok;
+assign evt_write_base   = cur_auth_ok ? cur_base : 32'd0;
+
 always @(posedge evt_clk or negedge evt_rst_n) begin
     if (!evt_rst_n) begin
         cur_frame_id <= 16'd0;  cur_expect  <= 32'd0;
@@ -172,10 +186,11 @@ always @(posedge evt_clk or negedge evt_rst_n) begin
     else if (frame_start) begin
         cur_frame_id <= frame_id;
         cur_expect   <= frame_expect_bytes;
-        cur_auth_ok  <= pend_sync[1];
+        cur_auth_ok  <= pend_sync[1] && auth_addr_ok;
         // 无授权时上报 0 —— 软件能据此判 AUTH_ERR，且不会误当成某个真实基址
-        cur_base     <= pend_sync[1] ? auth_shadow : 32'd0;
-        cur_slot     <= (pend_sync[1] && (auth_shadow == FB_B_BASE)) ? 3'd1 : 3'd0;
+        cur_base     <= (pend_sync[1] && auth_addr_ok) ? auth_shadow : 32'd0;
+        cur_slot     <= (pend_sync[1] && auth_addr_ok &&
+                         (auth_shadow == FB_B_BASE)) ? 3'd1 : 3'd0;
         cur_seq_err  <= 1'b0;
         cur_fifo_ovf <= 1'b0;
         cur_bresp_err<= 1'b0;

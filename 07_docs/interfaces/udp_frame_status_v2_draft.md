@@ -140,6 +140,25 @@ C  校验 snapshot.BASE_ADDR == fs->back
 - `BASE_ADDR` **必须是硬件实际锁存并使用的地址**，不是软件写入期望值的回显；
 - 软件仍保留 `snapshot.BASE_ADDR == fs->back` 的校验（硬件约束 + 软件校验双保险）。
 
+### AUTH.3.1 A 侧硬件写门控（已实现，待联合顶层接入）
+
+`frame_status_apb_slave` 对事件域输出：
+
+```text
+evt_write_enable
+evt_write_base
+```
+
+- 只有 `AUTH_BASE == 0x01000000` 或 `0x01800000` 才是有效授权；
+- 无授权或其他地址被 ARM 时，`evt_write_enable=0` 且
+  `evt_write_base=0`，并按 §AUTH.4 发布 `AUTH_ERR` 快照；
+- 联合顶层的 UDP AXI 写状态机必须以 `evt_write_enable` 为硬门控，
+  并使用 `evt_write_base + packet_byte_offset` 生成 `AWADDR`；
+- 网络包里的 `slot` / `DBUF` 不得参与联合工程的物理写地址计算。
+
+> 当前 A 的独立 HDMI Demo 仍保留旧 `slot_base()` 通路，仅用于独立回归；
+> 它不是联合 SoC 顶层，不能作为授权通路已完成接入的证据。
+
 ### AUTH.4 无授权 START 的行为（C 侧已确认）
 
 **C 侧确认 START 无授权时采用「拒绝本帧 + `AUTH_ERR`」。**
