@@ -40,3 +40,8 @@
 
 团队联合目标与已选DDR/寄存器/换帧规则见
 `07_docs/interfaces/rgb565_720p_migration.md`。当前各独立Demo不等于联合位流已验证。
+
+UDP 帧完成通知（`0xF8100100` 窗口）的寄存器协议草案见
+`07_docs/interfaces/udp_frame_status_v2_draft.md`。**该文件仍是草案**，其中的
+offset、FRAME_STATUS bit 定义、VERSION 均未冻结，待 A/B 回复确认后才会成为基线，
+C 侧尚未按它实现任何驱动。
