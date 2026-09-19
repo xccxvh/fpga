@@ -74,7 +74,7 @@ frame-status: $(BUILD)/tb_frame_status_apb.vvp
 	$(VVP) $(VVP_M) $<
 
 $(BUILD)/tb_frame_status_apb.vvp: tb_frame_status_apb.sv \
-	$(RTL)/frame_status_apb.v | $(BUILD)
+	$(RTL)/frame_status_apb_slave.v $(RTL)/frame_status_apb.v | $(BUILD)
 	$(IVERILOG) $(IVLFLAGS) -s tb_frame_status_apb -o $@ $^
 
 clean:

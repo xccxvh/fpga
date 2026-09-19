@@ -1,55 +1,77 @@
 `timescale 1ns/1ps
 //==========================================================================
-// frame_status_apb.v —— UDP 帧完成状态寄存器（APB3 slave）
+// frame_status_apb.v —— UDP 帧完成状态寄存器（APB3 slave 内核）
 //
-// 接口约定见 07_docs/interfaces/udp_frame_status_interface_review_v0.1.md
-// 地址：0xF8100100 - 0xF81001FF（APB slave 0，低 256 字节为保留区）
+// 协议依据：`07_docs/interfaces/udp_frame_status_v2_draft.md`（C 的冻结草案）
+//           + A 的答复 `udp_frame_status_v2_a_response.md`
 //
-// 2026-09-19 决议：③ 语义冻结，含三点补充 ——
-//   (a) 最终 BRESP 后发布   (b) 跨时钟握手   (c) 只保留最新快照
-//
-//--------------------------------------------------------------------------
-// (a) 最终 BRESP 后发布 —— 一条必须保持的不变量
-//
-// 本模块在 frame_done 那一刻发布快照，**前提是 frame_done 置起时本帧所有
-// AXI 写响应都已经回来**。当前 top.v 的写状态机满足这条：
-//
-//     W_WB: if (bvalid) begin
-//               if (bresp != 2'b00 && bresp != 2'b01) bresp_err <= 1'b1;
-//               if (wbeats == 0) wstate <= W_IDLE;
-//               else             wstate <= W_WA;
-//           end
-//
-// 每个 burst 都在 W_WB 等 bvalid 才继续，全程最多一笔未完成写；
-// 而 frame_done 在 W_CTRL 处理 END 时产生，进入 W_CTRL 前必经上一个
-// DATA 包的 W_WB。所以发布时写流水线必然已排空。
-//
-// ⚠️ **一旦写通路改成流水线式（允许多笔未完成写），这个前提就不成立了** ——
-//    届时必须把发布条件从 frame_done 改成"frame_done 且未完成写计数归零"，
-//    否则会在最后一次 BRESP 到达前发布，把坏帧报成好帧。
-//    合并到 B 的工程时 A 的写通路要挂到它的 AXI 写仲裁器上，那里要重新确认。
+// **本模块只是内核**，只响应 `paddr[15:8] == 8'h01`（即 0xF8100100–0xF81001FF）。
+// 整个 64KB 窗口的译码与 PREADY 由包装模块 `frame_status_apb_slave.v` 负责 ——
+// 厂家原来的 `apb3_top` 是无条件 PREADY=1，而本内核是 `pready = sel`，
+// **直接拿内核替换厂家模块会让未映射地址的 APB 访问永久挂起**。
 //
 //--------------------------------------------------------------------------
-// (b) 跨时钟握手
+// 寄存器表（相对 0xF8100100，即内核内的 paddr[7:0]）
 //
-//   事件域 evt_clk：A 的收帧逻辑（top.v 的 sys_clk 域）
-//   寄存器域 clk  ：APB 接口（合并后为 SoC 的 user_clk）
+//   +0x00  SEQ           RO   完成序号；snapshot 的 commit 标志
+//   +0x04  FRAME_STATUS  RO   快照位图，见下
+//   +0x08  FRAME_ID      RO   高 16 位恒 0
+//   +0x0C  SLOT          RO   0=A 1=B；**仅诊断用，BASE_ADDR 才是权威**
+//   +0x10  BASE_ADDR     RO   硬件实际使用的锁存基址
+//   +0x14  RX_BYTES      RO
+//   +0x18  EXPECT_BYTES  RO
+//   +0x1C  ACK_SEQ       WO   写已消费的 SEQ；匹配才清 ERR_STICKY
+//   +0x20  LIVE_STATUS   RO   bit0 CAL_DONE  bit1 AUTH_PENDING
+//   +0x24  ERR_STICKY    RO   跨帧粘滞，matching ACK 清
+//   +0x28  VERSION       RO
+//   +0x2C  AUTH_BASE     RW   C 写本次授权的后台 framebuffer 物理地址
+//   +0x30  AUTH_CTRL     WO   写 bit0=1 → ARM
+//   +0x34+ Reserved      RO   读回 0，写忽略
 //
-// 两域目前可能同源（A1-3 之前 sys_clk 是 108MHz、user_clk 是 100MHz），
-// 也可能在 A1-3 统一。**按可能异步来设计**，这样两种情况下都对。
+// FRAME_STATUS（紧凑排列，见答复文档 §E）：
+//   bit0 FRAME_OK  bit1 SEQ_ERR  bit2 FIFO_OVF  bit3 BRESP_ERR
+//   bit4 LEN_ERR   bit5 NO_DATA_ERR  bit6 AUTH_ERR
 //
-// 快照约 140 bit，**不能用多 bit 打两拍** —— 各 bit 到达时间不同会撕裂。
-// 用 toggle 握手 + 双缓冲：事件域填好影子寄存器再翻 toggle，寄存器域
-// 两级同步后整体锁存。
+// ERR_STICKY：bit0 SEQ_ERR bit1 FIFO_OVF bit2 BRESP_ERR bit3 ARP_MISS
+//             bit4 LEN_ERR  bit5 NO_DATA_ERR bit6 AUTH_ERR
 //
 //--------------------------------------------------------------------------
-// (c) 只保留最新快照
+// D.1「SEQ 是整个 snapshot 的 commit 标志」
 //
-// 不排队、不累积。st_* 被每一帧覆盖；软件靠 SEQ + seqlock 读法判断有没有
-// 新帧、读到的整组是否属于同一帧。
+// 本实现里**所有 snapshot 字段（含 SEQ）在同一个时钟沿并行更新**，不存在
+// "先改 SEQ 再逐个改字段"的窗口 —— 任何一次 APB 读要么全是旧帧、要么全是
+// 新帧。这比"最后写 SEQ"更强。**待 C 确认接受。**
+//
+//--------------------------------------------------------------------------
+// G.1 ACK 与 publish 同周期（严格按草案实现）
+//
+//   if (publish_new_snapshot)          err_sticky <= err_sticky | new_frame_err;
+//   else if (ack_wr && wdata == seq)   err_sticky <= 0;
+//
+// publish 分支读的是**旧值**再 OR —— 同拍时 ACK 被整体丢弃，旧错误不会被清。
+// 这是草案 G.3 的推论，比"先清旧再 OR 新"更安全：粘滞寄存器宁可多留一次
+// 旧错误，也不能误清掉软件还没读到的错误。
+//
+//--------------------------------------------------------------------------
+// 授权通路（AUTH_BASE / AUTH_CTRL，C 在 P3 提议）
+//
+// 跨域方向是**寄存器域 → 事件域**（与快照相反）：
+//
+//   1. C 写 AUTH_BASE
+//   2. C 写 AUTH_CTRL bit0=1 → 本域把 AUTH_BASE 复制进 auth_shadow，置
+//      auth_pending。**pending 期间再写 ARM 会被丢弃**，C 可读
+//      LIVE_STATUS.AUTH_PENDING 判断
+//   3. auth_pending 经 2FF 同步到事件域
+//   4. 事件域在 frame_start 时：有效 → 锁存 auth_shadow 为本帧地址并回送
+//      consume toggle；无效 → AUTH_ERR，本帧不写 DDR、BASE_ADDR 报 0
+//   5. 本域同步 consume toggle → 清 auth_pending
+//
+// auth_shadow 在整个传输期间不变（第 2 步的门控保证），所以事件域采样多 bit
+// 数据是安全的 —— 这是"稳定数据 + 同步限定信号"模式，不是裸的多 bit 打两拍。
 //==========================================================================
 module frame_status_apb #(
-    parameter [31:0] ID_MAGIC = 32'h4652_4D31   // "FRM1"
+    parameter [31:0] VERSION_INIT = 32'h0001_0000,  // 待 B/C 分配，见答复 §L
+    parameter [31:0] FB_B_BASE    = 32'h0180_0000   // 用于推导 SLOT（仅诊断）
 )(
     //======================================================================
     // 事件域：来自收帧逻辑的观测点
@@ -57,24 +79,18 @@ module frame_status_apb #(
     input         evt_clk,
     input         evt_rst_n,
 
-    input         frame_done,        // 单拍：整帧完成（且写流水线已排空，见 (a)）
+    input         frame_start,       // 单拍：START 控制包被处理（授权在此锁存）
+    input         frame_done,        // 单拍：整帧完成，且写流水线已排空
     input  [15:0] frame_id,
-    input  [2:0]  frame_slot,
-    input  [31:0] frame_base,
     input  [31:0] frame_rx_bytes,
     input  [31:0] frame_expect_bytes,
-    input         frame_ok,          // 整帧成功（含 !bresp_err）
     input         frame_seq_err,
     input         fifo_ovf,
     input         bresp_err,
-    input         arp_miss,
-    input  [31:0] frame_checksum,
-    input         frame_swap,        // 本帧是否请求切屏
-    input         swap_pulse,        // 单拍：显示端真的切屏了
-    input  [15:0] swap_frame_id,
+    input         arp_miss,          // 异步，来自 MAC
 
     //======================================================================
-    // 寄存器域：APB3 slave
+    // 寄存器域：APB3 slave 内核
     //======================================================================
     input         cal_done,          // 实时回显，不属于快照
 
@@ -91,65 +107,110 @@ module frame_status_apb #(
 );
 
 //==========================================================================
-// 寄存器偏移（模块内用 paddr[7:0]）
+// 偏移与位定义
 //==========================================================================
-localparam OFF_FRAME_ID   = 8'h00;   // 0x100
-localparam OFF_SLOT       = 8'h04;   // 0x104
-localparam OFF_BASE_ADDR  = 8'h08;   // 0x108
-localparam OFF_RX_BYTES   = 8'h0C;   // 0x10C
-localparam OFF_EXPECT     = 8'h10;   // 0x110
-localparam OFF_STATUS     = 8'h14;   // 0x114
-localparam OFF_ACK        = 8'h18;   // 0x118
-localparam OFF_SEQ        = 8'h1C;   // 0x11C
-localparam OFF_SWAP_SEQ   = 8'h20;   // 0x120
-localparam OFF_SWAP_FRAME = 8'h24;   // 0x124
-localparam OFF_ERR_STICKY = 8'h28;   // 0x128
-localparam OFF_ID         = 8'h2C;   // 0x12C
-localparam OFF_LIVE       = 8'h30;   // 0x130
+localparam OFF_SEQ        = 8'h00;
+localparam OFF_FRAME_ST   = 8'h04;
+localparam OFF_FRAME_ID   = 8'h08;
+localparam OFF_SLOT       = 8'h0C;
+localparam OFF_BASE_ADDR  = 8'h10;
+localparam OFF_RX_BYTES   = 8'h14;
+localparam OFF_EXPECT     = 8'h18;
+localparam OFF_ACK_SEQ    = 8'h1C;
+localparam OFF_LIVE       = 8'h20;
+localparam OFF_ERR_STICKY = 8'h24;
+localparam OFF_VERSION    = 8'h28;
+localparam OFF_AUTH_BASE  = 8'h2C;
+localparam OFF_AUTH_CTRL  = 8'h30;
 
-// STATUS 位 —— **纯快照**，不含任何实时位
-localparam ST_DONE            = 0;
-localparam ST_FRAME_OK        = 1;
-localparam ST_SEQ_ERR         = 2;
-localparam ST_FIFO_OVF        = 3;
-localparam ST_BRESP_ERR       = 4;
-localparam ST_BYTES_MISMATCH  = 5;
-localparam ST_SWAPPED         = 6;
+localparam FS_FRAME_OK    = 0;
+localparam FS_SEQ_ERR     = 1;
+localparam FS_FIFO_OVF    = 2;
+localparam FS_BRESP_ERR   = 3;
+localparam FS_LEN_ERR     = 4;
+localparam FS_NO_DATA_ERR = 5;
+localparam FS_AUTH_ERR    = 6;
 
-// LIVE_STATUS 位 —— 实时读，不参与快照
-localparam LS_CAL_DONE        = 0;
+localparam ES_ARP_MISS    = 3;
 
-// ERR_STICKY 位
-localparam ES_SEQ_ERR         = 0;
-localparam ES_FIFO_OVF        = 1;
-localparam ES_BRESP_ERR       = 2;
-localparam ES_ARP_MISS        = 3;
-localparam ES_BYTES_MISMATCH  = 4;
+// 快照位段（避免用算式写切片写错）
+localparam SNAP_W         = 122;   // 16+3+32+32+32+7
+localparam SN_ID_MSB      = 121, SN_ID_LSB    = 106;
+localparam SN_SLOT_MSB    = 105, SN_SLOT_LSB  = 103;
+localparam SN_BASE_MSB    = 102, SN_BASE_LSB  = 71;
+localparam SN_RX_MSB      = 70,  SN_RX_LSB    = 39;
+localparam SN_EXP_MSB     = 38,  SN_EXP_LSB   = 7;
+localparam SN_ST_MSB      = 6,   SN_ST_LSB    = 0;
 
 //==========================================================================
-// 事件域：组装快照 + toggle 握手
+// 事件域
 //==========================================================================
-localparam SNAP_W = 16+3+32+32+32+16+32;   // = 163 bit
 
-wire frame_bytes_mismatch = (frame_expect_bytes != 32'd0)
-                         && (frame_rx_bytes != frame_expect_bytes);
+// ---- 授权：同步 pending ----
+reg [1:0] pend_sync;
+always @(posedge evt_clk or negedge evt_rst_n) begin
+    if (!evt_rst_n) pend_sync <= 2'b00;
+    else            pend_sync <= {pend_sync[0], auth_pending};
+end
 
-// 快照里的 STATUS（bit0-7，不含实时的 CAL_DONE）
-wire [15:0] evt_status = {
-    9'd0,
-    frame_swap,              // bit6 SWAPPED（切屏请求；实际完成由 swap_pulse 记录）
-    frame_bytes_mismatch,    // bit5
-    bresp_err,               // bit4
-    fifo_ovf,                // bit3
-    frame_seq_err,           // bit2
-    frame_ok,                // bit1
-    1'b1                     // bit0 DONE（快照必然已完成）
+// ---- 帧内寄存器（START 锁存 / 清零，帧内累加）----
+reg [15:0] cur_frame_id;
+reg [31:0] cur_expect;
+reg [31:0] cur_base;
+reg [2:0]  cur_slot;
+reg        cur_auth_ok;
+reg        cur_seq_err, cur_fifo_ovf, cur_bresp_err;
+reg        cons_tgl;
+
+always @(posedge evt_clk or negedge evt_rst_n) begin
+    if (!evt_rst_n) begin
+        cur_frame_id <= 16'd0;  cur_expect  <= 32'd0;
+        cur_base     <= 32'd0;  cur_slot    <= 3'd0;
+        cur_auth_ok  <= 1'b0;   cons_tgl    <= 1'b0;
+        cur_seq_err  <= 1'b0;   cur_fifo_ovf<= 1'b0;  cur_bresp_err <= 1'b0;
+    end
+    else if (frame_start) begin
+        cur_frame_id <= frame_id;
+        cur_expect   <= frame_expect_bytes;
+        cur_auth_ok  <= pend_sync[1];
+        // 无授权时上报 0 —— 软件能据此判 AUTH_ERR，且不会误当成某个真实基址
+        cur_base     <= pend_sync[1] ? auth_shadow : 32'd0;
+        cur_slot     <= (pend_sync[1] && (auth_shadow == FB_B_BASE)) ? 3'd1 : 3'd0;
+        cur_seq_err  <= 1'b0;
+        cur_fifo_ovf <= 1'b0;
+        cur_bresp_err<= 1'b0;
+        if (pend_sync[1]) cons_tgl <= ~cons_tgl;   // 回送：本次授权已消费
+    end
+    else begin
+        if (frame_seq_err) cur_seq_err   <= 1'b1;
+        if (fifo_ovf)      cur_fifo_ovf  <= 1'b1;
+        if (bresp_err)     cur_bresp_err <= 1'b1;
+    end
+end
+
+// ---- frame_done 那一拍组合出最终值 ----
+// rx 直接用输入，不能用 cur_* —— 那个寄存器要到下一拍才更新，会晚一帧。
+wire [31:0] fin_rx      = frame_done ? frame_rx_bytes : 32'd0;
+wire        fin_len_err = (cur_expect != 32'd0) && (fin_rx != cur_expect);
+wire        fin_no_data = (cur_expect == 32'd0);
+wire        fin_seq_err = cur_seq_err   | frame_seq_err;
+wire        fin_fifo    = cur_fifo_ovf  | fifo_ovf;
+wire        fin_bresp   = cur_bresp_err | bresp_err;
+wire        fin_auth_e  = ~cur_auth_ok;
+
+wire [6:0] fin_status = {
+    fin_auth_e,      // bit6 AUTH_ERR
+    fin_no_data,     // bit5 NO_DATA_ERR
+    fin_len_err,     // bit4 LEN_ERR
+    fin_bresp,       // bit3 BRESP_ERR
+    fin_fifo,        // bit2 FIFO_OVF
+    fin_seq_err,     // bit1 SEQ_ERR
+    ~fin_auth_e & ~fin_no_data & ~fin_len_err & ~fin_bresp
+        & ~fin_fifo & ~fin_seq_err            // bit0 FRAME_OK
 };
 
-// 快照内容：{frame_id, slot, base, rx_bytes, expect_bytes, status, checksum}
-wire [SNAP_W-1:0] evt_snapshot = {
-    frame_id, frame_slot, frame_base, frame_rx_bytes,
-    frame_expect_bytes, evt_status, frame_checksum
+wire [SNAP_W-1:0] fin_snapshot = {
+    cur_frame_id, cur_slot, cur_base, fin_rx, cur_expect, fin_status
 };
 
 reg [SNAP_W-1:0] evt_shadow;
@@ -161,139 +222,126 @@ always @(posedge evt_clk or negedge evt_rst_n) begin
         evt_tgl    <= 1'b0;
     end
     else if (frame_done) begin
-        evt_shadow <= evt_snapshot;
-        evt_tgl    <= ~evt_tgl;      // 填好再翻，保证影子寄存器稳定
-    end
-end
-
-// 切换事件单独一路（显示端在另一处，与帧完成不同步）
-reg [15:0] evt_swap_frame;
-reg        evt_swap_tgl;
-
-always @(posedge evt_clk or negedge evt_rst_n) begin
-    if (!evt_rst_n) begin
-        evt_swap_frame <= 16'd0;
-        evt_swap_tgl   <= 1'b0;
-    end
-    else if (swap_pulse) begin
-        evt_swap_frame <= swap_frame_id;
-        evt_swap_tgl   <= ~evt_swap_tgl;
+        evt_shadow <= fin_snapshot;
+        evt_tgl    <= ~evt_tgl;
     end
 end
 
 //==========================================================================
-// 寄存器域：同步 toggle、整体锁存快照
+// 寄存器域
 //==========================================================================
 reg [2:0] tgl_sync;
-reg [2:0] swap_tgl_sync;
+reg [2:0] cons_sync;
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        tgl_sync      <= 3'b000;
-        swap_tgl_sync <= 3'b000;
+        tgl_sync  <= 3'b000;
+        cons_sync <= 3'b000;
     end
     else begin
-        tgl_sync      <= {tgl_sync[1:0],      evt_tgl};
-        swap_tgl_sync <= {swap_tgl_sync[1:0], evt_swap_tgl};
+        tgl_sync  <= {tgl_sync[1:0],  evt_tgl};
+        cons_sync <= {cons_sync[1:0], cons_tgl};
     end
 end
 
-wire snap_pulse = tgl_sync[2] ^ tgl_sync[1];        // 翻转沿 = 新快照
-wire swap_evt   = swap_tgl_sync[2] ^ swap_tgl_sync[1];
+wire snap_pulse = tgl_sync[2]  ^ tgl_sync[1];
+wire cons_evt   = cons_sync[2] ^ cons_sync[1];
 
-// 锁存寄存器（发布）
-reg [15:0] st_frame_id;
-reg [2:0]  st_slot;
-reg [31:0] st_base;
-reg [31:0] st_rx_bytes;
-reg [31:0] st_expect;
-reg [15:0] st_status;
-reg [31:0] st_checksum;
-reg [31:0] st_seq;
-reg [31:0] st_swap_seq;
-reg [15:0] st_swap_frame;
-reg [31:0] err_sticky;
-
-// 跨域来的影子寄存器也要先同步（多 bit 不能直接用）。
-// evt_shadow 在 evt_tgl 翻转前已稳定至少一拍，翻转沿同步到寄存器域后
-// 还要再经两级，实际有 ≥3 拍余量，直接采样是安全的。
+// evt_shadow 在 evt_tgl 翻转前已稳定，同步到本域后还有 ≥3 拍余量
 reg [SNAP_W-1:0] snap_buf;
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) snap_buf <= {SNAP_W{1'b0}};
     else        snap_buf <= evt_shadow;
 end
 
-// ARP 未命中是异步事件（来自 MAC），跨到寄存器域累积
 reg [1:0] arp_miss_sync;
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) arp_miss_sync <= 2'b00;
     else        arp_miss_sync <= {arp_miss_sync[0], arp_miss};
 end
 
-// CAL_DONE 来自 DDR 控制器，是电平信号、校准后不再变化。
-// 不进快照（软件在没有任何帧完成时也要能查），归 LIVE_STATUS。
 reg [1:0] cal_done_sync;
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) cal_done_sync <= 2'b00;
     else        cal_done_sync <= {cal_done_sync[0], cal_done};
 end
-wire cal_done_live = cal_done_sync[1];
 
-// 本次发布的快照里的 status（注意：不能用 st_status，它在同一拍才被更新）
-wire [15:0] new_status = snap_buf[SNAP_W-116 : SNAP_W-131];
+// ---- 授权寄存器 ----
+reg [31:0] auth_base_reg;
+reg [31:0] auth_shadow;
+reg        auth_pending;
 
-wire        ack_hit    = ack_wr && (pwdata == st_seq);
-// ACK 命中时本次发布的旧错误应被清掉，但新帧的错误必须留下
-wire [31:0] err_base   = ack_hit ? 32'd0 : err_sticky;
+// ---- 快照寄存器 ----
+reg [31:0] st_seq;
+reg [6:0]  st_status;
+reg [15:0] st_frame_id;
+reg [2:0]  st_slot;
+reg [31:0] st_base, st_rx, st_expect;
+reg [31:0] err_sticky;
+
+// APB 译码
+wire in_range = (paddr[15:8] == 8'h01);
+wire sel      = psel && in_range;
+assign pready  = sel;
+assign pslverr = 1'b0;
+
+wire wr_en   = sel && penable && pwrite;
+wire ack_wr  = wr_en && (paddr[7:0] == OFF_ACK_SEQ);
+wire arm_wr  = wr_en && (paddr[7:0] == OFF_AUTH_CTRL) && pwdata[0];
+wire base_wr = wr_en && (paddr[7:0] == OFF_AUTH_BASE);
+
+wire ack_hit = ack_wr && (pwdata == st_seq);
+wire [6:0] new_status = snap_buf[SN_ST_MSB : SN_ST_LSB];
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
+        st_seq        <= 32'd0;
+        st_status     <= 7'd0;
         st_frame_id   <= 16'd0;
         st_slot       <= 3'd0;
         st_base       <= 32'd0;
-        st_rx_bytes   <= 32'd0;
+        st_rx         <= 32'd0;
         st_expect     <= 32'd0;
-        st_status     <= 16'd0;
-        st_checksum   <= 32'd0;
-        st_seq        <= 32'd0;
-        st_swap_seq   <= 32'd0;
-        st_swap_frame <= 16'd0;
         err_sticky    <= 32'd0;
+        auth_base_reg <= 32'd0;
+        auth_shadow   <= 32'd0;
+        auth_pending  <= 1'b0;
     end
     else begin
-        // ---- 新快照发布 ----
+        // ---- 授权 ----
+        if (base_wr)
+            auth_base_reg <= pwdata;
+
+        if (arm_wr && !auth_pending) begin
+            auth_shadow  <= auth_base_reg;   // pending 期间保持不变
+            auth_pending <= 1'b1;
+        end
+        else if (cons_evt) begin
+            auth_pending <= 1'b0;
+        end
+
+        // ---- 快照发布（全部字段同沿并行，见头注 D.1）----
         if (snap_pulse) begin
-            st_frame_id <= snap_buf[SNAP_W-1     : SNAP_W-16];
-            st_slot     <= snap_buf[SNAP_W-17    : SNAP_W-19];
-            st_base     <= snap_buf[SNAP_W-20    : SNAP_W-51];
-            st_rx_bytes <= snap_buf[SNAP_W-52    : SNAP_W-83];
-            st_expect   <= snap_buf[SNAP_W-84    : SNAP_W-115];
-            st_status   <= new_status;
-            st_checksum <= snap_buf[SNAP_W-132   : SNAP_W-163];
             st_seq      <= st_seq + 32'd1;
+            st_status   <= new_status;
+            st_frame_id <= snap_buf[SN_ID_MSB   : SN_ID_LSB];
+            st_slot     <= snap_buf[SN_SLOT_MSB : SN_SLOT_LSB];
+            st_base     <= snap_buf[SN_BASE_MSB : SN_BASE_LSB];
+            st_rx       <= snap_buf[SN_RX_MSB   : SN_RX_LSB];
+            st_expect   <= snap_buf[SN_EXP_MSB  : SN_EXP_LSB];
         end
 
-        // ---- 切屏事件 ----
-        if (swap_evt) begin
-            st_swap_seq   <= st_swap_seq + 32'd1;
-            st_swap_frame <= evt_swap_frame;
-        end
-
-        // ---- ERR_STICKY ----
-        // ⚠️ 帧内错误必须取**快照里的** status，不能取事件域的原始信号
-        //    （frame_ok / bresp_err / fifo_ovf / frame_seq_err）——
-        //    那些是另一个时钟域的信号，在这里采样会撕裂。
-        //    快照已经通过 toggle 握手整体跨过来了。
-        //
-        // 优先级：新快照发布 > ARP 累积 > ACK 清除。
-        // 同拍发布新帧时，新帧的错误必须留下，不能被 ACK 抹掉。
+        // ---- ERR_STICKY：严格 G.1（publish 优先，ACK 只清不置）----
         if (snap_pulse)
-            err_sticky <= err_base
-                        | {27'd0, new_status[ST_BYTES_MISMATCH],  // bit4
-                           1'b0,                                  // bit3 ARP（单独累积）
-                           new_status[ST_BRESP_ERR],              // bit2
-                           new_status[ST_FIFO_OVF],               // bit1
-                           new_status[ST_SEQ_ERR]};               // bit0
+            err_sticky <= err_sticky | {
+                25'd0,
+                new_status[FS_AUTH_ERR],
+                new_status[FS_NO_DATA_ERR],
+                new_status[FS_LEN_ERR],
+                1'b0,                        // bit3 ARP_MISS 单独累积
+                new_status[FS_BRESP_ERR],
+                new_status[FS_FIFO_OVF],
+                new_status[FS_SEQ_ERR]};
         else if (arp_miss_sync[1])
             err_sticky[ES_ARP_MISS] <= 1'b1;
         else if (ack_hit)
@@ -302,34 +350,24 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 //==========================================================================
-// APB3 slave —— 只响应 0x100-0x1FF（paddr[15:8] == 8'h01）
+// APB 读
 //==========================================================================
-wire in_range = (paddr[15:8] == 8'h01);
-wire sel      = psel && in_range;
-
-assign pready  = sel;        // 零等待态；未选中时拉低，便于与其他模块 OR
-assign pslverr = 1'b0;
-
-wire wr_en = sel && penable && pwrite;
-
-wire ack_wr = wr_en && (paddr[7:0] == OFF_ACK);
-
 always @(*) begin
     case (paddr[7:0])
+        OFF_SEQ        : prdata = st_seq;
+        OFF_FRAME_ST   : prdata = {25'd0, st_status};
         OFF_FRAME_ID   : prdata = {16'd0, st_frame_id};
         OFF_SLOT       : prdata = {29'd0, st_slot};
         OFF_BASE_ADDR  : prdata = st_base;
-        OFF_RX_BYTES   : prdata = st_rx_bytes;
+        OFF_RX_BYTES   : prdata = st_rx;
         OFF_EXPECT     : prdata = st_expect;
-        OFF_STATUS     : prdata = {16'd0, st_status[7:0]};   // 纯快照
-        OFF_ACK        : prdata = 32'd0;          // 只写：清 ERR_STICKY
-        OFF_SEQ        : prdata = st_seq;
-        OFF_SWAP_SEQ   : prdata = st_swap_seq;
-        OFF_SWAP_FRAME : prdata = {16'd0, st_swap_frame};
+        OFF_ACK_SEQ    : prdata = 32'd0;            // 只写
+        OFF_LIVE       : prdata = {30'd0, auth_pending, cal_done_sync[1]};
         OFF_ERR_STICKY : prdata = err_sticky;
-        OFF_ID         : prdata = ID_MAGIC;
-        OFF_LIVE       : prdata = {31'd0, cal_done_live};
-        default        : prdata = 32'd0;
+        OFF_VERSION    : prdata = VERSION_INIT;
+        OFF_AUTH_BASE  : prdata = auth_base_reg;
+        OFF_AUTH_CTRL  : prdata = 32'd0;            // 只写
+        default        : prdata = 32'd0;            // 保留区读回 0
     endcase
 end
 
