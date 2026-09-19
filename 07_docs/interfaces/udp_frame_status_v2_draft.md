@@ -29,11 +29,11 @@ APB Slave 0  base = 0xF8100000        （soc.h: IO_APB_SLAVE_0_INPUT，已在 BS
 
 窗口划分：
 
-| 范围 | 用途 | 状态 |
-|---|---|---|
-| `0xF8100000 - 0xF81000FF` | Reserved | 候选 |
-| `0xF8100100 - 0xF81001FF` | RX Frame Status（本文件描述的范围） | **候选，待 B 最终确认** |
-| `0xF8100200 - 0xF810FFFF` | 未映射 | **行为待 B 决定**（见 §Q） |
+| 范围                        | 用途                                | 状态                              |
+| --------------------------- | ----------------------------------- | --------------------------------- |
+| `0xF8100000 - 0xF81000FF` | Reserved                            | 候选                              |
+| `0xF8100100 - 0xF81001FF` | RX Frame Status（本文件描述的范围） | **候选，待 B 最终确认**     |
+| `0xF8100200 - 0xF810FFFF` | 未映射                              | **行为待 B 决定**（见 §Q） |
 
 > ⚠️ `0xF8100100 - 0xF81001FF` 仍是候选，不是已冻结的团队地址分配。
 > A/C 的字段协议已对齐，但**字段对齐 ≠ 地址分配冻结**。
@@ -52,22 +52,22 @@ Polling，不使用 IRQ
 **A/C 字段协议已基本对齐。** A 已明确撤回早期草案中的 `ID` / `SWAP_SEQ` /
 `SWAP_FRAME` 三个字段，并接受 C 的寄存器顺序。
 
-| 偏移 | 名称 | R/W | 复位值 | 分类 | 说明 |
-|---:|---|---|---:|---|---|
-| `+0x00` | `SEQ` | RO | `0` | **commit 标志** | 快照发布时 +1 |
-| `+0x04` | `FRAME_STATUS` | RO | `0` | **snapshot** | 见 §E |
-| `+0x08` | `FRAME_ID` | RO | `0` | **snapshot** | 高 16 位恒 0 |
-| `+0x0C` | `SLOT` | RO | `0` | **snapshot** | 保留 3-bit，仅供诊断 |
-| `+0x10` | `BASE_ADDR` | RO | `0` | **snapshot** | **权威地址** |
-| `+0x14` | `RX_BYTES` | RO | `0` | **snapshot** | |
-| `+0x18` | `EXPECT_BYTES` | RO | `0` | **snapshot** | |
-| `+0x1C` | `ACK_SEQ` | WO | `0` | 控制 | 见 §F |
-| `+0x20` | `LIVE_STATUS` | RO | — | **live** | 见 §L.1 |
-| `+0x24` | `ERR_STICKY` | RO | `0` | **live** | 见 §H |
-| `+0x28` | `VERSION` | RO | 待定 | **static** | 推荐 `0x00010000`，**待 B/C 最终分配** |
-| `+0x2C` | `AUTH_BASE` | RW | `0` | 控制 | 见 §AUTH |
-| `+0x30` | `AUTH_CTRL` | WO | `0` | 控制 | `bit0 = ARM`，其余 reserved |
-| `+0x34–0xFC` | Reserved | RO | `0` | — | 读回 0，写入忽略 |
+|            偏移 | 名称             | R/W | 复位值 | 分类                  | 说明                                          |
+| --------------: | ---------------- | --- | -----: | --------------------- | --------------------------------------------- |
+|       `+0x00` | `SEQ`          | RO  |  `0` | **commit 标志** | 快照发布时 +1                                 |
+|       `+0x04` | `FRAME_STATUS` | RO  |  `0` | **snapshot**    | 见 §E                                        |
+|       `+0x08` | `FRAME_ID`     | RO  |  `0` | **snapshot**    | 高 16 位恒 0                                  |
+|       `+0x0C` | `SLOT`         | RO  |  `0` | **snapshot**    | 保留 3-bit，仅供诊断                          |
+|       `+0x10` | `BASE_ADDR`    | RO  |  `0` | **snapshot**    | **权威地址**                            |
+|       `+0x14` | `RX_BYTES`     | RO  |  `0` | **snapshot**    |                                               |
+|       `+0x18` | `EXPECT_BYTES` | RO  |  `0` | **snapshot**    |                                               |
+|       `+0x1C` | `ACK_SEQ`      | WO  |  `0` | 控制                  | 见 §F                                        |
+|       `+0x20` | `LIVE_STATUS`  | RO  |     — | **live**        | 见 §L.1                                      |
+|       `+0x24` | `ERR_STICKY`   | RO  |  `0` | **live**        | 见 §H                                        |
+|       `+0x28` | `VERSION`      | RO  |   待定 | **static**      | 推荐`0x00010000`，**待 B/C 最终分配** |
+|       `+0x2C` | `AUTH_BASE`    | RW  |  `0` | 控制                  | 见 §AUTH                                     |
+|       `+0x30` | `AUTH_CTRL`    | WO  |  `0` | 控制                  | `bit0 = ARM`，其余 reserved                 |
+| `+0x34–0xFC` | Reserved         | RO  |  `0` | —                    | 读回 0，写入忽略                              |
 
 ### A.0 文档与 RTL 的对齐状态
 
@@ -140,18 +140,34 @@ C  校验 snapshot.BASE_ADDR == fs->back
 - `BASE_ADDR` **必须是硬件实际锁存并使用的地址**，不是软件写入期望值的回显；
 - 软件仍保留 `snapshot.BASE_ADDR == fs->back` 的校验（硬件约束 + 软件校验双保险）。
 
-### AUTH.4 无授权 START 的行为
+### AUTH.4 无授权 START 的行为（C 侧已确认）
 
-方向已定：**拒绝该帧 + `AUTH_ERR`**。
+**C 侧确认 START 无授权时采用「拒绝本帧 + `AUTH_ERR`」。**
 
-仍需 A/C 最后确认一个小项：
+完整语义：
 
-> **START 无授权产生 `AUTH_ERR` 后，硬件是否仍发布一份坏 snapshot 并推进 SEQ？**
->
-> 如果**完全不发布** snapshot，C 将无法通过 Frame Status 接口观察到这个 `AUTH_ERR`
-> ——错误只存在于硬件内部，软件侧表现为"这一帧凭空消失了"。
+```text
+1. START 到来时若 AUTH_VALID / ARM = 0
+   → 本帧【不得写入 DDR】
 
-`待A/C确认`，**不擅自决定**。
+2. 置 AUTH_ERR，FRAME_OK = 0
+
+3. 【仍然发布一份坏帧 snapshot】，并正常推进 SEQ
+   —— 这样 C 侧才能通过轮询明确观察到这次未授权帧
+
+4. 该 snapshot 由软件正常消费，并写 ACK_SEQ
+
+5. 不因为这次错误自动获得下一帧授权
+   —— 下一帧仍必须由 C 重新写 AUTH_BASE 并 ARM
+```
+
+**设计理由**：这样 `AUTH_ERR` 与现有 Snapshot + SEQ + ACK 语义**完全一致** ——
+错误是一个可被轮询到的帧事件，而不是一条藏在硬件内部、软件看不见的旁路。
+
+> 若不发布 snapshot，C 将无法通过 Frame Status 接口观察到 `AUTH_ERR`，
+> 软件侧表现为"这一帧凭空消失了"。
+
+**状态：C 侧已确认；待 A 确认无实现冲突后按此冻结。** `待A确认（无实现冲突）`
 
 ---
 
@@ -176,13 +192,13 @@ C  校验 snapshot.BASE_ADDR == fs->back
 
 ## D. snapshot / live 分类
 
-| 分类 | 寄存器 | 语义 |
-|---|---|---|
+| 分类                                               | 寄存器                                                                             | 语义                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------- |
 | **snapshot**（与 SEQ 同拍、该 SEQ 内不可变） | `FRAME_STATUS` `FRAME_ID` `SLOT` `BASE_ADDR` `RX_BYTES` `EXPECT_BYTES` | 属于**同一个 `frame_done`** 的一整帧 |
-| **commit 标志** | `SEQ` | 快照的提交点（逻辑语义，见 §D.1） |
-| **live** | `LIVE_STATUS` `ERR_STICKY` | 可随时变化，**不属于任何 SEQ** |
-| **static** | `VERSION` | 常量 |
-| **控制** | `ACK_SEQ` `AUTH_BASE` `AUTH_CTRL` | 写口 |
+| **commit 标志**                              | `SEQ`                                                                            | 快照的提交点（逻辑语义，见 §D.1）           |
+| **live**                                     | `LIVE_STATUS` `ERR_STICKY`                                                     | 可随时变化，**不属于任何 SEQ**         |
+| **static**                                   | `VERSION`                                                                        | 常量                                         |
+| **控制**                                     | `ACK_SEQ` `AUTH_BASE` `AUTH_CTRL`                                            | 写口                                         |
 
 > ⚠️ **`ERR_STICKY` 不是 snapshot。**
 > 它可能在软件读完 `SEQ` 之后、读 `ERR_STICKY` 之前被新的 publish 改变。
@@ -233,16 +249,16 @@ if (s0 != s1)
 
 **最终紧凑表：**
 
-| bit | 名称 | 含义 |
-|---:|---|---|
-| 0 | `FRAME_OK` | 整帧完整、可显示 |
-| 1 | `SEQ_ERR` | 断号 / 重复 / 帧号与 START 不一致 |
-| 2 | `FIFO_OVF` | 接收 FIFO 溢出 |
-| 3 | `BRESP_ERR` | DDR 写响应错误（BRESP） |
-| 4 | `LEN_ERR` | `RX_BYTES != EXPECT_BYTES` |
-| 5 | `NO_DATA_ERR` | `frame_expect == 0`（A 已确认） |
-| 6 | `AUTH_ERR` | 无授权 START 被拒 |
-| 7–31 | Reserved | 读 0 |
+|   bit | 名称            | 含义                              |
+| ----: | --------------- | --------------------------------- |
+|     0 | `FRAME_OK`    | 整帧完整、可显示                  |
+|     1 | `SEQ_ERR`     | 断号 / 重复 / 帧号与 START 不一致 |
+|     2 | `FIFO_OVF`    | 接收 FIFO 溢出                    |
+|     3 | `BRESP_ERR`   | DDR 写响应错误（BRESP）           |
+|     4 | `LEN_ERR`     | `RX_BYTES != EXPECT_BYTES`      |
+|     5 | `NO_DATA_ERR` | `frame_expect == 0`（A 已确认） |
+|     6 | `AUTH_ERR`    | 无授权 START 被拒；见 §AUTH.4     |
+| 7–31 | Reserved        | 读 0                              |
 
 ### E.1 `FRAME_OK` 判据
 
@@ -257,10 +273,10 @@ FRAME_OK = (bit1 ~ bit6 全部为 0)
 
 ### E.2 明确不属于 FRAME_STATUS 的两项
 
-| 项 | 归属 | 理由 |
-|---|---|---|
+| 项           | 归属                                  | 理由                                                                                                                |
+| ------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `ARP_MISS` | **诊断信息**，不在 FRAME_STATUS | 它是 rxc 域 2FF 同步过来的**全局**条件，不是某一帧的字节内容；且已提交 RTL 的 `frame_ok` 表达式里根本没有它 |
-| `CAL_DONE` | **`LIVE_STATUS`** | 实时状态，不属于帧快照；`SEQ == 0` 时也必须可读 |
+| `CAL_DONE` | **`LIVE_STATUS`**             | 实时状态，不属于帧快照；`SEQ == 0` 时也必须可读                                                                   |
 
 ### E.3 已删除 DONE 位
 
@@ -347,11 +363,11 @@ current SEQ = N，CPU 写 ACK_SEQ = N
 ERR_STICKY  ≠  当前 FRAME_STATUS
 ```
 
-| | `FRAME_STATUS` | `ERR_STICKY` |
-|---|---|---|
-| 描述对象 | **当前 SEQ 那一帧** | **自上次 matching ACK 以来**出现过的错误 |
-| 可变性 | 该 SEQ 内不可变 | 任何 publish 都可能置位；ACK 可清 |
-| 用途 | **决定这一帧能不能渲染** | 诊断 / 告警 |
+|          | `FRAME_STATUS`               | `ERR_STICKY`                                 |
+| -------- | ------------------------------ | ---------------------------------------------- |
+| 描述对象 | **当前 SEQ 那一帧**      | **自上次 matching ACK 以来**出现过的错误 |
+| 可变性   | 该 SEQ 内不可变                | 任何 publish 都可能置位；ACK 可清              |
+| 用途     | **决定这一帧能不能渲染** | 诊断 / 告警                                    |
 
 ### H.1 必须成立的例子
 
@@ -455,12 +471,12 @@ T1: 软件 poll → 读到的是【上一帧】的快照，BASE_ADDR = A（旧�
 
 ### K.1 已提交 RTL 的时钟域分布（A 已确认）
 
-| 信号 | 域 | 说明 |
-|---|---|---|
-| `frame_done` `frame_wslot` `frame_rx` `frame_expect` `frame_id_cur` `frame_seq_err` `bresp_err` `rx_bytes` | **`sys_clk`** | 整个帧状态机在 `always @(posedge sys_clk)`（`top.v:359`） |
-| `cal_done` | **`sys_clk`** | 来自 DDR 控制器（`top.v:373`） |
-| `arp_miss_raw` `img_fifo_ovf` | **rxc** | 已有 2FF 同步（`top.v:210-222`） |
-| `frame_tgl` | **像素域** | 已有 2FF 同步（`top.v:539-546`） |
+| 信号                                                                                                                       | 域                    | 说明                                                         |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------ |
+| `frame_done` `frame_wslot` `frame_rx` `frame_expect` `frame_id_cur` `frame_seq_err` `bresp_err` `rx_bytes` | **`sys_clk`** | 整个帧状态机在`always @(posedge sys_clk)`（`top.v:359`） |
+| `cal_done`                                                                                                               | **`sys_clk`** | 来自 DDR 控制器（`top.v:373`）                             |
+| `arp_miss_raw` `img_fifo_ovf`                                                                                          | **rxc**         | 已有 2FF 同步（`top.v:210-222`）                           |
+| `frame_tgl`                                                                                                              | **像素域**      | 已有 2FF 同步（`top.v:539-546`）                           |
 
 **A 已确认：帧状态链路信号属于 `sys_clk`。**
 
@@ -512,11 +528,11 @@ A 已实现。考虑一并纳入（可选）：`DDR3_PLL_LOCK` / `SYS_PLL_LOCK`�
 
 **这是两条不同的接口，不要合并成一个协议。**
 
-| 消费者 | 接口 | 是否含 `CAL_DONE` |
-|---|---|---|
-| **CPU（RISC-V）** | `FRAME_STATUS` | **不含** |
-| **CPU（RISC-V）** | `LIVE_STATUS` | **含** |
-| **PC（上位机）** | 旧 UDP ACK 包 payload | 含（`top.v:721` 的状态字节 bit1） |
+| 消费者                  | 接口                  | 是否含`CAL_DONE`                  |
+| ----------------------- | --------------------- | ----------------------------------- |
+| **CPU（RISC-V）** | `FRAME_STATUS`      | **不含**                      |
+| **CPU（RISC-V）** | `LIVE_STATUS`       | **含**                        |
+| **PC（上位机）**  | 旧 UDP ACK 包 payload | 含（`top.v:721` 的状态字节 bit1） |
 
 正式确认：
 
@@ -612,12 +628,12 @@ int udp_frame_snapshot_is_renderable(const udp_frame_snapshot_t *s);
 
 ### M.1 设计判断
 
-| 问题 | 结论 |
-|---|---|
-| `last_seq` 放哪 | **驱动 context**（非全局）。`init()` 以当前 SEQ 为基线；`resync()` 显式重设 |
-| ACK 谁调用 | 驱动**暴露** `ack()`，由 **frame_swap 调用**——只有它知道"这一帧消费完了" |
-| `frame_swap_udp_frame_ready()` | **保留不改**（纯逻辑，现有 5 个 host 测试继续覆盖），另加 `frame_swap_udp_poll()` 走"读快照 → 算 frame_ok → 调它 → ACK" |
-| 怎么避免职责互串 | 驱动**只**读寄存器 + 写 ACK/AUTH；frame_swap **只**做状态机；中间靠 snapshot 结构体解耦。frame_swap 的 host 测试**不需要**真 MMIO |
+| 问题                             | 结论                                                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `last_seq` 放哪                | **驱动 context**（非全局）。`init()` 以当前 SEQ 为基线；`resync()` 显式重设                                                               |
+| ACK 谁调用                       | 驱动**暴露** `ack()`，由 **frame_swap 调用**——只有它知道"这一帧消费完了"                                                            |
+| `frame_swap_udp_frame_ready()` | **保留不改**（纯逻辑，现有 5 个 host 测试继续覆盖），另加 `frame_swap_udp_poll()` 走"读快照 → 算 frame_ok → 调它 → ACK"                  |
+| 怎么避免职责互串                 | 驱动**只**读寄存器 + 写 ACK/AUTH；frame_swap **只**做状态机；中间靠 snapshot 结构体解耦。frame_swap 的 host 测试**不需要**真 MMIO |
 
 ### M.2 resync() 的语义边界
 
@@ -645,19 +661,20 @@ frame_swap 公共 ABI：已冻结，不得因为新驱动而擅自改变
 
 ## N. 第三阶段测试清单（设计，未实现）
 
-| # | 场景 | 需要的注入接缝 |
-|---:|---|---|
-| 1 | 无新帧（SEQ == last_seq） | `udp_test_set_seq()` |
-| 2 | 正常新帧，全字段正确 | 同上 + 字段设置 |
-| 3 | **撕裂保护**：读到一半 SEQ 变 | `udp_test_set_seq_after_reads(n, seq)` |
-| 4 | SEQ 回绕 `0xFFFFFFFF→0` | 直接设 SEQ |
-| 5 | 错误帧完整快照可读 | `udp_test_set_status()` |
-| 6 | ACK 写入值 == 刚消费的 SEQ | 记录式模型（仿 `display_last_call()`） |
-| 7 | latest snapshot：跳过中间 SEQ | 连续多次 set_seq |
-| 8 | LIVE_STATUS 不依赖新帧 | 独立于 SEQ 的字段 |
-| 9 | **ACK_SEQ != current SEQ 时 ERR_STICKY 不得被清** | 模型必须建模该硬件语义 |
-| 10 | **AUTH_BASE + ARM 流程**：写序、ARM 自清、`BASE_ADDR` 不匹配时拒绝 | 记录式模型 |
-| 11 | **无授权 START**：`AUTH_ERR` 是否能从 snapshot 观察到（取决于 AUTH.4 的答复） | 依赖 A/C 确认结果 |
+|  # | 场景                                                                                  | 需要的注入接缝                           |
+| -: | ------------------------------------------------------------------------------------- | ---------------------------------------- |
+|  1 | 无新帧（SEQ == last_seq）                                                             | `udp_test_set_seq()`                   |
+|  2 | 正常新帧，全字段正确                                                                  | 同上 + 字段设置                          |
+|  3 | **撕裂保护**：读到一半 SEQ 变                                                   | `udp_test_set_seq_after_reads(n, seq)` |
+|  4 | SEQ 回绕`0xFFFFFFFF→0`                                                             | 直接设 SEQ                               |
+|  5 | 错误帧完整快照可读                                                                    | `udp_test_set_status()`                |
+|  6 | ACK 写入值 == 刚消费的 SEQ                                                            | 记录式模型（仿`display_last_call()`）  |
+|  7 | latest snapshot：跳过中间 SEQ                                                         | 连续多次 set_seq                         |
+|  8 | LIVE_STATUS 不依赖新帧                                                                | 独立于 SEQ 的字段                        |
+|  9 | **ACK_SEQ != current SEQ 时 ERR_STICKY 不得被清**                               | 模型必须建模该硬件语义                   |
+| 10 | **AUTH_BASE + ARM 流程**：写序、ARM 自清、`BASE_ADDR` 不匹配时拒绝            | 记录式模型                               |
+| 11 | **无授权 START**：本帧不写 DDR、`AUTH_ERR=1`、`FRAME_OK=0`，**但仍发布坏 snapshot 且 SEQ 推进**，可被 poll 到并正常 ACK | 记录式模型：检查是否发生写 + SEQ 是否推进 |
+| 12 | **授权不延续**：一次 `AUTH_ERR` 之后，下一帧仍需 C 重新写 `AUTH_BASE` + `ARM` | 记录式模型                               |
 
 第 9 条是协议明文要求、但容易被漏掉的项。host 模型不建模它，
 "ACK 写错就清错误"这个 bug 会一路溜到板上。
@@ -675,10 +692,10 @@ B 已明确：该目录语义已经属于 BitBlt / Display，**不往里加 UDP 
 
 ### O.2 推荐归属
 
-| 阶段 | 位置 |
-|---|---|
-| **bring-up 阶段** | 按项目已有规则放 `03_bringup/` 下对应的 UDP block 试验目录 |
-| **正式工程阶段** | 在 `04_project/` 下建立一个与 `bitblt_accel/` **并列**的 UDP Frame Status block；其 `sw/` 目录保存唯一权威 `udp_frame_status_regs.h` |
+| 阶段                    | 位置                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **bring-up 阶段** | 按项目已有规则放`03_bringup/` 下对应的 UDP block 试验目录                                                                                       |
+| **正式工程阶段**  | 在`04_project/` 下建立一个与 `bitblt_accel/` **并列**的 UDP Frame Status block；其 `sw/` 目录保存唯一权威 `udp_frame_status_regs.h` |
 
 > 最终目录名称属于**工程组织事项**，不再是协议语义冻结的核心阻塞项。
 
@@ -723,14 +740,14 @@ udp_frame_status_regs.h       → driver/udp_frame_status.c
 
 ### P.1 A/C 侧状态
 
-| 项 | 状态 |
-|---|---|
-| A/C 字段表 | **基本完成** |
-| A/C Snapshot / SEQ / ACK | **完成** |
-| A/C AUTH 方案 | **原则完成**，剩一个"无授权错误发布细节"（AUTH.4） |
-| A/C FRAME_STATUS | **完成** |
-| A/C BASE_ADDR / SLOT / FRAME_ID | **完成** |
-| A/C LIVE_STATUS | **完成** |
+| 项                              | 状态                                                     |
+| ------------------------------- | -------------------------------------------------------- |
+| A/C 字段表                      | **基本完成**                                       |
+| A/C Snapshot / SEQ / ACK        | **完成**                                           |
+| A/C AUTH 方案                   | **完成**（C 侧已确认无授权语义，见 §AUTH.4）；待 A 确认无实现冲突 |
+| A/C FRAME_STATUS                | **完成**                                           |
+| A/C BASE_ADDR / SLOT / FRAME_ID | **完成**                                           |
+| A/C LIVE_STATUS                 | **完成**                                           |
 
 ### P.2 B 仍需确认（4 项）
 
@@ -823,28 +840,30 @@ PREADY 永远不拉高
 
 # A 已确认结论（原 13 项中已关闭部分）
 
-| # | 项 | 结论 |
-|---:|---|---|
-| 1 | 完整 offset 表 | A 撤回 `ID`/`SWAP_SEQ`/`SWAP_FRAME`，接受 C 的寄存器顺序；字段表见 §A |
-| 2 | `SWAP_SEQ` / `SWAP_FRAME` / `ID` | **已撤回**，不进协议 |
-| 3 | `SLOT` | 保留 3-bit 字段，联合工程合法值仅 0/1，仅供诊断 |
-| 4 | `FRAME_ID` | 硬件内部 16-bit，寄存器读出时 `[31:16]` 恒 0 |
-| 5 | `FRAME_STATUS` bit 表 | 最终紧凑表，见 §E |
-| 6 | `LEN_ERR` / `NO_DATA_ERR` | 单列为 bit4 / bit5；`NO_DATA_ERR = (frame_expect == 0)`，A 已确认 |
-| 7 | `ARP_MISS` | 不属于 FRAME_STATUS，作为诊断信息处理 |
-| 8 | `CAL_DONE` | 不属于 FRAME_STATUS，放入 LIVE_STATUS；A 已实现 |
-| 9 | ACK / publish 同周期优先级 | publish 优先；A 已接受并将修改 RTL 和 testbench |
-| 10 | APB 时钟 | A 建议 APB slave + frame status FSM 统一在 100 MHz；**最终由 B 确认** |
-| 11 | `BASE_ADDR` 锁存 | 必须是硬件实际锁存并使用的地址，是 snapshot 中的权威地址 |
+|  # | 项                                     | 结论                                                                        |
+| -: | -------------------------------------- | --------------------------------------------------------------------------- |
+|  1 | 完整 offset 表                         | A 撤回`ID`/`SWAP_SEQ`/`SWAP_FRAME`，接受 C 的寄存器顺序；字段表见 §A |
+|  2 | `SWAP_SEQ` / `SWAP_FRAME` / `ID` | **已撤回**，不进协议                                                  |
+|  3 | `SLOT`                               | 保留 3-bit 字段，联合工程合法值仅 0/1，仅供诊断                             |
+|  4 | `FRAME_ID`                           | 硬件内部 16-bit，寄存器读出时`[31:16]` 恒 0                               |
+|  5 | `FRAME_STATUS` bit 表                | 最终紧凑表，见 §E                                                          |
+|  6 | `LEN_ERR` / `NO_DATA_ERR`          | 单列为 bit4 / bit5；`NO_DATA_ERR = (frame_expect == 0)`，A 已确认         |
+|  7 | `ARP_MISS`                           | 不属于 FRAME_STATUS，作为诊断信息处理                                       |
+|  8 | `CAL_DONE`                           | 不属于 FRAME_STATUS，放入 LIVE_STATUS；A 已实现                             |
+|  9 | ACK / publish 同周期优先级             | publish 优先；A 已接受并将修改 RTL 和 testbench                             |
+| 10 | APB 时钟                               | A 建议 APB slave + frame status FSM 统一在 100 MHz；**最终由 B 确认** |
+| 11 | `BASE_ADDR` 锁存                     | 必须是硬件实际锁存并使用的地址，是 snapshot 中的权威地址                    |
 
-# 仍需 A/C 最后确认（1 项）
+# 待 A 确认无实现冲突（1 项）
 
 ```text
-START 无授权 → AUTH_ERR 后，
-硬件是否发布一份坏 snapshot 并推进 SEQ？
+START 无授权 → AUTH_ERR 的完整语义已由 C 侧确认（见 §AUTH.4）：
+  拒绝本帧（不写 DDR）+ AUTH_ERR + FRAME_OK=0
+  + 仍然发布坏 snapshot 并推进 SEQ + 可正常 ACK
+  + 授权不延续，下一帧需重新 ARM
 ```
 
-若不发布，C 无法通过 Frame Status 接口观察到该错误（见 AUTH.4）。
+A 若无实现上的冲突，**按此冻结**；有冲突则需说明并给出替代语义。
 
 ---
 
@@ -901,13 +920,13 @@ C 当前最新提交已执行过 `make contract-test` 与 `./scripts/regress.sh 
 
 > **字段表与 block base 都冻结之前，一个都不会创建。**
 
-| 文件 | 性质 |
-|---|---|
-| `<UDP block>/sw/udp_frame_status_regs.h` | 新增，offset 唯一定义点 |
-| `driver/udp_frame_status_platform.h` | 新增，tick 源 / host 模型接缝 |
-| `driver/udp_frame_status.c` | 新增，MMIO 唯一落点 |
-| `driver/udp_frame_status.h` | 新增，对外 snapshot API |
-| `driver/protocol_unfrozen.h/.c` | 修改，`udp_completion` 语义升级 |
-| `render/frame_swap.c/.h` | 修改，新增 `frame_swap_udp_poll()` + `acquire_back()` 时 resync |
-| `tests/test_udp_frame_status.c` | 新增 |
-| `Makefile` | 修改，hw-isolation 改表驱动 + `check-no-addresses` 加 UDP base |
+| 文件                                       | 性质                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| `<UDP block>/sw/udp_frame_status_regs.h` | 新增，offset 唯一定义点                                            |
+| `driver/udp_frame_status_platform.h`     | 新增，tick 源 / host 模型接缝                                      |
+| `driver/udp_frame_status.c`              | 新增，MMIO 唯一落点                                                |
+| `driver/udp_frame_status.h`              | 新增，对外 snapshot API                                            |
+| `driver/protocol_unfrozen.h/.c`          | 修改，`udp_completion` 语义升级                                  |
+| `render/frame_swap.c/.h`                 | 修改，新增`frame_swap_udp_poll()` + `acquire_back()` 时 resync |
+| `tests/test_udp_frame_status.c`          | 新增                                                               |
+| `Makefile`                               | 修改，hw-isolation 改表驱动 +`check-no-addresses` 加 UDP base    |
