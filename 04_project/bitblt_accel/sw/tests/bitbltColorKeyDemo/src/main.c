@@ -6,14 +6,14 @@
 #include "bitblt_regs.h"
 #include "framebuffer_layout.h"
 
-#define TEST_WIDTH 20u
+#define TEST_WIDTH 24u
 #define TEST_HEIGHT 5u
-#define SRC_STRIDE 96u
-#define DST_STRIDE 112u
-#define KEY_RGB 0x0000ff00u
-#define BACKGROUND 0x00336699u
-#define GUARD_BEFORE 0x13579bdfu
-#define GUARD_AFTER 0x2468ace0u
+#define SRC_STRIDE 48u
+#define DST_STRIDE 64u
+#define KEY_RGB 0x07e0u
+#define BACKGROUND 0x3333u
+#define GUARD_BEFORE 0x1357u
+#define GUARD_AFTER 0x2468u
 
 static volatile uint32_t irq_seen;
 
@@ -54,33 +54,34 @@ static void interrupt_init(void) {
     csr_write(mstatus, csr_read(mstatus) | MSTATUS_MPP | MSTATUS_MIE);
 }
 
-static uint32_t source_pixel(uint32_t x, uint32_t y) {
+static uint16_t source_pixel(uint32_t x, uint32_t y) {
     if (((x + y) & 3u) == 0u)
-        return (((x + y) & 0xffu) << 24) | KEY_RGB;
-    return 0x5a000000u | (y << 12) | x;
+        return KEY_RGB;
+    return (uint16_t)(0x5000u | (y << 8) | x);
 }
 
 void main(void) {
     const uint32_t src_addr = ASSET_BASE + 0x1000u;
     const uint32_t dst_addr = SCRATCH_BASE + 0x1000u;
-    volatile uint32_t *src = (volatile uint32_t *)src_addr;
-    volatile uint32_t *dst = (volatile uint32_t *)dst_addr;
-    uint32_t x, y, timeout, status, expected;
+    volatile uint16_t *src = (volatile uint16_t *)src_addr;
+    volatile uint16_t *dst = (volatile uint16_t *)dst_addr;
+    uint32_t x, y, timeout, status;
+    uint16_t expected;
 
     bsp_init();
     bsp_printf("*** BitBlt Color Key Demo ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4)
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V2_0)
         fail("version register");
 
     for (y = 0u; y < TEST_HEIGHT; ++y) {
-        for (x = 0u; x < SRC_STRIDE / 4u; ++x)
-            src[y * (SRC_STRIDE / 4u) + x] =
-                (x < TEST_WIDTH) ? source_pixel(x, y) : 0xc0ffee00u;
-        for (x = 0u; x < DST_STRIDE / 4u; ++x)
-            dst[y * (DST_STRIDE / 4u) + x] = BACKGROUND;
+        for (x = 0u; x < SRC_STRIDE / 2u; ++x)
+            src[y * (SRC_STRIDE / 2u) + x] =
+                (x < TEST_WIDTH) ? source_pixel(x, y) : 0xee00u;
+        for (x = 0u; x < DST_STRIDE / 2u; ++x)
+            dst[y * (DST_STRIDE / 2u) + x] = BACKGROUND;
     }
     dst[-1] = GUARD_BEFORE;
-    dst[TEST_HEIGHT * (DST_STRIDE / 4u)] = GUARD_AFTER;
+    dst[TEST_HEIGHT * (DST_STRIDE / 2u)] = GUARD_AFTER;
     __asm__ volatile ("fence rw,rw" ::: "memory");
     bsp_printf("Source/background pattern: READY\r\n");
 
@@ -112,26 +113,26 @@ void main(void) {
     __asm__ volatile ("fence rw,rw" ::: "memory");
     for (y = 0u; y < TEST_HEIGHT; ++y) {
         for (x = 0u; x < TEST_WIDTH; ++x) {
-            data_cache_invalidate_address(&dst[y * (DST_STRIDE / 4u) + x]);
+            data_cache_invalidate_address(&dst[y * (DST_STRIDE / 2u) + x]);
             expected = source_pixel(x, y);
-            if ((expected & 0x00ffffffu) == KEY_RGB)
+            if (expected == KEY_RGB)
                 expected = BACKGROUND;
-            if (dst[y * (DST_STRIDE / 4u) + x] != expected)
+            if (dst[y * (DST_STRIDE / 2u) + x] != expected)
                 fail("Color Key pixel mismatch");
         }
-        for (x = TEST_WIDTH; x < DST_STRIDE / 4u; ++x) {
-            data_cache_invalidate_address(&dst[y * (DST_STRIDE / 4u) + x]);
-            if (dst[y * (DST_STRIDE / 4u) + x] != BACKGROUND)
+        for (x = TEST_WIDTH; x < DST_STRIDE / 2u; ++x) {
+            data_cache_invalidate_address(&dst[y * (DST_STRIDE / 2u) + x]);
+            if (dst[y * (DST_STRIDE / 2u) + x] != BACKGROUND)
                 fail("destination padding modified");
         }
     }
     data_cache_invalidate_address(&dst[-1]);
-    data_cache_invalidate_address(&dst[TEST_HEIGHT * (DST_STRIDE / 4u)]);
+    data_cache_invalidate_address(&dst[TEST_HEIGHT * (DST_STRIDE / 2u)]);
     if (dst[-1] != GUARD_BEFORE ||
-        dst[TEST_HEIGHT * (DST_STRIDE / 4u)] != GUARD_AFTER)
+        dst[TEST_HEIGHT * (DST_STRIDE / 2u)] != GUARD_AFTER)
         fail("destination guard modified");
 
-    bsp_printf("RGB key/X-byte ignore: PASSED\r\n");
+    bsp_printf("RGB565 key compare: PASSED\r\n");
     bsp_printf("Stride/padding/guards: PASSED\r\n");
     bsp_printf("*** BITBLT COLOR KEY DEMO PASSED ***\r\n");
     while (1) {}

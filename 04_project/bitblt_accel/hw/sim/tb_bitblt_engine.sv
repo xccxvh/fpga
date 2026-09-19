@@ -125,11 +125,11 @@ module tb_bitblt_engine;
 
     task put_pixel;
         input [31:0] address;
-        input [31:0] value;
+        input [15:0] value;
         integer index, byte_index;
         begin
             index = address - BASE;
-            for (byte_index = 0; byte_index < 4; byte_index = byte_index + 1) begin
+            for (byte_index = 0; byte_index < 2; byte_index = byte_index + 1) begin
                 memory[index + byte_index] = value[byte_index*8 +: 8];
                 expected[index + byte_index] = value[byte_index*8 +: 8];
             end
@@ -138,11 +138,11 @@ module tb_bitblt_engine;
 
     task expect_pixel;
         input [31:0] address;
-        input [31:0] value;
+        input [15:0] value;
         integer index, byte_index;
         begin
             index = address - BASE;
-            for (byte_index = 0; byte_index < 4; byte_index = byte_index + 1)
+            for (byte_index = 0; byte_index < 2; byte_index = byte_index + 1)
                 expected[index + byte_index] = value[byte_index*8 +: 8];
         end
     endtask
@@ -204,20 +204,20 @@ module tb_bitblt_engine;
         input integer beats;
         input [31:0] address;
         integer pixel;
-        reg [31:0] fill_color;
+        reg [15:0] fill_color;
         begin
             initialise_memory();
-            fill_color = 32'hc000_0000 | beats;
+            fill_color = 16'hc000 | beats;
             src_addr = BASE;
             dst_addr = address;
-            width = beats * 4;
+            width = beats * 8;
             height = 1;
             src_stride = beats * 16;
             dst_stride = beats * 16;
             color = fill_color;
             operation = OP_FILL;
-            for (pixel = 0; pixel < beats * 4; pixel = pixel + 1)
-                expect_pixel(address + pixel * 4, fill_color);
+            for (pixel = 0; pixel < beats * 8; pixel = pixel + 1)
+                expect_pixel(address + pixel * 2, fill_color);
             pulse_start();
             wait_for_done(0, "fill burst length");
             compare_memory("fill burst length");
@@ -226,12 +226,15 @@ module tb_bitblt_engine;
 
     task run_copy_stride;
         integer x, y;
-        reg [31:0] value;
+        reg [15:0] value;
         begin
             initialise_memory();
             src_addr = BASE + 32'h1000;
             dst_addr = BASE + 32'h3000;
-            width = 80;
+            /* 160 像素 = 20 拍，超过 16 拍上限，保证读突发也走到最大长度。
+               stride 保留原来的 "比最小 stride 多留 padding" 意图：
+               最小 160*2 = 320，实取 384/416。 */
+            width = 160;
             height = 3;
             src_stride = 384;
             dst_stride = 416;
@@ -239,9 +242,9 @@ module tb_bitblt_engine;
             operation = OP_COPY;
             for (y = 0; y < height; y = y + 1)
                 for (x = 0; x < width; x = x + 1) begin
-                    value = 32'h5a00_0000 | (y << 16) | x;
-                    put_pixel(src_addr + y * src_stride + x * 4, value);
-                    expect_pixel(dst_addr + y * dst_stride + x * 4, value);
+                    value = 16'h5000 | (y << 8) | x;
+                    put_pixel(src_addr + y * src_stride + x * 2, value);
+                    expect_pixel(dst_addr + y * dst_stride + x * 2, value);
                 end
             pulse_start();
             wait_for_done(0, "copy stride");
@@ -251,21 +254,21 @@ module tb_bitblt_engine;
 
     task run_copy_4k_boundary;
         integer pixel;
-        reg [31:0] value;
+        reg [15:0] value;
         begin
             initialise_memory();
             src_addr = BASE + 32'h0ff0;
             dst_addr = BASE + 32'h4ff0;
-            width = 20;
+            width = 40;
             height = 1;
             src_stride = 80;
             dst_stride = 80;
             color = 0;
             operation = OP_COPY;
-            for (pixel = 0; pixel < 20; pixel = pixel + 1) begin
-                value = 32'ha500_0000 | pixel;
-                put_pixel(src_addr + pixel * 4, value);
-                expect_pixel(dst_addr + pixel * 4, value);
+            for (pixel = 0; pixel < 40; pixel = pixel + 1) begin
+                value = 16'ha500 | pixel;
+                put_pixel(src_addr + pixel * 2, value);
+                expect_pixel(dst_addr + pixel * 2, value);
             end
             pulse_start();
             wait_for_done(0, "copy 4KiB boundary");
@@ -275,25 +278,25 @@ module tb_bitblt_engine;
 
     task run_color_key;
         integer pixel;
-        reg [31:0] value;
+        reg [15:0] value;
         begin
             initialise_memory();
             src_addr = BASE + 32'h1000;
             dst_addr = BASE + 32'h3000;
-            width = 20;
+            width = 40;
             height = 1;
             src_stride = 80;
             dst_stride = 80;
-            color = 32'haa11_2233;
+            color = 32'h0000_2233;
             operation = OP_COLOR_KEY;
-            for (pixel = 0; pixel < 20; pixel = pixel + 1) begin
+            for (pixel = 0; pixel < 40; pixel = pixel + 1) begin
                 if ((pixel % 3) == 0)
-                    value = {pixel[7:0], 24'h11_2233};
+                    value = 16'h2233;
                 else
-                    value = 32'h5a00_0000 | pixel;
-                put_pixel(src_addr + pixel * 4, value);
+                    value = 16'h5a00 | pixel;
+                put_pixel(src_addr + pixel * 2, value);
                 if ((pixel % 3) != 0)
-                    expect_pixel(dst_addr + pixel * 4, value);
+                    expect_pixel(dst_addr + pixel * 2, value);
             end
             pulse_start();
             wait_for_done(0, "color key");
@@ -422,32 +425,34 @@ module tb_bitblt_engine;
         run_color_key();
         $display("Color Key tests: PASSED");
 
-        run_invalid(3, BASE, BASE + 32'h2000, 4, 1, 16, 16, "illegal operation");
+        run_invalid(3, BASE, BASE + 32'h2000, 8, 1, 16, 16, "illegal operation");
         run_invalid(OP_FILL, BASE, BASE + 32'h2000, 0, 1, 16, 16, "zero width");
-        run_invalid(OP_FILL, BASE, BASE + 32'h2000, 4, 0, 16, 16, "zero height");
-        run_invalid(OP_FILL, BASE, BASE + 32'h2004, 4, 1, 16, 16, "unaligned destination");
-        run_invalid(OP_FILL, BASE, BASE + 32'h2000, 6, 1, 32, 32, "width not multiple of four");
-        run_invalid(OP_FILL, BASE, BASE + 32'h2000, 8, 1, 32, 16, "small destination stride");
-        run_invalid(OP_COPY, BASE + 4, BASE + 32'h2000, 4, 1, 16, 16, "unaligned source");
+        run_invalid(OP_FILL, BASE, BASE + 32'h2000, 8, 0, 16, 16, "zero height");
+        run_invalid(OP_FILL, BASE, BASE + 32'h2004, 8, 1, 16, 16, "unaligned destination");
+        run_invalid(OP_FILL, BASE, BASE + 32'h2000, 10, 1, 32, 32, "width not multiple of eight");
+        run_invalid(OP_FILL, BASE, BASE + 32'h2000, 16, 1, 32, 16, "small destination stride");
+        run_invalid(OP_COPY, BASE + 4, BASE + 32'h2000, 8, 1, 16, 16, "unaligned source");
         $display("Invalid parameter tests: PASSED");
 
         initialise_memory();
         src_addr = BASE; dst_addr = BASE + 32'h2000;
-        width = 4; height = 1; src_stride = 16; dst_stride = 16;
+        width = 8; height = 1; src_stride = 16; dst_stride = 16;
         color = 32'hdeadbeef; operation = OP_FILL; inject_bresp = 1;
         pulse_start(); wait_for_done(1, "BRESP error");
 
         initialise_memory();
-        put_pixel(BASE + 32'h1000, 32'h11223344);
+        put_pixel(BASE + 32'h1000, 16'h3344);
         src_addr = BASE + 32'h1000; dst_addr = BASE + 32'h2000;
-        width = 4; height = 1; src_stride = 16; dst_stride = 16;
+        width = 8; height = 1; src_stride = 16; dst_stride = 16;
         color = 0; operation = OP_COPY; inject_rresp = 1;
         pulse_start(); wait_for_done(1, "RRESP error");
 
         initialise_memory();
-        put_pixel(BASE + 32'h1000, 32'h55667788);
+        put_pixel(BASE + 32'h1000, 16'h7788);
         src_addr = BASE + 32'h1000; dst_addr = BASE + 32'h2000;
-        width = 8; height = 1; src_stride = 32; dst_stride = 32;
+        /* 16 像素 = 2 拍。RGB565 下一拍 8 像素，width=8 只有 1 拍，
+           那时强制 RLAST 恰好是正确的收尾，测不出"提前"。 */
+        width = 16; height = 1; src_stride = 32; dst_stride = 32;
         operation = OP_COPY; force_early_rlast = 1;
         pulse_start(); wait_for_done(1, "early RLAST");
         $display("AXI error tests: PASSED");

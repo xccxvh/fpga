@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 
 // Dual-clock FIFO with Gray-coded pointer synchronization.
-// Default capacity is 512 x 128-bit words (2048 XRGB8888 pixels).
+// Default capacity is 512 x 128-bit words (4096 RGB565 pixels).
 module async_fifo #(
     parameter DATA_WIDTH = 128,
     parameter ADDR_WIDTH = 9,

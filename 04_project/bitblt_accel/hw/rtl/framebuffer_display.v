@@ -112,7 +112,7 @@ module framebuffer_display (
         .r_valid(fifo_valid), .r_ready(fifo_ready), .r_empty(fifo_empty),
         .r_almost_empty(fifo_almost_empty));
 
-    video_timing_1920x1080 u_timing (
+    video_timing_1280x720 u_timing (
         .pixel_clk(pixel_clk), .resetn(resetn), .hsync(video_hsync),
         .vsync(video_vsync), .data_enable(video_de),
         .vblank_pulse(vblank_pixel), .pixel_x(pixel_x), .pixel_y(pixel_y));
@@ -128,7 +128,7 @@ module framebuffer_display (
         end
     end
 
-    pixel_unpack_xrgb8888 u_unpack (
+    pixel_unpack_rgb565 u_unpack (
         .pixel_clk(pixel_clk), .resetn(resetn),
         .pixel_request(video_de && video_run),
         .stream_data(fifo_data), .stream_valid(fifo_valid),

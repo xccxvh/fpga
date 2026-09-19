@@ -13,7 +13,7 @@
 - `tb_display_ctrl_axi.sv`：显示寄存器、VBlank 原子换帧、欠载计数和中断。
 - `tb_display_dma_axi.sv`：Framebuffer DDR 读取、行步长、4 KiB 拆包和背压。
 - `tb_async_fifo.sv`：DDR/像素异步时钟域 FIFO 的顺序和背压。
-- `tb_video_pipeline.sv`：1920×1080p60 时序及 XRGB8888 像素拆包。
+- `tb_video_pipeline.sv`：1280×720p60 时序及 RGB565 像素拆包。
 
 Ubuntu 可安装 `iverilog` 后执行：
 
@@ -31,7 +31,7 @@ AXI arbiter regression: PASSED
 PASS: display control registers and vblank swap
 PASS: AXI control address demultiplexer
 PASS: display DMA burst, stride, 4KiB split and backpressure
-PASS: 1920x1080 timing and XRGB8888 pixel unpack
+PASS: 1280x720 timing and RGB565 pixel unpack
 PASS: asynchronous FIFO ordering/backpressure
 ```
 

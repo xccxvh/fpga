@@ -17,8 +17,8 @@
         <efx:design_file name="../../rtl/framebuffer_display.v" version="default" library="default" />
         <efx:design_file name="../../rtl/async_fifo.v" version="default" library="default" />
         <efx:design_file name="../../rtl/pulse_cdc.v" version="default" library="default" />
-        <efx:design_file name="../../rtl/video_timing_1920x1080.v" version="default" library="default" />
-        <efx:design_file name="../../rtl/pixel_unpack_xrgb8888.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/video_timing_1280x720.v" version="default" library="default" />
+        <efx:design_file name="../../rtl/pixel_unpack_rgb565.v" version="default" library="default" />
         <efx:design_file name="../../rtl/hdmi_tx/dvi_encoder.v" version="default" library="default" />
         <efx:design_file name="../../rtl/hdmi_tx/encode.v" version="default" library="default" />
         <efx:design_file name="../../rtl/axi_write_arbiter_2to1.v" version="default" library="default" />

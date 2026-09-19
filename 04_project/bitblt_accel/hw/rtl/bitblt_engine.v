@@ -49,14 +49,18 @@ module bitblt_engine (
     assign m_awcache = 4'b0011;
     assign m_awprot = 3'b000;
     assign m_wdata = (operation_latched != OP_FILL) ? copy_buffer[write_index[3:0]]
-                                                    : {4{color_latched}};
-    // XRGB8888 Color Key compares RGB only. Each matching pixel disables its
-    // four byte lanes so the existing destination pixel remains unchanged.
+                                                    : {8{color_latched[15:0]}};
+    // RGB565 Color Key compares all 16 pixel bits. Each matching pixel disables
+    // its two byte lanes so the existing destination pixel remains unchanged.
     assign m_wstrb = (operation_latched == OP_COLOR_KEY) ? {
-        (copy_buffer[write_index[3:0]][119:96] == color_latched[23:0]) ? 4'h0 : 4'hf,
-        (copy_buffer[write_index[3:0]][87:64]  == color_latched[23:0]) ? 4'h0 : 4'hf,
-        (copy_buffer[write_index[3:0]][55:32]  == color_latched[23:0]) ? 4'h0 : 4'hf,
-        (copy_buffer[write_index[3:0]][23:0]   == color_latched[23:0]) ? 4'h0 : 4'hf
+        (copy_buffer[write_index[3:0]][127:112] == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][111:96]  == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][95:80]   == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][79:64]   == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][63:48]   == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][47:32]   == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][31:16]   == color_latched[15:0]) ? 2'b00 : 2'b11,
+        (copy_buffer[write_index[3:0]][15:0]    == color_latched[15:0]) ? 2'b00 : 2'b11
     } : 16'hffff;
     assign m_wlast = (write_index + 1'b1 == burst_beats);
     assign m_bready = (state == ST_B);
@@ -134,11 +138,11 @@ module bitblt_engine (
                     m_awvalid <= 1'b0; m_wvalid <= 1'b0; m_arvalid <= 1'b0;
                     if (start) begin
                         if ((operation > OP_COLOR_KEY) || (width == 0) || (height == 0) ||
-                            (width[1:0] != 0) || (dst_addr[3:0] != 0) ||
-                            (dst_stride[3:0] != 0) || (dst_stride < (width << 2)) ||
+                            (width[2:0] != 0) || (dst_addr[3:0] != 0) ||
+                            (dst_stride[3:0] != 0) || (dst_stride < (width << 1)) ||
                             ((operation != OP_FILL) &&
                              ((src_addr[3:0] != 0) || (src_stride[3:0] != 0) ||
-                              (src_stride < (width << 2))))) begin
+                              (src_stride < (width << 1))))) begin
                             done <= 1'b1;
                             error <= 1'b1;
                         end else begin
@@ -146,14 +150,14 @@ module bitblt_engine (
                             src_row_base <= src_addr; dst_row_base <= dst_addr;
                             m_araddr <= src_addr; m_awaddr <= dst_addr;
                             row_index <= 32'd0;
-                            beats_per_row <= width >> 2;
-                            row_beats_remaining <= width >> 2;
+                            beats_per_row <= width >> 3;
+                            row_beats_remaining <= width >> 3;
                             height_latched <= height;
                             src_stride_latched <= src_stride;
                             dst_stride_latched <= dst_stride;
                             color_latched <= color;
                             operation_latched <= operation;
-                            burst_beats <= transfer_size(width >> 2, src_addr, dst_addr,
+                            burst_beats <= transfer_size(width >> 3, src_addr, dst_addr,
                                                          operation != OP_FILL);
                             read_index <= 5'd0; write_index <= 5'd0; read_error <= 1'b0;
                             if (operation != OP_FILL) begin

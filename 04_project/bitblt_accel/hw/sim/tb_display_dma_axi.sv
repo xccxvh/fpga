@@ -55,7 +55,7 @@ module tb_display_dma_axi;
       repeat(4) @(posedge clk); resetn<=1;
       // Row 0 begins one beat before 4 KiB boundary: bursts 1+4.
       // Row 1 starts at base+96: one burst of 5 beats.
-      @(posedge clk); base<=32'h0001_0ff0; width<=20; height<=2; stride<=96; start<=1;
+      @(posedge clk); base<=32'h0001_0ff0; width<=40; height<=2; stride<=96; start<=1;
       @(posedge clk); start<=0;
       wait(done); @(posedge clk);
       if(error || total_beats!=10 || bursts!=3) $fatal(1,"DMA frame result beats=%0d bursts=%0d",total_beats,bursts);

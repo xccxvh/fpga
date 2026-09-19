@@ -34,7 +34,9 @@
 #define DISPLAY_IRQ_ERROR            (1u << 2)
 
 #define DISPLAY_FORMAT_XRGB8888      0u
+#define DISPLAY_FORMAT_RGB565        1u
 #define DISPLAY_VERSION_V0_2         0x00020000u
+#define DISPLAY_VERSION_V3_0         0x00030000u
 
 static inline void display_write(uint32_t offset, uint32_t value) {
     *(volatile uint32_t *)(DISPLAY_BASE + offset) = value;

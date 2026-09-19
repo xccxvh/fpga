@@ -40,7 +40,7 @@ module display_ctrl_axi #(
     output [31:0] active_format,
     output swap_pending
 );
-    localparam [31:0] VERSION = 32'h0002_0000;
+    localparam [31:0] VERSION = 32'h0003_0000;
 
     reg aw_pending_reg, bvalid_reg, rvalid_reg;
     reg [ADDR_WIDTH-1:0] awaddr_reg;
@@ -82,11 +82,11 @@ module display_ctrl_axi #(
                             (candidate_next == FB_B_ADDR)) &&
                            (candidate_next != front_addr_reg) &&
                            (candidate_next[3:0] == 4'h0) &&
-                           (width_reg == 32'd1920) &&
-                           (height_reg == 32'd1080) &&
-                           (stride_reg >= 32'd7680) &&
+                           (width_reg == 32'd1280) &&
+                           (height_reg == 32'd720) &&
+                           (stride_reg >= 32'd2560) &&
                            (stride_reg[3:0] == 4'h0) &&
-                           (format_reg == 32'd0);
+                           (format_reg == 32'd1);
         end
     endfunction
 
@@ -130,10 +130,10 @@ module display_ctrl_axi #(
             error_reg <= 0;
             front_addr_reg <= FB_A_ADDR;
             next_addr_reg <= FB_B_ADDR;
-            width_reg <= 32'd1920;
-            height_reg <= 32'd1080;
-            stride_reg <= 32'd7680;
-            format_reg <= 0;
+            width_reg <= 32'd1280;
+            height_reg <= 32'd720;
+            stride_reg <= 32'd2560;
+            format_reg <= 1;
             frame_count_reg <= 0;
             underflow_count_reg <= 0;
             irq_enable_reg <= 0;

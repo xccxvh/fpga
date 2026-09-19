@@ -18,10 +18,10 @@
 #endif
 
 static const uint32_t colors[8] = {
-    XRGB8888(255, 255, 255), XRGB8888(255, 255, 0),
-    XRGB8888(0, 255, 255),   XRGB8888(0, 255, 0),
-    XRGB8888(255, 0, 255),   XRGB8888(255, 0, 0),
-    XRGB8888(0, 0, 255),     XRGB8888(0, 0, 0)
+    RGB565(255, 255, 255), RGB565(255, 255, 0),
+    RGB565(0, 255, 255),   RGB565(0, 255, 0),
+    RGB565(255, 0, 255),   RGB565(255, 0, 0),
+    RGB565(0, 0, 255),     RGB565(0, 0, 0)
 };
 
 static volatile uint32_t bitblt_irq_count;
@@ -111,14 +111,14 @@ static void fill(uint32_t dst, uint32_t width, uint32_t height,
 static void draw_horizontal_bars(uint32_t base) {
     uint32_t i;
     for (i = 0; i < 8; ++i)
-        fill(base + i * 135u * FB_STRIDE, FB_WIDTH, 135u,
+        fill(base + i * 90u * FB_STRIDE, FB_WIDTH, 90u,
              FB_STRIDE, colors[i]);
 }
 
 static void draw_vertical_bars(uint32_t base) {
     uint32_t i;
     for (i = 0; i < 8; ++i)
-        fill(base + i * 240u * FB_BYTES_PER_PIXEL, 240u, FB_HEIGHT,
+        fill(base + i * 160u * FB_BYTES_PER_PIXEL, 160u, FB_HEIGHT,
              FB_STRIDE, colors[i]);
 }
 
@@ -215,9 +215,9 @@ void main(void) {
     uint32_t timeout, start_frame;
     bsp_init();
     bsp_printf("*** BitBlt Framebuffer Smoke Demo ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4)
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V2_0)
         fail("BitBlt version");
-    if (display_read(DISPLAY_VERSION) != DISPLAY_VERSION_V0_2)
+    if (display_read(DISPLAY_VERSION) != DISPLAY_VERSION_V3_0)
         fail("display version/address decode");
     bsp_printf("Register decode: PASSED\r\n");
 
@@ -235,7 +235,7 @@ void main(void) {
     display_write(DISPLAY_WIDTH, FB_WIDTH);
     display_write(DISPLAY_HEIGHT, FB_HEIGHT);
     display_write(DISPLAY_STRIDE, FB_STRIDE);
-    display_write(DISPLAY_FORMAT, DISPLAY_FORMAT_XRGB8888);
+    display_write(DISPLAY_FORMAT, DISPLAY_FORMAT_RGB565);
     display_write(DISPLAY_IRQ_ENABLE,
                   DISPLAY_IRQ_SWAP_DONE | DISPLAY_IRQ_UNDERFLOW |
                   DISPLAY_IRQ_ERROR);

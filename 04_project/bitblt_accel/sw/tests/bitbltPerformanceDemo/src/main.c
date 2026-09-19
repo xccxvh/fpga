@@ -25,14 +25,14 @@ static const benchmark_case_t cases[] = {
     {64u,   64u,    1u},
     {320u,  240u,   1u},
     {640u,  480u,   1u},
-    {1920u, 1080u,  1u}
+    {1280u, 720u,   1u}
 };
 
 static const uint32_t colors[8] = {
-    XRGB8888(255, 255, 255), XRGB8888(255, 255, 0),
-    XRGB8888(0, 255, 255),   XRGB8888(0, 255, 0),
-    XRGB8888(255, 0, 255),   XRGB8888(255, 0, 0),
-    XRGB8888(0, 0, 255),     XRGB8888(0, 0, 0)
+    RGB565(255, 255, 255), RGB565(255, 255, 0),
+    RGB565(0, 255, 255),   RGB565(0, 255, 0),
+    RGB565(255, 0, 255),   RGB565(255, 0, 0),
+    RGB565(0, 0, 255),     RGB565(0, 0, 0)
 };
 
 static void fail(const char *message) {
@@ -92,14 +92,14 @@ static void bitblt_copy_once(uint32_t dst, uint32_t src,
 static void draw_front_buffer(void) {
     uint32_t i;
     for (i = 0u; i < 8u; ++i)
-        bitblt_fill_once(FB_A_BASE + i * 135u * FB_STRIDE,
-                         FB_WIDTH, 135u, colors[i]);
+        bitblt_fill_once(FB_A_BASE + i * 90u * FB_STRIDE,
+                         FB_WIDTH, 90u, colors[i]);
 
     display_write(DISPLAY_IRQ_ENABLE, 0u);
     display_write(DISPLAY_WIDTH, FB_WIDTH);
     display_write(DISPLAY_HEIGHT, FB_HEIGHT);
     display_write(DISPLAY_STRIDE, FB_STRIDE);
-    display_write(DISPLAY_FORMAT, DISPLAY_FORMAT_XRGB8888);
+    display_write(DISPLAY_FORMAT, DISPLAY_FORMAT_RGB565);
     display_write(DISPLAY_CONTROL,
                   DISPLAY_CONTROL_ENABLE | DISPLAY_CONTROL_CLEAR);
 }
@@ -116,18 +116,18 @@ static void wait_for_scanout(void) {
 }
 
 static void initialise_source(void) {
-    volatile uint32_t *source = (volatile uint32_t *)ASSET_BASE;
-    uint32_t words = FB_ACTIVE_BYTES / sizeof(uint32_t);
+    volatile uint16_t *source = (volatile uint16_t *)ASSET_BASE;
+    uint32_t pixels = FB_ACTIVE_BYTES / sizeof(uint16_t);
     uint32_t i;
-    bsp_printf("Preparing 1080p source pattern ..\r\n");
-    for (i = 0u; i < words; ++i)
-        source[i] = 0x5A000000u | (i & 0x00FFFFFFu);
+    bsp_printf("Preparing 720p RGB565 source pattern ..\r\n");
+    for (i = 0u; i < pixels; ++i)
+        source[i] = (uint16_t)(0x5000u | (i & 0x0fffu));
     __asm__ volatile ("fence rw,rw" ::: "memory");
     bsp_printf("Source pattern: READY\r\n");
 }
 
-static void cpu_fill(volatile uint32_t *dst, uint32_t pixels,
-                     uint32_t repeats, uint32_t color) {
+static void cpu_fill(volatile uint16_t *dst, uint32_t pixels,
+                     uint32_t repeats, uint16_t color) {
     uint32_t repeat, i;
     for (repeat = 0u; repeat < repeats; ++repeat)
         for (i = 0u; i < pixels; ++i)
@@ -135,7 +135,7 @@ static void cpu_fill(volatile uint32_t *dst, uint32_t pixels,
     __asm__ volatile ("fence rw,rw" ::: "memory");
 }
 
-static void cpu_copy(volatile uint32_t *dst, volatile const uint32_t *src,
+static void cpu_copy(volatile uint16_t *dst, volatile const uint16_t *src,
                      uint32_t pixels, uint32_t repeats) {
     uint32_t repeat, i;
     for (repeat = 0u; repeat < repeats; ++repeat)
@@ -144,8 +144,8 @@ static void cpu_copy(volatile uint32_t *dst, volatile const uint32_t *src,
     __asm__ volatile ("fence rw,rw" ::: "memory");
 }
 
-static void verify_fill(volatile uint32_t *dst, uint32_t pixels,
-                        uint32_t expected) {
+static void verify_fill(volatile uint16_t *dst, uint32_t pixels,
+                        uint16_t expected) {
     uint32_t indices[3] = {0u, pixels / 2u, pixels - 1u};
     uint32_t i;
     for (i = 0u; i < 3u; ++i) {
@@ -155,8 +155,8 @@ static void verify_fill(volatile uint32_t *dst, uint32_t pixels,
     }
 }
 
-static void verify_copy(volatile uint32_t *dst, uint32_t pixels) {
-    volatile const uint32_t *src = (volatile const uint32_t *)ASSET_BASE;
+static void verify_copy(volatile uint16_t *dst, uint32_t pixels) {
+    volatile const uint16_t *src = (volatile const uint16_t *)ASSET_BASE;
     uint32_t indices[3] = {0u, pixels / 2u, pixels - 1u};
     uint32_t i;
     for (i = 0u; i < 3u; ++i) {
@@ -175,12 +175,12 @@ static uint64_t elapsed_ticks(uint64_t start, uint64_t end) {
 }
 
 static uint64_t run_cpu_fill(const benchmark_case_t *test) {
-    volatile uint32_t *dst = (volatile uint32_t *)SCRATCH_BASE;
+    volatile uint16_t *dst = (volatile uint16_t *)SCRATCH_BASE;
     uint32_t pixels = test->width * test->height;
     uint64_t start = clint_getTime(BSP_CLINT);
-    cpu_fill(dst, pixels, test->repeats, 0x00123456u);
+    cpu_fill(dst, pixels, test->repeats, 0x1234u);
     uint64_t end = clint_getTime(BSP_CLINT);
-    verify_fill(dst, pixels, 0x00123456u);
+    verify_fill(dst, pixels, 0x1234u);
     return elapsed_ticks(start, end);
 }
 
@@ -189,16 +189,16 @@ static uint64_t run_hw_fill(const benchmark_case_t *test) {
     uint64_t start = clint_getTime(BSP_CLINT);
     for (repeat = 0u; repeat < test->repeats; ++repeat)
         bitblt_fill_once(SCRATCH_BASE, test->width, test->height,
-                         0x00654321u);
+                         0x4321u);
     uint64_t end = clint_getTime(BSP_CLINT);
-    verify_fill((volatile uint32_t *)SCRATCH_BASE,
-                test->width * test->height, 0x00654321u);
+    verify_fill((volatile uint16_t *)SCRATCH_BASE,
+                test->width * test->height, 0x4321u);
     return elapsed_ticks(start, end);
 }
 
 static uint64_t run_cpu_copy(const benchmark_case_t *test) {
-    volatile uint32_t *dst = (volatile uint32_t *)SCRATCH_BASE;
-    volatile const uint32_t *src = (volatile const uint32_t *)ASSET_BASE;
+    volatile uint16_t *dst = (volatile uint16_t *)SCRATCH_BASE;
+    volatile const uint16_t *src = (volatile const uint16_t *)ASSET_BASE;
     uint32_t pixels = test->width * test->height;
     uint64_t start = clint_getTime(BSP_CLINT);
     cpu_copy(dst, src, pixels, test->repeats);
@@ -214,7 +214,7 @@ static uint64_t run_hw_copy(const benchmark_case_t *test) {
         bitblt_copy_once(SCRATCH_BASE, ASSET_BASE,
                          test->width, test->height);
     uint64_t end = clint_getTime(BSP_CLINT);
-    verify_copy((volatile uint32_t *)SCRATCH_BASE,
+    verify_copy((volatile uint16_t *)SCRATCH_BASE,
                 test->width * test->height);
     return elapsed_ticks(start, end);
 }
@@ -275,9 +275,9 @@ void main(void) {
     bsp_init();
     csr_write(mtvec, trap_entry);
     bsp_printf("*** BitBlt Performance Demo ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4)
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V2_0)
         fail("BitBlt version");
-    if (display_read(DISPLAY_VERSION) != DISPLAY_VERSION_V0_2)
+    if (display_read(DISPLAY_VERSION) != DISPLAY_VERSION_V3_0)
         fail("display version");
 
     display_write(DISPLAY_IRQ_ENABLE, 0u);

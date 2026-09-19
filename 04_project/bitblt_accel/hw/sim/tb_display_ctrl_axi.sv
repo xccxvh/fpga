@@ -65,8 +65,8 @@ module tb_display_ctrl_axi;
         repeat (4) @(posedge clk);
         resetn <= 1;
         repeat (2) @(posedge clk);
-        if (front !== 32'h0100_0000 || width !== 1920 || height !== 1080 ||
-            stride !== 7680 || format !== 0)
+        if (front !== 32'h0100_0000 || width !== 1280 || height !== 720 ||
+            stride !== 2560 || format !== 1)
             $fatal(1, "reset defaults incorrect");
 
         // Enable and request FB_B. It must not switch before vertical blank.

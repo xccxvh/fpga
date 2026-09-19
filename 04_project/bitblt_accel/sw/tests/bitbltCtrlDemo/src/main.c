@@ -35,17 +35,18 @@ void main(void) {
     const uint32_t dst = 0x01200000u;
     const uint32_t width = 80u;
     const uint32_t height = 3u;
-    const uint32_t src_stride = 384u;
-    const uint32_t dst_stride = 416u;
-    volatile uint32_t *source = (volatile uint32_t *)src;
-    volatile uint32_t *destination = (volatile uint32_t *)dst;
-    uint32_t timeout, status, x, y, expected;
+    const uint32_t src_stride = 160u;
+    const uint32_t dst_stride = 176u;
+    volatile uint16_t *source = (volatile uint16_t *)src;
+    volatile uint16_t *destination = (volatile uint16_t *)dst;
+    uint32_t timeout, status, x, y;
+    uint16_t expected;
     bsp_init();
     bsp_printf("*** BitBlt Block Copy MVP ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4) fail("version register");
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V2_0) fail("version register");
     for (y = 0; y < height; ++y) {
         for (x = 0; x < width; ++x)
-            source[y * (src_stride / 4u) + x] = 0x5A000000u | (y << 16) | x;
+            source[y * (src_stride / 2u) + x] = (uint16_t)(0x5000u | (y << 8) | x);
     }
     bsp_printf("CPU DDR writes: ISSUED\r\n");
     __asm__ volatile ("fence rw,rw" ::: "memory");
@@ -79,9 +80,9 @@ void main(void) {
     __asm__ volatile ("fence rw,rw" ::: "memory");
     for (y = 0; y < height; ++y) {
         for (x = 0; x < width; ++x) {
-            data_cache_invalidate_address(&destination[y * (dst_stride / 4u) + x]);
-            expected = 0x5A000000u | (y << 16) | x;
-            if (destination[y * (dst_stride / 4u) + x] != expected)
+            data_cache_invalidate_address(&destination[y * (dst_stride / 2u) + x]);
+            expected = (uint16_t)(0x5000u | (y << 8) | x);
+            if (destination[y * (dst_stride / 2u) + x] != expected)
                 fail("DDR copy mismatch");
         }
     }
