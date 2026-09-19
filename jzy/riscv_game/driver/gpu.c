@@ -2,8 +2,10 @@
  * 【已废弃，仅作兼容层保留】—— 见 gpu.h 顶部的说明。
  *
  * 真正的 BitBlt 驱动是 driver/bitblt_api.c，它实现 B 冻结的
- * bitblt_fill() / bitblt_copy() / bitblt_result_t，并且是全工程唯一
- * 引用 bitblt_regs.h 的文件（由 make check-hw-isolation 保证）。
+ * bitblt_fill() / bitblt_copy() / bitblt_result_t，并且是【生产代码】里
+ * 唯一引用 bitblt_regs.h 的文件（由 make check-hw-isolation 保证）。
+ * 板级验证代码 tests/test_bitblt_board.c 也读寄存器（只读，查 VERSION），
+ * 那是验证路径，不在生产代码之列。
  *
  * 本文件过去那段 BITBLT_ENABLE_HW_ACCESS 分支只是 TODO 占位，从未实现过，
  * 现在直接去掉：寄存器访问不该有两个地方。

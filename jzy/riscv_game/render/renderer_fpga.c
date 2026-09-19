@@ -2,11 +2,66 @@
 
 #include "renderer_fpga.h"
 #include "bitblt_platform.h"
+#include "framebuffer_format.h"
 #include "framebuffer_layout.h"
 
 
 static gpu_limits_t g_limits;
 static int          g_limits_set = 0;
+
+/*
+ * 当前联合工程默认的硬件格式。
+ *
+ * 协议已冻结为 RGB565，所以默认就是 RGB565 —— "未知"不再挡在真实
+ * 下发路径前面。平台仍然可以显式改（例如板上烧的是 XRGB8888 的
+ * 旧位流时声明成 XRGB8888），但那是【主动声明一个例外】，
+ * 不是必须完成的初始化步骤。
+ *
+ * 回退构建（软件是 XRGB8888）默认跟着软件格式走，否则两边必然不匹配。
+ */
+#if RENDER_PIXEL_FORMAT_RGB565
+static render_hw_format_t g_hw_format = RENDER_HW_FORMAT_RGB565;
+#else
+static render_hw_format_t g_hw_format = RENDER_HW_FORMAT_XRGB8888;
+#endif
+
+
+void render_fpga_set_hw_format(render_hw_format_t fmt)
+{
+    g_hw_format = fmt;
+}
+
+
+render_hw_format_t render_fpga_hw_format(void)
+{
+    return g_hw_format;
+}
+
+
+unsigned render_hw_format_pixel_bytes(render_hw_format_t fmt)
+{
+    switch (fmt)
+    {
+    case RENDER_HW_FORMAT_XRGB8888: return 4u;
+    case RENDER_HW_FORMAT_RGB565:   return 2u;
+    case RENDER_HW_FORMAT_UNKNOWN:  break;
+    }
+
+    return 0u;
+}
+
+
+unsigned render_hw_format_width_granularity(render_hw_format_t fmt)
+{
+    switch (fmt)
+    {
+    case RENDER_HW_FORMAT_XRGB8888: return 4u;
+    case RENDER_HW_FORMAT_RGB565:   return 8u;
+    case RENDER_HW_FORMAT_UNKNOWN:  break;
+    }
+
+    return 0u;
+}
 
 
 void render_fpga_set_limits(const gpu_limits_t *lim)
@@ -27,17 +82,27 @@ gpu_limits_t render_limits_from_layout(void)
 {
     gpu_limits_t lim;
 
+    memset(&lim, 0, sizeof(lim));
+
     /*
-     * 只取内存布局有关的四组宏，地址全部来自 B 的权威头文件
-     * framebuffer_layout.h，本工程不重复硬编码。
+     * 地址全部来自 B 的权威头文件 framebuffer_layout.h，本工程不重复硬编码。
      *
-     * 刻意不碰 FB_WIDTH / FB_HEIGHT / FB_STRIDE：那是显示分辨率相关参数，
-     * 通用 Renderer 不该绑定 640x480 或 1920x1080 中的任何一个。
+     * 刻意不碰 FB_WIDTH / FB_HEIGHT / FB_STRIDE：B 的那几个宏目前还是
+     * XRGB8888/1080p 的历史值（B 尚未迁移），而通用 Renderer 也不该绑定
+     * 任何分辨率。现行几何在 driver/framebuffer_format.h。
      */
     lim.ddr_base    = DDR_PHYSICAL_BASE;
     lim.ddr_size    = DDR_PHYSICAL_SIZE;
     lim.reserved_lo = SYSTEM_RESERVED_BASE;
     lim.reserved_hi = SYSTEM_RESERVED_BASE + SYSTEM_RESERVED_SIZE;
+
+    /*
+     * 像素宽度与宽度粒度来自【当前声明的硬件格式】，不是软件格式。
+     * 校验器要回答的是"这条命令硬件能不能执行"，所以必须按硬件算。
+     * 格式被显式清成 UNKNOWN 时留 0，check_common 会以 NOT_READY 拒绝。
+     */
+    lim.bytes_per_pixel  = render_hw_format_pixel_bytes(g_hw_format);
+    lim.width_granularity = render_hw_format_width_granularity(g_hw_format);
 
     return lim;
 }
@@ -74,16 +139,16 @@ render_status_t render_status_from_bitblt(bitblt_result_t r)
 uint32_t render_pixel_to_hw_color(pixel_t c)
 {
     /*
-     * 恒等映射。
+     * 软件像素 -> 硬件 COLOR 寄存器值。全工程唯一的转换点。
      *
-     * pixel_t 已迁移为 uint32_t，格式就是硬件用的 XRGB8888，
-     * 所以软件像素值可以直接当硬件 COLOR 寄存器值用。
+     * RGB565（默认）：取低 16 位，高位写 0 —— 迁移文档要求 COLOR[31:16]
+     * 写 0，避免新旧驱动误配。
+     * XRGB8888（回退）：恒等映射。
      *
-     * 保留这个函数是为了给将来的 RGB565 优化留一个唯一的转换点：
-     * 若以后真做 16-bit RGB565，打包/解包逻辑只需要改这里
-     * （见 renderer.h 顶部的 RGB565 段落）。
+     * 两个分支都在 driver/framebuffer_format.c 里，本函数只做转发，
+     * 免得打包规则出现第二份实现。
      */
-    return (uint32_t)c;
+    return fmt_color_to_hw(c);
 }
 
 
@@ -141,15 +206,38 @@ render_status_t render_fpga_build_request(const render_op_t *op,
 /*
  * 格式闸门与就绪检查。
  *
- * 用运行期判断而不是 #if，是为了让下面整条下发路径【始终参与编译】——
- * 否则格式定案那天，这段代码将是有生以来第一次被编译。
+ * 两个独立的失败原因，顺序不能颠倒：
+ *   1. 布局没填 / 格式被显式清成 UNKNOWN -> NOT_READY（配置问题）
+ *   2. 格式和软件像素宽度不符             -> FORMAT_MISMATCH（知道，但不兼容）
+ *
+ * 注意 UNKNOWN 现在【不是默认值】了：协议冻结为 RGB565 之后，默认格式
+ * 就是 RGB565，正常路径不会因为它被拦住。UNKNOWN 只剩下一个用途 ——
+ * 平台主动声明"我拒绝下发"，用来做实验或故障隔离。
  */
 static render_status_t fpga_gate(void)
 {
-    if (!RENDER_FPGA_USABLE)
+    unsigned hw_bytes;
+
+    if (!g_limits_set || g_limits.ddr_size == 0u)
+        return RENDER_ERR_NOT_READY;
+
+    /* 声明的位流格式是权威事实，问它而不是问布局里的副本 */
+    hw_bytes = render_hw_format_pixel_bytes(g_hw_format);
+
+    if (hw_bytes == 0u)
+        return RENDER_ERR_NOT_READY;
+
+    if (hw_bytes != RENDER_PIXEL_BYTES)
         return RENDER_ERR_FORMAT_MISMATCH;
 
-    if (!g_limits_set)
+    /*
+     * 布局里的像素参数必须与声明的位流格式一致。
+     *
+     * 不一致说明平台没走 render_limits_from_layout()，或者中途改了格式声明
+     * 却没重建布局。两种情况下校验器都会按错误的每像素字节数算 stride 与
+     * 区间末尾 —— 算错的后果是写到画布外面去，所以宁可拒绝下发。
+     */
+    if (g_limits.bytes_per_pixel != hw_bytes)
         return RENDER_ERR_NOT_READY;
 
     return RENDER_OK;
@@ -164,8 +252,8 @@ static render_status_t fpga_fill(const render_op_t *op)
     if (st != RENDER_OK)
     {
         /*
-         * FORMAT_MISMATCH：pixel_t 宽度与已确认的 XRGB8888 不一致（见 renderer.h）。
-         * NOT_READY：内存布局还没设置，本工程不内置任何默认地址。
+         * NOT_READY：内存布局没设置，或下发通道被显式关掉。
+         * FORMAT_MISMATCH：软件像素宽度与当前位流格式不符（见 renderer.h）。
          */
         return st;
     }

@@ -22,6 +22,7 @@
 #include "renderer_fpga.h"
 #include "bitblt_api.h"
 #include "bitblt_platform.h"
+#include "framebuffer_format.h"
 #include "framebuffer_layout.h"
 
 
@@ -35,6 +36,43 @@
 
 
 #define MAX_DIAG 8
+
+
+/*
+ * 本测试对两种位流像素格式都要成立，所以所有与像素宽度有关的量都从
+ * RENDER_PIXEL_BYTES / RENDER_PIXEL_FORMAT_RGB565 派生，不写死 4。
+ *
+ * T_WIDTH 是满足宽度粒度的最小宽度：
+ *   XRGB8888  16 Byte / 4 Byte = 4 像素
+ *   RGB565    16 Byte / 2 Byte = 8 像素
+ */
+#if RENDER_PIXEL_FORMAT_RGB565
+#define T_HW_FORMAT   RENDER_HW_FORMAT_RGB565
+#define T_WIDTH       8u
+#define T_FILL_COLOR  0x1234u
+#else
+#define T_HW_FORMAT   RENDER_HW_FORMAT_XRGB8888
+#define T_WIDTH       4u
+#define T_FILL_COLOR  0x00123456u
+#endif
+
+#define T_WIDTH_GRANULARITY (16u / RENDER_PIXEL_BYTES)
+
+
+/*
+ * 武装 FPGA 后端：先声明位流像素格式，再由权威布局头生成 limits。
+ *
+ * 顺序不能反 —— render_limits_from_layout() 的像素参数来自当前声明的
+ * 位流格式，没声明时给 0，校验器会以 NOT_READY 拒绝一切。
+ */
+static void arm_backend(void)
+{
+    gpu_limits_t lim;
+
+    render_fpga_set_hw_format(T_HW_FORMAT);
+    lim = render_limits_from_layout();
+    render_fpga_set_limits(&lim);
+}
 
 
 static int g_pass = 0;
@@ -200,9 +238,10 @@ static void test_limits_from_layout(void)
 
     t_begin();
 
+    /* 像素参数来自"当前声明的位流格式"，所以先声明 */
     lim = render_limits_from_layout();
 
-    /* 四个字段必须就是 B 的 framebuffer_layout.h 里的值，不是本工程编的 */
+    /* 四个地址字段必须就是 B 的 framebuffer_layout.h 里的值，不是本工程编的 */
     expect_u64(name, "ddr_base", (uint64_t)DDR_PHYSICAL_BASE, (uint64_t)lim.ddr_base);
     expect_u64(name, "ddr_size", (uint64_t)DDR_PHYSICAL_SIZE, (uint64_t)lim.ddr_size);
     expect_u64(name, "reserved_lo", (uint64_t)SYSTEM_RESERVED_BASE,
@@ -238,15 +277,18 @@ static void test_limits_from_layout(void)
 static void test_validator_with_real_layout(void)
 {
     const char *name = "T4_validator_with_real_layout";
-    gpu_limits_t lim = render_limits_from_layout();
+    gpu_limits_t lim;
     gpu_params_t p;
 
     t_begin();
 
+    /* 默认格式就是 RGB565（回退构建下是 XRGB8888），不必显式声明 */
+    lim = render_limits_from_layout();
+
     memset(&p, 0, sizeof(p));
     p.operation = GPU_OP_FILL;
     p.dst_stride_bytes = (uint32_t)FB_STRIDE;
-    p.width = 4u;
+    p.width = T_WIDTH;
     p.height = 1u;
 
     /* Scratch 区：合法目标 */
@@ -292,8 +334,9 @@ static void test_adapter_calls_driver(void)
 
     t_begin();
 
-    lim = render_limits_from_layout();
-    render_fpga_set_limits(&lim);
+    (void)lim;
+
+    arm_backend();
 
     dst.pixels = g_fb;
     dst.width = 16;
@@ -305,7 +348,7 @@ static void test_adapter_calls_driver(void)
     (void)render_select(RENDER_BACKEND_FPGA);
 
     /* ---- FILL ---- */
-    st = render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x00123456u);
+    st = render_fill_rect(&dst, make_rect(0, 0, (int)T_WIDTH, 4), T_FILL_COLOR);
 
     /* 本机构建没有硬件访问，驱动返回 BITBLT_EHW，映射成 HW_ERROR */
     expect_u64(name, "fill status", (uint64_t)RENDER_ERR_HW_ERROR, (uint64_t)st);
@@ -323,9 +366,9 @@ static void test_adapter_calls_driver(void)
         /* 字节 stride = 像素 stride × 每像素字节数 */
         expect_u64(name, "dst_stride", 16u * (uint64_t)RENDER_PIXEL_BYTES,
                    (uint64_t)rec->dst_stride_bytes);
-        expect_u64(name, "width", 4u, (uint64_t)rec->width);
+        expect_u64(name, "width", (uint64_t)T_WIDTH, (uint64_t)rec->width);
         expect_u64(name, "height", 4u, (uint64_t)rec->height);
-        expect_u64(name, "color", 0x00123456u, (uint64_t)rec->color);
+        expect_u64(name, "color", (uint64_t)T_FILL_COLOR, (uint64_t)rec->color);
         expect_u64(name, "is_copy", 0u, (uint64_t)rec->is_copy);
         /* 超时必须已经换算成 tick，而不是原样传毫秒 */
         expect_u64(name, "timeout_ticks",
@@ -337,7 +380,7 @@ static void test_adapter_calls_driver(void)
 
     /* ---- COPY ---- */
     src.pixels = g_fb;
-    src.width = 4;
+    src.width = (int)T_WIDTH;
     src.height = 4;
     src.stride_px = 16;
     src.phys_base = (uintptr_t)SCRATCH_BASE + 0x10000u;
@@ -354,10 +397,11 @@ static void test_adapter_calls_driver(void)
         expect_u64(name, "copy src_stride", 16u * (uint64_t)RENDER_PIXEL_BYTES,
                    (uint64_t)rec->src_stride_bytes);
         expect_u64(name, "copy is_copy", 1u, (uint64_t)rec->is_copy);
-        expect_u64(name, "copy width", 4u, (uint64_t)rec->width);
+        expect_u64(name, "copy width", (uint64_t)T_WIDTH, (uint64_t)rec->width);
     }
 
     render_fpga_set_limits(0);
+    render_fpga_set_hw_format(T_HW_FORMAT);
     render_init();
 
     t_end(name);
@@ -386,8 +430,14 @@ static void test_gate_not_ready(void)
     dst.stride_px = 16;
     dst.phys_base = (uintptr_t)SCRATCH_BASE;
 
-    st = render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x00111111u);
+    st = render_fill_rect(&dst, make_rect(0, 0, (int)T_WIDTH, 4), T_FILL_COLOR);
     expect_u64(name, "未设布局", (uint64_t)RENDER_ERR_NOT_READY, (uint64_t)st);
+
+    /* 布局未设时，即使位流格式也没声明，错误码仍应是 NOT_READY */
+    arm_backend();
+    render_fpga_set_limits(0);
+    st = render_fill_rect(&dst, make_rect(0, 0, (int)T_WIDTH, 4), T_FILL_COLOR);
+    expect_u64(name, "有格式无布局", (uint64_t)RENDER_ERR_NOT_READY, (uint64_t)st);
 
     render_init();
     t_end(name);

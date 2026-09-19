@@ -19,8 +19,10 @@
  * bitblt_*，所以这里不再对外。保留它只为不打断既有引用与测试；
  * 所有下发路径都返回 RENDER_ERR_UNSUPPORTED，没有任何寄存器访问。
  *
- * 寄存器访问（含 fence 与 STATUS 轮询）现在只存在于 driver/bitblt_api.c，
- * 由 make check-hw-isolation 机械保证。
+ * 寄存器访问（含 fence 与 STATUS 轮询）在生产代码里只存在于
+ * driver/bitblt_api.c，由 make check-hw-isolation 机械保证。
+ * 板级验证代码（tests/test_bitblt_board.c）允许只读引用 bitblt_regs.h
+ * 做硬件契约检查，那不是生产路径，也不在本检查范围内。
  *
  * 渲染层不再使用本文件：render/renderer_fpga.c 直接调 bitblt_*。
  *
@@ -33,13 +35,15 @@
  *   当前 CPU 只有 4 KiB 指令缓存、没有数据缓存，CPU 写过源数据后
  *   执行 fence rw,rw 即可，不需要 data_cache_invalidate_address()。
  *
- * 硬件格式事实（2026-09-17 确认，仍然有效）：
- *   Pixel format        XRGB8888
- *   Pixel size          32 bit
+ * 硬件格式事实（2026-09-18 更新）：
+ *   统一目标            RGB565 / 1280x720@60，2 Byte/像素，8 像素/128-bit beat
+ *   当前位流（V0.4）    XRGB8888 / 1920x1080@60，4 Byte/像素，4 像素/beat
  *   RISC-V control AXI  32 bit
  *   DDR AXI data width  128 bit
- *   Pixels per DDR beat 4
- *   Stride              width × 4 Byte
+ *
+ * 位流实际是哪个格式属于运行期事实，用 render_fpga_set_hw_format() 声明；
+ * 本文件不假定其中任何一个。详见 render/renderer.h 顶部与
+ * driver/framebuffer_format.h。
  */
 
 

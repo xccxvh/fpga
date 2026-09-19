@@ -13,7 +13,11 @@ TEST_DIR   := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 RENDER_DIR := $(TEST_DIR)/../render
 BUILD_DIR  := $(TEST_DIR)/build
 
+# renderer_sw.h 必须列进依赖：它承载 pixel_t 与格式开关，
+# 只改头文件不改 .c 时，没有这条依赖就不会重编，测试会跑旧二进制而"通过"——
+# 那正是本项目最忌讳的假通过。
 SRCS := $(TEST_DIR)/test_renderer.c $(RENDER_DIR)/renderer_sw.c
+HDRS := $(RENDER_DIR)/renderer_sw.h
 
 
 # ---- 本机编译 ----
@@ -57,7 +61,7 @@ native-test: $(BUILD_DIR)/test_renderer
 	@$(BUILD_DIR)/test_renderer
 	@echo "== 本机测试通过 =="
 
-$(BUILD_DIR)/test_renderer: $(SRCS)
+$(BUILD_DIR)/test_renderer: $(SRCS) $(HDRS)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SRCS) -o $@
 
@@ -66,7 +70,7 @@ $(BUILD_DIR)/test_renderer: $(SRCS)
 riscv-build: $(BUILD_DIR)/test_renderer.elf
 	@echo "== RISC-V 交叉编译验证通过（$(RV_ARCH) / $(RV_ABI)）=="
 
-$(BUILD_DIR)/test_renderer.elf: $(SRCS)
+$(BUILD_DIR)/test_renderer.elf: $(SRCS) $(HDRS)
 	@command -v $(CROSS_CC) >/dev/null 2>&1 || { \
 	  echo "找不到交叉编译器：$(CROSS_CC)"; \
 	  echo "可用 make riscv-build CROSS_CC=/path/to/riscv-none-elf-gcc 指定"; \

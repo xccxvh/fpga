@@ -4,10 +4,13 @@
  * 本文件是项目 CPU 渲染结果的判定基准，后续 RTL 加速器（BitBlt）的
  * 回读结果，按这里覆盖的行为逐条对齐。
  *
- * 像素格式：XRGB8888，1 pixel = 32 bit = 4 Byte（2026-09-17 确认）。
- * 本文件随 CPU 参考实现一起从 16-bit 迁移到 32-bit；
- * 迁移后备忘：改 pixel_t 宽度必须同步改 render/renderer.h 的
- * RENDER_PIXEL_BYTES，那里的静态断言会强制两处一致。
+ * 像素格式：由 renderer_sw.h 顶部的 RENDER_PIXEL_FORMAT_RGB565 开关决定。
+ *   默认 RGB565（16 bit，2 Byte/像素）—— 团队 2026-09-18 选定的统一目标
+ *   -DRENDER_PIXEL_FORMAT_RGB565=0 回到 XRGB8888（32 bit）历史基线
+ *
+ * 本文件随 CPU 参考实现一起迁移过两次（16-bit -> 32-bit -> 16-bit RGB565）。
+ * renderer_sw.c 完全由 pixel_t 参数化，所以它一行都不用改；
+ * 本文件里唯一与格式有关的是颜色常量 RED 和诊断输出的宽度。
  *
  * 覆盖范围：
  *   1. 基础绘制：完全落在屏幕内的填充与拷贝
@@ -87,10 +90,12 @@ static void check_fb(const char *tag, int x, int y, pixel_t want)
 
     if (got != want)
     {
-        /* 用 PRIX32 而不是硬写 %X：rv32 上 uint32_t 是 unsigned long，
-           写 %X 会与 unsigned int 不匹配，-Werror=format 会直接编译失败 */
+        /* 显式转成 uint32_t 再配合 PRIX32：
+           本机 uint32_t 是 unsigned int，rv32 上是 unsigned long；
+           而 pixel_t 只有 16 bit，varargs 提升后类型两边都对不上，
+           不转会被 -Werror=format 直接拦下。 */
         printf("  [FAIL] %s: framebuffer(%d,%d) 期望 0x%08" PRIX32 "，实际 0x%08" PRIX32 "\n",
-               tag, x, y, want, got);
+               tag, x, y, (uint32_t)want, (uint32_t)got);
     }
 
     assert(got == want);
@@ -105,7 +110,7 @@ static void check_guarded(const char *tag, int x, int y, pixel_t want)
     if (got != want)
     {
         printf("  [FAIL] %s: guarded(%d,%d) 期望 0x%08" PRIX32 "，实际 0x%08" PRIX32 "\n",
-               tag, x, y, want, got);
+               tag, x, y, (uint32_t)want, (uint32_t)got);
     }
 
     assert(got == want);
@@ -145,8 +150,13 @@ static void test_fill_rect(void)
 {
     clear_fb();
 
+#if RENDER_PIXEL_FORMAT_RGB565
+    /* RGB565 的纯红：R5 = 31，G6 = 0，B5 = 0 */
+    const pixel_t RED = 0xF800u;
+#else
     /* XRGB8888 的纯红：高 8 位空，红 8 位全 1 */
     const pixel_t RED = 0x00FF0000u;
+#endif
 
     sw_fill_rect(
         framebuffer,

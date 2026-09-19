@@ -24,66 +24,37 @@
 /* ------------------------------------------------------------------ */
 
 /*
- * 像素格式（2026-09-17 确认）：XRGB8888，1 pixel = 32 bit = 4 Byte。
+ * ── 像素格式：两个独立的事实，不要混为一谈 ──
  *
- * 硬件侧确认事实：
- *   Pixel format        XRGB8888
- *   Pixel size          32 bit
- *   RISC-V control AXI  32 bit
- *   DDR AXI data width  128 bit
- *   Pixels per DDR beat 4
- *   Stride              width × 4 Byte
- *   Solid Fill color    1 个 32-bit XRGB8888 像素
- *   Block Copy          按 32-bit 像素搬运
+ * 【软件像素宽度】由 pixel_t 决定，编译期已知。
+ *   切换开关在 render/renderer_sw.h 顶部的 RENDER_PIXEL_FORMAT_RGB565：
+ *     1（默认）= RGB565 / 1280x720@60  —— 团队 2026-09-18 选定的统一目标
+ *     0        = XRGB8888 / 1920x1080@60 —— 历史基线，可回退
+ *   几何参数（宽高、stride、帧大小）在 driver/framebuffer_format.h。
  *
- * RTL 里存在显示侧格式字段（约定名 DISPLAY_FORMAT），但当前 RTL 只实现了
- * XRGB8888，没有 RGB565 的打包/解包与显示适配。因此 M1/M2 阶段【不要】试图把
- * 两个 RGB565 像素塞进一个 32-bit word 去绕过格式限制——那需要 RTL 侧的打包/
- * 解包支持，现在并不存在。
+ * 【硬件像素宽度】由 FPGA 上烧的位流决定，是运行期事实。
+ *   当前 B 组位流（V0.4，`0x00010004`）只有 XRGB8888；RGB565 版 RTL
+ *   尚未完成、未板测。所以这里【不能】用编译期常量断言"硬件是 32-bit"
+ *   ——那种写法在 B 组 RGB565 位流落地的那一刻就变成了谎话。
  *
+ *   改用运行期能力声明：平台层用 render_fpga_set_hw_format() 告诉后端
+ *   "我加载的位流是哪个格式"，两边不一致时下发返回 FORMAT_MISMATCH。
+ *   未声明时一律不下发（NOT_READY），不猜、不默认。
  *
- * ── 迁移状态：已完成 ──
- *
- * CPU 参考实现（renderer_sw.*）已从 16-bit 迁移到 32-bit，与硬件数据面一致，
- * 所以下面 RENDER_FPGA_USABLE 为 1，FPGA 后端不再被格式闸门拦住。
- * 迁移后全部冻结基线与统一层测试、交叉编译、HW 分支编译均已重跑通过。
- *
- * 格式闸门本身保留：它防的是"pixel_t 又被改成与硬件不一致的宽度却没人发现"。
- * 任何时候都不允许用强制转换、截断或 reinterpret cast 绕过它。
- *
- *
- * ── RGB565：后续性能优化方向，现在不实现 ──
- *
- * 若以后 DDR 带宽、Framebuffer 占用或 Sprite 吞吐成为瓶颈，再考虑：
- *   16-bit RGB565
- *   2 pixels / 32-bit word
- *   8 pixels / 128-bit DDR beat
- *   stride = width × 2 Byte
- *   显示侧 unpacker 按 DISPLAY_FORMAT 解包
- * 本文件的像素格式抽象与显示侧格式扩展位就是为这条路径预留的接口。
+ * 任何时候都不允许用强制转换、截断或 reinterpret cast 绕过这个检查。
  */
 
 
 /*
- * 必须与 pixel_t 同步。改了 pixel_t 却忘了改这里会直接编译失败，
- * 而不是等到运行期才发现像素被按错误的宽度搬运。
+ * 软件像素字节数。由 pixel_t 直接派生 —— 单一真相源。
+ *
+ * 以前这里是个字面量 4，配一条静态断言盯着 pixel_t；现在反过来，
+ * 宏从类型算出来，两者不可能再不一致。
  */
-#define RENDER_PIXEL_BYTES 4u
+#define RENDER_PIXEL_BYTES ((unsigned)sizeof(pixel_t))
 
-typedef char render_pixel_bytes_must_match[
-    (RENDER_PIXEL_BYTES == sizeof(pixel_t)) ? 1 : -1];
-
-/*
- * 软件像素宽度与已确认的硬件格式一致时，FPGA 后端才可用。
- * 不一致时下发一律返回 RENDER_ERR_FORMAT_MISMATCH。
- */
-#if   (RENDER_PIXEL_BYTES == 4u)
-#define RENDER_FPGA_USABLE 1
-#elif (RENDER_PIXEL_BYTES == 2u)
-#define RENDER_FPGA_USABLE 0
-#else
-#error "未知像素宽度：与已确认的 XRGB8888（32-bit）不符"
-#endif
+typedef char render_pixel_bytes_supported[
+    (RENDER_PIXEL_BYTES == 2u || RENDER_PIXEL_BYTES == 4u) ? 1 : -1];
 
 
 /* ------------------------------------------------------------------ */

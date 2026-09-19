@@ -4,16 +4,19 @@
 /*
  * 一个矩形区域实际覆盖的字节区间，返回【独占结束地址】。
  *
- * 末行起点是 addr + (height-1)*stride，末行占 width*4 字节。
+ * 末行起点是 addr + (height-1)*stride，末行占 width * bytes_per_pixel 字节。
  * 全程 64 位运算：32 位回绕会把越界算成合法，必须让它在 64 位下暴露出来。
  *
+ * bytes_per_pixel 由调用方保证非 0（check_common 已挡过）。
  * 调用前 height 必须已确认 > 0。
  */
-static uint64_t region_end(uint32_t addr, uint32_t stride, uint32_t width, uint32_t height)
+static uint64_t region_end(uint32_t addr, uint32_t stride,
+                           uint32_t width, uint32_t height,
+                           unsigned bytes_per_pixel)
 {
     return (uint64_t)addr
          + (uint64_t)(height - 1u) * (uint64_t)stride
-         + (uint64_t)width * (uint64_t)GPU_HW_PIXEL_BYTES;
+         + (uint64_t)width * (uint64_t)bytes_per_pixel;
 }
 
 
@@ -50,7 +53,11 @@ static render_status_t check_region(const gpu_limits_t *lim, uint64_t lo, uint64
 
 /*
  * FILL 与 COPY 共用的检查，按此顺序判定错误码优先级：
- *   空指针 -> 布局未填 -> operation -> width -> height -> 目标对齐 -> 目标 stride
+ *   空指针 -> 布局未填 -> 像素格式未声明 -> operation -> width -> height
+ *   -> 目标对齐 -> 目标 stride
+ *
+ * "布局未填"和"像素格式未声明"都用 NOT_READY：两者都是"平台还没告诉
+ * 校验器硬件长什么样"，不是调用方的参数错。
  */
 static render_status_t check_common(const gpu_limits_t *lim,
                                     const gpu_params_t *p,
@@ -62,10 +69,13 @@ static render_status_t check_common(const gpu_limits_t *lim,
     if (lim->ddr_size == 0u)
         return RENDER_ERR_NOT_READY;
 
+    if (lim->bytes_per_pixel == 0u || lim->width_granularity == 0u)
+        return RENDER_ERR_NOT_READY;
+
     if (p->operation != expected_operation)
         return RENDER_ERR_BAD_OPERATION;
 
-    if (p->width == 0u || (p->width % GPU_WIDTH_GRANULARITY) != 0u)
+    if (p->width == 0u || (p->width % lim->width_granularity) != 0u)
         return RENDER_ERR_BAD_WIDTH;
 
     if (p->height == 0u)
@@ -77,7 +87,7 @@ static render_status_t check_common(const gpu_limits_t *lim,
     if ((p->dst_stride_bytes % GPU_ALIGN_BYTES) != 0u)
         return RENDER_ERR_BAD_ALIGN;
 
-    if ((uint64_t)p->dst_stride_bytes < (uint64_t)p->width * GPU_HW_PIXEL_BYTES)
+    if ((uint64_t)p->dst_stride_bytes < (uint64_t)p->width * lim->bytes_per_pixel)
         return RENDER_ERR_BAD_STRIDE;
 
     return RENDER_OK;
@@ -95,7 +105,8 @@ render_status_t gpu_validate_fill(const gpu_limits_t *lim, const gpu_params_t *p
     return check_region(lim,
                         p->dst_addr_bytes,
                         region_end(p->dst_addr_bytes, p->dst_stride_bytes,
-                                   p->width, p->height));
+                                   p->width, p->height,
+                                   lim->bytes_per_pixel));
 }
 
 
@@ -114,13 +125,15 @@ render_status_t gpu_validate_copy(const gpu_limits_t *lim, const gpu_params_t *p
     if ((p->src_stride_bytes % GPU_ALIGN_BYTES) != 0u)
         return RENDER_ERR_BAD_ALIGN;
 
-    if ((uint64_t)p->src_stride_bytes < (uint64_t)p->width * GPU_HW_PIXEL_BYTES)
+    if ((uint64_t)p->src_stride_bytes < (uint64_t)p->width * lim->bytes_per_pixel)
         return RENDER_ERR_BAD_STRIDE;
 
     dst_lo = p->dst_addr_bytes;
-    dst_hi = region_end(p->dst_addr_bytes, p->dst_stride_bytes, p->width, p->height);
+    dst_hi = region_end(p->dst_addr_bytes, p->dst_stride_bytes,
+                        p->width, p->height, lim->bytes_per_pixel);
     src_lo = p->src_addr_bytes;
-    src_hi = region_end(p->src_addr_bytes, p->src_stride_bytes, p->width, p->height);
+    src_hi = region_end(p->src_addr_bytes, p->src_stride_bytes,
+                        p->width, p->height, lim->bytes_per_pixel);
 
     st = check_region(lim, dst_lo, dst_hi);
     if (st != RENDER_OK)

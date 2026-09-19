@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-// BitBlt data plane: Solid Fill and buffered Block Copy.
+// BitBlt data plane: Solid Fill, buffered Block Copy and RGB Color Key Copy.
 // Transfers use up to 16 128-bit beats and never cross a 4 KiB boundary.
 module bitblt_engine (
     input clk, input resetn, input start,
@@ -29,7 +29,7 @@ module bitblt_engine (
     input [1:0] m_rresp, input m_rlast,
     input m_rvalid, output m_rready
 );
-    localparam OP_FILL = 32'd0, OP_COPY = 32'd1;
+    localparam OP_FILL = 32'd0, OP_COPY = 32'd1, OP_COLOR_KEY = 32'd2;
     localparam ST_IDLE = 3'd0, ST_AR = 3'd1, ST_R = 3'd2,
                ST_AW = 3'd3, ST_W = 3'd4, ST_B = 3'd5;
     reg [2:0] state;
@@ -48,9 +48,16 @@ module bitblt_engine (
     assign m_awlock = 1'b0;
     assign m_awcache = 4'b0011;
     assign m_awprot = 3'b000;
-    assign m_wdata = (operation_latched == OP_COPY) ? copy_buffer[write_index[3:0]]
+    assign m_wdata = (operation_latched != OP_FILL) ? copy_buffer[write_index[3:0]]
                                                     : {4{color_latched}};
-    assign m_wstrb = 16'hffff;
+    // XRGB8888 Color Key compares RGB only. Each matching pixel disables its
+    // four byte lanes so the existing destination pixel remains unchanged.
+    assign m_wstrb = (operation_latched == OP_COLOR_KEY) ? {
+        (copy_buffer[write_index[3:0]][119:96] == color_latched[23:0]) ? 4'h0 : 4'hf,
+        (copy_buffer[write_index[3:0]][87:64]  == color_latched[23:0]) ? 4'h0 : 4'hf,
+        (copy_buffer[write_index[3:0]][55:32]  == color_latched[23:0]) ? 4'h0 : 4'hf,
+        (copy_buffer[write_index[3:0]][23:0]   == color_latched[23:0]) ? 4'h0 : 4'hf
+    } : 16'hffff;
     assign m_wlast = (write_index + 1'b1 == burst_beats);
     assign m_bready = (state == ST_B);
 
@@ -126,10 +133,10 @@ module bitblt_engine (
                     busy <= 1'b0;
                     m_awvalid <= 1'b0; m_wvalid <= 1'b0; m_arvalid <= 1'b0;
                     if (start) begin
-                        if ((operation > OP_COPY) || (width == 0) || (height == 0) ||
+                        if ((operation > OP_COLOR_KEY) || (width == 0) || (height == 0) ||
                             (width[1:0] != 0) || (dst_addr[3:0] != 0) ||
                             (dst_stride[3:0] != 0) || (dst_stride < (width << 2)) ||
-                            ((operation == OP_COPY) &&
+                            ((operation != OP_FILL) &&
                              ((src_addr[3:0] != 0) || (src_stride[3:0] != 0) ||
                               (src_stride < (width << 2))))) begin
                             done <= 1'b1;
@@ -147,9 +154,9 @@ module bitblt_engine (
                             color_latched <= color;
                             operation_latched <= operation;
                             burst_beats <= transfer_size(width >> 2, src_addr, dst_addr,
-                                                         operation == OP_COPY);
+                                                         operation != OP_FILL);
                             read_index <= 5'd0; write_index <= 5'd0; read_error <= 1'b0;
-                            if (operation == OP_COPY) begin
+                            if (operation != OP_FILL) begin
                                 m_arvalid <= 1'b1;
                                 state <= ST_AR;
                             end else begin
@@ -208,9 +215,9 @@ module bitblt_engine (
                         burst_beats <= transfer_size(row_beats_remaining - burst_beats,
                             m_araddr + ({27'd0, burst_beats} << 4),
                             m_awaddr + ({27'd0, burst_beats} << 4),
-                            operation_latched == OP_COPY);
+                            operation_latched != OP_FILL);
                         read_index <= 5'd0; write_index <= 5'd0;
-                        if (operation_latched == OP_COPY) begin
+                        if (operation_latched != OP_FILL) begin
                             m_arvalid <= 1'b1; state <= ST_AR;
                         end else begin
                             m_awvalid <= 1'b1; state <= ST_AW;
@@ -225,9 +232,9 @@ module bitblt_engine (
                         burst_beats <= transfer_size(beats_per_row,
                             src_row_base + src_stride_latched,
                             dst_row_base + dst_stride_latched,
-                            operation_latched == OP_COPY);
+                            operation_latched != OP_FILL);
                         read_index <= 5'd0; write_index <= 5'd0;
-                        if (operation_latched == OP_COPY) begin
+                        if (operation_latched != OP_FILL) begin
                             m_arvalid <= 1'b1; state <= ST_AR;
                         end else begin
                             m_awvalid <= 1'b1; state <= ST_AW;

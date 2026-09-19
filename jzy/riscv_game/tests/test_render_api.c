@@ -16,9 +16,17 @@
  *   禁止定义 NDEBUG（assert 会被移除导致假通过）
  *   禁止定义 BITBLT_ENABLE_HW_ACCESS（本机测试不得接触任何寄存器）
  *
- * 像素格式：XRGB8888，32 bit（见 renderer.h 顶部）。
- * pixel_t 已完成 16-bit -> 32-bit 迁移，格式闸门放行，
- * test_dispatch_and_gate 里走的是"整条下发通路"那一侧。
+ * 像素格式：由 renderer_sw.h 顶部的 RENDER_PIXEL_FORMAT_RGB565 开关决定。
+ *   默认 RGB565（16 bit，2 Byte/像素）
+ *   -DRENDER_PIXEL_FORMAT_RGB565=0 回到 XRGB8888（32 bit）历史基线
+ *
+ * 两类测试要分清：
+ *   - 像素宽度无关的（裁剪、越界、等价性）在两种格式下都必须原样通过
+ *   - 依赖像素宽度的（尺寸校验、地址算术、COLOR 映射）按格式分支或
+ *     按 RENDER_PIXEL_BYTES 计算，不写死 4
+ *
+ * 位流格式是【运行期】事实：test_dispatch_and_gate 用
+ * render_fpga_set_hw_format() 显式声明，覆盖"未声明/不匹配/匹配"三条路。
  */
 
 #include <stdio.h>
@@ -32,6 +40,8 @@
 #include "renderer_fpga.h"
 #include "gpu.h"
 #include "gpu_validate.h"
+#include "framebuffer_format.h"
+#include "framebuffer_layout.h"
 
 
 #ifdef NDEBUG
@@ -200,12 +210,20 @@ static void compare_three(const char *tag, int cfg, int a, int b, int c, int d, 
     {
         if (canvas_frozen[i] != canvas_cpu[i] || canvas_frozen[i] != canvas_fake[i])
         {
-            /* PRIX32 而不是硬写 %X：rv32 上 uint32_t 是 unsigned long */
+            /*
+             * 显式转 uint32_t 再配 PRIX32：
+             * 本机 uint32_t 是 unsigned int，rv32 上是 unsigned long；
+             * 而 pixel_t 只有 16 bit（RGB565），varargs 提升后是 int，
+             * 两边都对不上 —— 不转会被 -Werror=format 直接拦下。
+             * 这个坑只有交叉编译能发现，本机全绿不算数。
+             */
             printf("  [FAIL] %s cfg=%d 参数=(%d,%d,%d,%d) 第 %d 个像素: "
                    "冻结层=0x%08" PRIX32 " 统一层CPU=0x%08" PRIX32
                    " 统一层假后端=0x%08" PRIX32 "\n",
                    tag, cfg, a, b, c, d, i,
-                   canvas_frozen[i], canvas_cpu[i], canvas_fake[i]);
+                   (uint32_t)canvas_frozen[i],
+                   (uint32_t)canvas_cpu[i],
+                   (uint32_t)canvas_fake[i]);
         }
 
         assert(canvas_frozen[i] == canvas_cpu[i]);
@@ -569,6 +587,26 @@ static void test_exact_translation(void)
  *
  * 窗口 = [0x10000000, 0x18000000)，保留区 = [0x10000000, 0x10020000)
  */
+/*
+ * 测试声明的位流像素格式。
+ *
+ * TEST_HW_FORMAT 必须与【软件】格式一致，否则闸门会拦下所有下发；
+ * TEST_OTHER_HW_FORMAT 是另一种，用来验证闸门真的会拦。
+ * 宽度粒度由对齐要求推出：16 Byte / 每像素字节数。
+ */
+#if RENDER_PIXEL_FORMAT_RGB565
+#define TEST_HW_FORMAT       RENDER_HW_FORMAT_RGB565
+#define TEST_OTHER_HW_FORMAT RENDER_HW_FORMAT_XRGB8888
+#else
+#define TEST_HW_FORMAT       RENDER_HW_FORMAT_XRGB8888
+#define TEST_OTHER_HW_FORMAT RENDER_HW_FORMAT_RGB565
+#endif
+
+#define TEST_WIDTH_GRANULARITY (16u / RENDER_PIXEL_BYTES)
+
+/* 满足宽度粒度的最小矩形宽度：16 Byte / 每像素字节数 */
+#define TEST_MIN_WIDTH ((int)TEST_WIDTH_GRANULARITY)
+
 #define T_DDR_BASE 0x10000000u
 #define T_DDR_SIZE 0x08000000u
 #define T_RSVD_LO  0x10000000u
@@ -576,7 +614,12 @@ static void test_exact_translation(void)
 #define T_WIN_END  (T_DDR_BASE + T_DDR_SIZE)
 
 
-static gpu_limits_t lim_normal(void)
+/*
+ * 像素宽度与宽度粒度是【硬件位流的事实】，不是软件常量，所以校验器
+ * 从 limits 里取。测试因此可以拿同一套参数表跑两种格式，证明校验器
+ * 对两者都成立 —— 而不是把 XRGB8888 的口径偷偷焊死在代码里。
+ */
+static gpu_limits_t lim_for(unsigned bytes_per_pixel, unsigned width_granularity)
 {
     gpu_limits_t l;
 
@@ -584,8 +627,22 @@ static gpu_limits_t lim_normal(void)
     l.ddr_size = T_DDR_SIZE;
     l.reserved_lo = T_RSVD_LO;
     l.reserved_hi = T_RSVD_HI;
+    l.bytes_per_pixel = bytes_per_pixel;
+    l.width_granularity = width_granularity;
 
     return l;
+}
+
+/* B 组当前位流：XRGB8888，4 Byte/像素，宽度需 4 像素倍数 */
+static gpu_limits_t lim_normal(void)
+{
+    return lim_for(4u, 4u);
+}
+
+/* 统一目标：RGB565，2 Byte/像素，宽度需 8 像素倍数 */
+static gpu_limits_t lim_rgb565(void)
+{
+    return lim_for(2u, 8u);
 }
 
 
@@ -656,6 +713,15 @@ static void test_validator_fill(void)
     l2.ddr_size = 0u;
     expect_fill("ddr_size == 0", &l2, &p, RENDER_ERR_NOT_READY);
 
+    /* 位流像素格式未声明：不许猜默认值 */
+    l2 = l;
+    l2.bytes_per_pixel = 0u;
+    expect_fill("bytes_per_pixel 未声明", &l2, &p, RENDER_ERR_NOT_READY);
+
+    l2 = l;
+    l2.width_granularity = 0u;
+    expect_fill("width_granularity 未声明", &l2, &p, RENDER_ERR_NOT_READY);
+
     /* operation */
     p = params_normal();
     p.operation = 99u;
@@ -696,16 +762,16 @@ static void test_validator_fill(void)
     p.dst_stride_bytes = 0x1004u;
     expect_fill("dst_stride 未 16B 对齐", &l, &p, RENDER_ERR_BAD_ALIGN);
 
-    /* stride 与 width*4 的分界 */
+    /* stride 与 width * 每像素字节数的分界（默认表 = XRGB8888，4 B/px） */
     p = params_normal();
     p.width = 64u;
-    p.dst_stride_bytes = 240u;    /* 240 % 16 == 0，但 < 64*4 = 256 */
-    expect_fill("dst_stride < width*4", &l, &p, RENDER_ERR_BAD_STRIDE);
+    p.dst_stride_bytes = 240u;    /* 240 % 16 == 0，但 < 64 * 4 = 256 */
+    expect_fill("dst_stride < width*每像素字节数", &l, &p, RENDER_ERR_BAD_STRIDE);
 
     p = params_normal();
     p.width = 64u;
-    p.dst_stride_bytes = 256u;    /* 正好等于 */
-    expect_fill("dst_stride == width*4", &l, &p, RENDER_OK);
+    p.dst_stride_bytes = 256u;    /* 正好等于 64 * 4 */
+    expect_fill("dst_stride == width*每像素字节数", &l, &p, RENDER_OK);
 
     /* 保留区 */
     p = params_normal();
@@ -787,7 +853,7 @@ static void test_validator_copy(void)
 
     p = params_normal();
     p.operation = GPU_OP_COPY;
-    p.src_stride_bytes = 240u;        /* < 64*4 */
+    p.src_stride_bytes = 240u;        /* < 64 * 4（默认表是 XRGB8888） */
     expect_copy("源 stride 太小", &l, &p, RENDER_ERR_BAD_STRIDE);
 
     /* 源侧越界 */
@@ -825,6 +891,51 @@ static void test_validator_copy(void)
     expect_copy("源结束于目标起点前 16 字节", &l, &p, RENDER_OK);
 
     printf("[PASS] COPY 约束校验边界值（含重叠判定）\n");
+}
+
+
+/*
+ * 同一套输入在两种位流像素格式下必须给出不同结论。
+ *
+ * 这张表是"像素宽度确实是运行期参数"的证据：如果哪天有人在校验器里
+ * 写死 4 Byte/像素或 4 像素粒度，这里会立刻失败。
+ */
+static void test_validator_format_dependent(void)
+{
+    gpu_limits_t l4 = lim_normal();   /* XRGB8888：4 B/px，宽度 4 像素倍数 */
+    gpu_limits_t l2 = lim_rgb565();   /* RGB565  ：2 B/px，宽度 8 像素倍数 */
+    gpu_params_t p;
+
+    /* --- 宽度粒度随格式变化 --- */
+    p = params_normal();
+    p.width = 4u;
+    expect_fill("width 4 @ XRGB8888", &l4, &p, RENDER_OK);
+    expect_fill("width 4 @ RGB565（不是 8 的倍数）", &l2, &p, RENDER_ERR_BAD_WIDTH);
+
+    p = params_normal();
+    p.width = 8u;
+    expect_fill("width 8 @ XRGB8888", &l4, &p, RENDER_OK);
+    expect_fill("width 8 @ RGB565", &l2, &p, RENDER_OK);
+
+    /* --- stride 下限 = width * 每像素字节数 --- */
+    p = params_normal();
+    p.width = 64u;
+    p.dst_stride_bytes = 160u;   /* >= 64*2 = 128，但 < 64*4 = 256 */
+    expect_fill("stride 160 @ XRGB8888（< 256）", &l4, &p, RENDER_ERR_BAD_STRIDE);
+    expect_fill("stride 160 @ RGB565（>= 128）", &l2, &p, RENDER_OK);
+
+    /* --- 区间末尾也按每像素字节数算 ---
+       同一起点、同一 stride、一行 64 像素：
+       XRGB8888 占 256 B，会越过窗口末尾；RGB565 只占 128 B，正好收在末尾。 */
+    p = params_normal();
+    p.dst_addr_bytes = T_WIN_END - 128u;
+    p.dst_stride_bytes = 256u;
+    p.width = 64u;
+    p.height = 1u;
+    expect_fill("窗口末尾 64 像素 @ XRGB8888", &l4, &p, RENDER_ERR_RANGE);
+    expect_fill("窗口末尾 64 像素 @ RGB565", &l2, &p, RENDER_OK);
+
+    printf("[PASS] 校验器按位流像素格式取值（同一输入两种结论）\n");
 }
 
 
@@ -890,93 +1001,130 @@ static void test_dispatch_and_gate(void)
     {
         render_status_t st;
 
-#if RENDER_FPGA_USABLE
-        /*
-         * pixel_t 宽度与已确认的 XRGB8888 一致，闸门放行，
-         * 下面把整条下发通路从"未填布局"一路走到骨架为止。
-         */
+        gpu_limits_t l_real;
 
-        /* 1) 内存布局未设置：必须 NOT_READY。
-              本工程不内置任何默认地址，没填布局就不许下发。 */
-        render_fpga_set_limits(0);
-        st = render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x1111);
+        /* 0) 平台【显式把下发通道关掉】：render_limits_from_layout() 给出的
+              像素参数是 0，此时即使地址字段齐全，也必须拒绝一切下发。
+
+              注意这不是默认状态 —— 协议冻结为 RGB565 之后，默认格式就是
+              RGB565，正常路径不会被拦住。这里测的是"主动关掉"这条分支。 */
+        render_fpga_set_hw_format(RENDER_HW_FORMAT_UNKNOWN);
+        {
+            gpu_limits_t l_unknown = render_limits_from_layout();
+
+            assert(l_unknown.bytes_per_pixel == 0u);
+            assert(l_unknown.width_granularity == 0u);
+            assert(l_unknown.ddr_size != 0u);   /* 地址字段是齐的 */
+            render_fpga_set_limits(&l_unknown);
+        }
+        st = render_fill_rect(&dst, make_rect(0, 0, TEST_MIN_WIDTH, 4), 0x1111);
         assert(st == RENDER_ERR_NOT_READY);
+        render_fpga_set_limits(0);
+
+        /* 1) 声明了位流格式，但内存布局没设置：必须 NOT_READY。
+              本工程不内置任何默认地址，没填布局就不许下发。 */
+        render_fpga_set_hw_format(TEST_HW_FORMAT);
+        render_fpga_set_limits(0);
+        st = render_fill_rect(&dst, make_rect(0, 0, TEST_MIN_WIDTH, 4), 0x1111);
+        assert(st == RENDER_ERR_NOT_READY);
+
+        /* 1b) render_limits_from_layout() 必须同时反映【声明的位流格式】
+               与【B 权威头文件里的地址】，后面的用例都用它。 */
+        l_real = render_limits_from_layout();
+        assert(l_real.bytes_per_pixel == RENDER_PIXEL_BYTES);
+        assert(l_real.width_granularity == TEST_WIDTH_GRANULARITY);
+        assert(l_real.ddr_base == DDR_PHYSICAL_BASE);
+        assert(l_real.ddr_size == DDR_PHYSICAL_SIZE);
+        assert(l_real.reserved_lo == SYSTEM_RESERVED_BASE);
+        assert(l_real.reserved_hi == SYSTEM_RESERVED_BASE + SYSTEM_RESERVED_SIZE);
 
         /* 2) 布局已填，但画布物理地址在窗口之外：必须 RANGE。
               故意用一个明确的窗口外地址，不依赖宿主机指针值。 */
-        {
-            gpu_limits_t l = lim_normal();
-
-            render_fpga_set_limits(&l);
-            dst.phys_base = 0x20000000u;
-        }
-        st = render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x1111);
+        l_real = render_limits_from_layout();
+        render_fpga_set_limits(&l_real);
+        dst.phys_base = 0x20000000u;
+        st = render_fill_rect(&dst, make_rect(0, 0, TEST_MIN_WIDTH, 4), 0x1111);
         assert(st == RENDER_ERR_RANGE);
 
         /* 3) 画布物理地址落在布局内：闸门与硬件约束校验全部通过，
               请求会一直走到真正的驱动 bitblt_fill()。
 
+              地址直接取 B 权威头文件里的 Scratch 区（16B 对齐、不在保留区、
+              也没有和素材区重叠），本工程不另外编造地址。
+
               本机构建没有开启 BITBLT_ENABLE_HW_ACCESS，驱动返回 BITBLT_EHW，
               适配层把它映射成 RENDER_ERR_HW_ERROR。适配层与错误码映射
               由 tests/test_bitblt_api.c 专门覆盖。 */
-        dst.phys_base = 0x10100000u;   /* 在窗口内且 16B 对齐 */
-        st = render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x1111);
+        dst.phys_base = (uintptr_t)SCRATCH_BASE;
+        st = render_fill_rect(&dst, make_rect(0, 0, TEST_MIN_WIDTH, 4), 0x1111);
         assert(st == RENDER_ERR_HW_ERROR);
 
         /* 4) 硬件约束确实在生效：x = 1 使目标地址不再 16B 对齐。
-              这条也是"矩形起点必须是 4 的倍数"的来源——
-              它属于 BitBlt V0.1 硬件约束，B 组确认放宽之前一直有效。 */
-        st = render_fill_rect(&dst, make_rect(1, 0, 4, 4), 0x1111);
+              这条也是"矩形起点必须对齐"的来源——它属于 BitBlt 硬件约束，
+              B 组确认放宽之前一直有效。 */
+        st = render_fill_rect(&dst, make_rect(1, 0, TEST_MIN_WIDTH, 4), 0x1111);
         assert(st == RENDER_ERR_BAD_ALIGN);
 
-        /* 5) width 不是 4 的倍数同样被拒 */
+        /* 5) width 不是宽度粒度的倍数同样被拒（3 对两种格式都不是倍数） */
         st = render_fill_rect(&dst, make_rect(0, 0, 3, 4), 0x1111);
         assert(st == RENDER_ERR_BAD_WIDTH);
 
-        /* 6) 拷贝路径同样过校验：源宽 5 不是 4 的倍数，在此被拦下 */
+        /* 6) 拷贝路径同样过校验：源宽 5 对 4 和 8 都不是倍数，在此被拦下 */
         {
             render_surface_t fpga_src = make_src_surface();
 
-            fpga_src.phys_base = 0x10500000u;
+            fpga_src.phys_base = (uintptr_t)ASSET_BASE;
             st = render_blit(&dst, &fpga_src, 0, 0);
             assert(st == RENDER_ERR_BAD_WIDTH);
         }
 
-        /* 收尾：清掉布局与物理地址，避免影响后续用例 */
-        render_fpga_set_limits(0);
-        dst.phys_base = 0;
-#else
-        /*
-         * pixel_t 宽度与已确认的 XRGB8888 不一致：闸门必须拦住一切下发，
-         * 不允许用强制转换或截断绕过。
-         */
-        {
-            gpu_limits_t l = lim_normal();
-
-            render_fpga_set_limits(&l);
-        }
-
-        assert(render_fill_rect(&dst, make_rect(0, 0, 4, 4), 0x1111)
-               == RENDER_ERR_FORMAT_MISMATCH);
+        /* 7) 声明成【另一种】位流格式：软件像素宽度与硬件不符，必须拦住。
+              这就是"不许用强制转换绕过格式闸门"的那道闸。 */
+        render_fpga_set_hw_format(TEST_OTHER_HW_FORMAT);
+        st = render_fill_rect(&dst, make_rect(0, 0, TEST_MIN_WIDTH, 4), 0x1111);
+        assert(st == RENDER_ERR_FORMAT_MISMATCH);
         assert(render_blit(&dst, &src, 0, 0) == RENDER_ERR_FORMAT_MISMATCH);
 
+        /* 收尾：把格式声明恢复成默认（RGB565）、清掉布局与物理地址 */
+        render_fpga_set_hw_format(TEST_HW_FORMAT);
         render_fpga_set_limits(0);
-#endif
+        dst.phys_base = 0;
     }
 
     render_init();
-    printf("[PASS] 后端分发、格式闸门与下发通路\n");
+    printf("[PASS] 后端分发、位流格式闸门与下发通路\n");
 }
 
 
 static void test_color_mapping(void)
 {
     /*
-     * pixel_t 与硬件格式都是 XRGB8888，所以这里是恒等映射。
+     * 软件像素 -> 硬件 COLOR 寄存器值，全工程唯一转换点。
      *
-     * 保留这个测试是为了钉住"转换点只有一个、且不改变像素值"：
-     * 哪天真做 RGB565 打包，它会第一个失败。
+     * RGB565：COLOR[15:0] 是像素值，[31:16] 必须为 0
+     *         （迁移文档要求，避免新旧驱动误配）。
+     * XRGB8888：恒等映射（历史基线）。
+     *
+     * 这个测试钉住"转换点只有一个、且语义随格式正确变化"：
+     * 哪天真做新格式而这里忘了改，它会第一个失败。
      */
+#if RENDER_PIXEL_FORMAT_RGB565
+    assert(render_pixel_to_hw_color((pixel_t)0x0000u) == 0x00000000u);
+    assert(render_pixel_to_hw_color((pixel_t)0xFFFFu) == 0x0000FFFFu);
+    assert(render_pixel_to_hw_color((pixel_t)0xF800u) == 0x0000F800u);  /* 纯红 R5=31 */
+    assert(render_pixel_to_hw_color((pixel_t)0x07E0u) == 0x000007E0u);  /* 纯绿 G6=63 */
+    assert(render_pixel_to_hw_color((pixel_t)0x001Fu) == 0x0000001Fu);  /* 纯蓝 B5=31 */
+    assert(render_pixel_to_hw_color((pixel_t)0x1234u) == 0x00001234u);
+
+    /* 高 16 位必须是 0：这是与旧 XRGB8888 驱动区分开的判据 */
+    assert((render_pixel_to_hw_color((pixel_t)0xFFFFu) & 0xFFFF0000u) == 0u);
+
+    /* 与 fmt_color_from_hw 互逆 */
+    assert(fmt_color_from_hw(render_pixel_to_hw_color((pixel_t)0xABCDu))
+           == (pixel_t)0xABCDu);
+
+    printf("[PASS] 像素到硬件 COLOR 的 RGB565 映射（高位清零）\n");
+#else
     assert(render_pixel_to_hw_color(0x00000000u) == 0x00000000u);
     assert(render_pixel_to_hw_color(0x00FFFFFFu) == 0x00FFFFFFu);
     assert(render_pixel_to_hw_color(0x00FF0000u) == 0x00FF0000u);   /* 纯红 */
@@ -985,6 +1133,7 @@ static void test_color_mapping(void)
     assert(render_pixel_to_hw_color(0x00123456u) == 0x00123456u);   /* 任意值不变 */
 
     printf("[PASS] 像素到硬件 COLOR 的恒等映射\n");
+#endif
 }
 
 
@@ -1042,6 +1191,7 @@ int main(void)
     test_exact_translation();
     test_validator_fill();
     test_validator_copy();
+    test_validator_format_dependent();
 
     test_dispatch_and_gate();
     test_color_mapping();

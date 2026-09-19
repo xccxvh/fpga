@@ -52,6 +52,13 @@
 # CPU 渲染器测试构建产物
 jzy/riscv_game/tests/build/
 
+# 板端 Demo 构建产物（*.o / *.elf / *.asm / *.bin / *.map）：
+# 全部可重复生成，不进仓库。验收证据是 UART/OpenOCD 日志，不是 ELF。
+#
+# 这里【只写 M2】。M1 的 build/ 目前仍被 Git 跟踪，那是历史遗留；
+# 把它从 tracking 里移除需要单独的清理提交，不要和上板前的改动混在一起。
+jzy/co_debug_2026/par/ddr_demo_ti60_2026/embedded_sw/soc/software/standalone/renderer/rendererM2Demo/build/
+
 # Editors and OS
 .DS_Store
 Thumbs.db
