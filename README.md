@@ -37,3 +37,6 @@
 
 赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.2.md`，B 组当前进度与计划见
 `07_docs/progress/B_role_progress_and_plan.md`。
+
+团队联合目标与已选DDR/寄存器/换帧规则见
+`07_docs/interfaces/rgb565_720p_migration.md`。当前各独立Demo不等于联合位流已验证。

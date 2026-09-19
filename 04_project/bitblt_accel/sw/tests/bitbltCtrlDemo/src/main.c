@@ -42,7 +42,7 @@ void main(void) {
     uint32_t timeout, status, x, y, expected;
     bsp_init();
     bsp_printf("*** BitBlt Block Copy MVP ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != 0x00010003u) fail("version register");
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4) fail("version register");
     for (y = 0; y < height; ++y) {
         for (x = 0; x < width; ++x)
             source[y * (src_stride / 4u) + x] = 0x5A000000u | (y << 16) | x;

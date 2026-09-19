@@ -20,6 +20,8 @@
 #define BITBLT_STATUS_ERROR (1u << 2)
 #define BITBLT_OP_FILL 0u
 #define BITBLT_OP_COPY 1u
+#define BITBLT_OP_COLOR_KEY 2u
+#define BITBLT_VERSION_V0_4 0x00010004u
 static inline void bitblt_write(uint32_t offset, uint32_t value) {
     *(volatile uint32_t *)(BITBLT_BASE + offset) = value;
 }

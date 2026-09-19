@@ -1,18 +1,22 @@
-# BitBlt/显示软硬件接口约定 V0.3
+# BitBlt/显示软硬件接口约定 V0.4（历史实现）
 
 - 日期：2026-09-18
 - 主要维护：B（FPGA 2D渲染加速器）
-- BitBlt版本寄存器：`0x00010003`
+- BitBlt版本寄存器：`0x00010004`
 - V0.2接口确认：`已完成`
 - 状态标记：`已验证`、`已冻结待实现`、`待联调`
 
-本文是A（平台/显示）、B（BitBlt RTL）、C（RISC-V软件）的接口基线。“已验证”
+**新统一目标：RGB565、1280×720@60 Hz。** 以下是已实现的 XRGB8888/1080p
+历史接口与测试记录，不代表新目标已经完成。迁移约定与待验证项目见
+[`rgb565_720p_migration.md`](rgb565_720p_migration.md)。
+
+本文是A（平台/显示）、B（BitBlt RTL）、C（RISC-V软件）的历史接口基线。“已验证”
 表示已有Ti60F225实板结果；“已冻结待实现”表示地址、位定义和软件语义不再随意
 修改，但对应RTL/驱动尚未完成。任何不兼容修改必须更新版本记录。
 
 ## 1. 接口总表
 
-| 接口项目 | V0.3统一约定 | 状态/责任 |
+| 接口项目 | V0.4历史约定 | 状态/责任 |
 |---|---|---|
 | 显示分辨率与刷新率 | 固定`1920×1080@60 Hz`：约148.75 MHz像素时钟，水平2200总像素，垂直1125总行；BitBlt仍使用参数化宽高 | 已编译、板测并目视确认8条竖向彩条 |
 | 像素格式与字节序 | XRGB8888、小端；C值为`0x00RRGGBB`，低地址依次存B、G、R、X；显示输出`R=word[23:16]`、`G=word[15:8]`、`B=word[7:0]` | 已实现并通过数据通路测试 |
@@ -37,15 +41,15 @@
 |---:|---|---|---:|---|
 | `0x00` | CONTROL | W | `0` | bit0 START；bit1 CLEAR；其余为0 |
 | `0x04` | STATUS | R | `0` | bit0 BUSY；bit1 DONE；bit2 ERROR |
-| `0x08` | SRC_ADDR | R/W | `0` | Copy源DDR字节地址；Fill忽略 |
+| `0x08` | SRC_ADDR | R/W | `0` | Copy/Color Key源DDR字节地址；Fill忽略 |
 | `0x0C` | DST_ADDR | R/W | `0` | 目标DDR字节地址 |
 | `0x10` | WIDTH | R/W | `0` | 每行像素数 |
 | `0x14` | HEIGHT | R/W | `0` | 行数 |
-| `0x18` | SRC_STRIDE | R/W | `0` | Copy源每行字节数；Fill忽略 |
+| `0x18` | SRC_STRIDE | R/W | `0` | Copy/Color Key源每行字节数；Fill忽略 |
 | `0x1C` | DST_STRIDE | R/W | `0` | 目标每行字节数 |
-| `0x20` | COLOR | R/W | `0` | Fill的XRGB8888像素值；Copy忽略 |
-| `0x24` | OPERATION | R/W | `0` | `0=FILL`，`1=COPY`，其他非法 |
-| `0x28` | VERSION | R | `0x00010003` | BitBlt RTL/接口版本 |
+| `0x20` | COLOR | R/W | `0` | Fill的XRGB8888像素值；Color Key比较低24位RGB；Copy忽略 |
+| `0x24` | OPERATION | R/W | `0` | `0=FILL`，`1=COPY`，`2=COLOR_KEY`，其他非法 |
+| `0x28` | VERSION | R | `0x00010004` | BitBlt RTL/接口版本 |
 
 寄存器写必须使用`WSTRB=4'b1111`。`AWLEN/ARLEN`非零、写未定义地址或BUSY时
 再次START均置ERROR。
@@ -81,10 +85,14 @@
 
 约束如下：
 
-- FILL/COPY的DST和DST_STRIDE必须16 B对齐。
-- COPY的SRC和SRC_STRIDE也必须16 B对齐。
+- FILL/COPY/COLOR_KEY的DST和DST_STRIDE必须16 B对齐。
+- COPY/COLOR_KEY的SRC和SRC_STRIDE也必须16 B对齐。
 - WIDTH、HEIGHT非零；WIDTH为4的倍数；stride不小于`WIDTH*4`。
-- Copy源、目标不得重叠；不提供`memmove`语义。
+- Copy/Color Key源、目标不得重叠；不提供`memmove`语义。
+- Color Key先读取源像素，再按低24位RGB与`COLOR[23:0]`比较；匹配时对应
+  4字节`WSTRB=0`，原目标像素（包括X字节）保持不变；不匹配时复制完整32位
+  源像素。比较忽略源和键值的X字节。全透明的128-bit beat仍按AXI流程写入，
+  但所有字节写使能为0。
 - Burst不超过16 beat且不跨4 KiB边界。
 - `RRESP/BRESP`非OKAY、RID/BID错误或RLAST长度错误时置ERROR。
 - 当前CPU只有4 KiB指令缓存，没有数据缓存；当前位流使用`fence rw,rw`即可。
@@ -158,10 +166,24 @@ PLIC源30已验证16次BitBlt完成中断和显示VBlank换帧判源；32帧压�
 Copy为15.87/127.62 MiB/s；公平读仲裁版本完整测试期间扫描74帧且零欠流。
 3600帧并发老化进一步覆盖3600次全屏Fill、共享中断和VBlank换页，显示帧计数
 增加3600且欠流计数为0，最终彩条恢复正确。
+V0.4 Color Key已完成RTL回归、Efinity联合编译和20×5像素DDR板测；混合透明/
+不透明像素、X字节忽略、不同stride、目标padding及前后哨兵均通过。旧Fill/Copy
+与显示在V0.4位流上的回归结果另见本次测试记录。
 
-仍需验证：小时级持续运行和多次性能测试的统计波动。
+仍需验证：Color Key经过Framebuffer显示的可视化效果、小时级持续运行和多次
+性能测试的统计波动。
 
-## 9. 版本记录
+## 9. 与A组UDP图像Demo的待确认接口分歧
+
+本文件定义的是B组已板测的组合SoC/BitBlt路径：1920×1080、XRGB8888、
+4 B/像素，Framebuffer A/B分别在`0x01000000`/`0x01800000`。A组当前
+`rwj/udp_image_demo`为独立1280×720、RGB565、2 B/像素的网络接收/显示Demo，
+其DDR槽位和寄存器规划也不同。两个Demo的bitstream、原始图像数据和
+Framebuffer地址不能直接互换。团队已决定统一到RGB565/720p；迁移约定见
+[`rgb565_720p_migration.md`](rgb565_720p_migration.md)。在迁移及联合板测完成前，
+本V0.4仅表示B组历史路径已验证，不代表UDP与BitBlt已联合运行。
+
+## 10. 版本记录
 
 | 版本 | 日期 | 修改内容 | 提出/维护 | 确认 |
 |---|---|---|---|---|
@@ -170,3 +192,4 @@ Copy为15.87/127.62 MiB/s；公平读仲裁版本完整测试期间扫描74帧�
 | V0.3 | 2026-09-17 | 因目标屏不接受640×480，将显示时序改为1920×1080p60；显示DMA Burst增至64 beat；地址、像素格式和寄存器偏移不变 | B | 联合编译、板端smoke、共享IRQ、32帧并发、零欠流及8条竖向彩条目视确认通过 |
 | V0.3a | 2026-09-18 | 读仲裁由显示固定优先级改为Burst边界round-robin；不改变寄存器或软件API | B | Efinity时序通过；CPU/HW Fill/Copy性能板测及持续显示零欠流通过 |
 | V0.3b | 2026-09-18 | 测试程序增加可配置并发压力帧数和进度/欠流统计；接口语义不变 | B | 3600次全屏Fill、共享IRQ、VBlank换页及零欠流老化通过 |
+| V0.4 | 2026-09-18 | `OPERATION=2`增加XRGB8888 Color Key；`COLOR[23:0]`为RGB透明键；原寄存器偏移、Fill/Copy语义不变 | B | RTL全套回归、Efinity时序及20×5 DDR板测通过；显示集成回归待记录 |

@@ -275,7 +275,7 @@ void main(void) {
     bsp_init();
     csr_write(mtvec, trap_entry);
     bsp_printf("*** BitBlt Performance Demo ***\r\n");
-    if (bitblt_read(BITBLT_VERSION) != 0x00010003u)
+    if (bitblt_read(BITBLT_VERSION) != BITBLT_VERSION_V0_4)
         fail("BitBlt version");
     if (display_read(DISPLAY_VERSION) != DISPLAY_VERSION_V0_2)
         fail("display version");
