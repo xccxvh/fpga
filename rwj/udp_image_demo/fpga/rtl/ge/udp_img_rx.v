@@ -51,7 +51,11 @@ module udp_img_rx (
 
     // ---- 回执（ACK）发送请求：sys_clk 域 <-> gmii_tx_clk 域 ----
     input          ack_tgl,           // sys 域请求翻转一次 = 请求发一条回执
-    input  [127:0] ack_payload,       // 回执内容，在 tgl 翻转期间必须保持稳定
+    // [修复] 原为 [127:0]。上层 top.v 组的是 192 位（24 字节）回执，
+    //   这里只声明 128 位会把高 64 位丢掉 —— 也就是 magic(0xA55B) 和 frame_id，
+    //   再透传给 udp_ack_tx 时高位补 0，PC 端按 magic 校验直接拒收，
+    //   导致 --ack / --retry 一直静默失效。纯粹是透传口，加宽即可。
+    input  [191:0] ack_payload,       // 24 字节回执，byte0 在最高位
     output         ack_done_tgl       // 回执发完，翻转一次回到 sys 域
 );
 

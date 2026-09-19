@@ -9,6 +9,8 @@ send_image.py —— 一步到位：任意 JPG/PNG -> 自适应 1280x720 -> RGB5
     python3 send_image.py bg1.png --slot 0 --no-swap     # 预载，之后用板载按键切
     python3 send_image.py bg2.png --slot 1 --no-swap
     python3 send_image.py anim.png --dbuf                # 双缓冲，发送中不撕裂
+    python3 send_image.py pic.jpg --auto-cycle 1        # 开启自动轮播，每帧切一张
+    python3 send_image.py pic.jpg --auto-cycle 0        # 关闭自动轮播
 
 模式（--mode）:
     fit      保持宽高比完整显示，多余部分补黑边 —— 默认，最安全
@@ -73,7 +75,8 @@ def main():
         description="任意图片 -> 自适应 1280x720 -> RGB565 -> UDP 发送到开发板"
     )
 
-    parser.add_argument("input", help="输入图片（JPG / PNG / BMP / WebP ...）")
+    parser.add_argument("input", nargs="?", default=None,
+                        help="输入图片（JPG / PNG / BMP / WebP ...）；--config-only 时可不给")
     parser.add_argument("--ip", default=DEFAULT_IP,
                         help=f"板子 IP，默认 {DEFAULT_IP}")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT,
@@ -109,6 +112,11 @@ def main():
     )
 
     parser.add_argument(
+        "--auto-cycle", type=int, default=None, metavar="N",
+        help="自动轮播：板端每 N 帧自动切下一张。N=1 最快（每帧都切，60 张/秒），"
+             "N=0 关闭。不给这个参数就不动板端现有的轮播设置",
+    )
+    parser.add_argument(
         "--ack", action="store_true",
         help="要求板端整帧完成后回执，并报告帧完整性",
     )
@@ -119,6 +127,11 @@ def main():
         help="板端报帧不完整时整帧重传的次数，默认 2（只在 --ack 时生效）",
     )
 
+    parser.add_argument(
+        "--config-only", action="store_true",
+        help="只下发设置（目前只有 --auto-cycle），不发图片。"
+             "用来单独开关轮播，不动当前画面",
+    )
     parser.add_argument(
         "--save", metavar="OUT.bin", default=None,
         help="顺便把转好的 RGB565 存成文件（默认不存）",
@@ -148,9 +161,19 @@ def main():
     # 1. 读图 + 自适应
     # ============================================================
 
-    if not os.path.isfile(args.input):
-        print(f"[ERROR] 文件不存在：{args.input}")
-        sys.exit(1)
+    if args.config_only:
+        if args.auto_cycle is None:
+            print("[ERROR] --config-only 至少要有一个要下发的设置（目前只有 --auto-cycle）")
+            sys.exit(1)
+        # 发一个没有数据的帧：板端会处理 START（更新设置），
+        # 但 frame_expect=0 使 frame_ok 为假，所以不会切屏。
+    else:
+        if args.input is None:
+            print("[ERROR] 缺少输入图片")
+            sys.exit(1)
+        if not os.path.isfile(args.input):
+            print(f"[ERROR] 文件不存在：{args.input}")
+            sys.exit(1)
 
     if args.chunk <= 0:
         print("[ERROR] --chunk 必须为正数")
@@ -164,26 +187,32 @@ def main():
             sys.exit(1)
         print(f"[WARN] chunk 自动调整为 16 的倍数：{chunk_size}")
 
-    try:
-        source = load_image_rgb(args.input)
-    except ValueError as exc:
-        print(f"[ERROR] {exc}")
-        sys.exit(1)
+    if args.config_only:
+        data = b""
+        content_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+        print("=" * 60)
+        print("只下发设置（不发图片）")
+    else:
+        try:
+            source = load_image_rgb(args.input)
+        except ValueError as exc:
+            print(f"[ERROR] {exc}")
+            sys.exit(1)
 
-    print("=" * 60)
-    print("图片 -> RGB565 -> UDP")
-    print(f"输入文件   : {args.input}")
-    print(f"原始尺寸   : {source.width} x {source.height}")
+        print("=" * 60)
+        print("图片 -> RGB565 -> UDP")
+        print(f"输入文件   : {args.input}")
+        print(f"原始尺寸   : {source.width} x {source.height}")
 
-    try:
-        fitted, content_size = resize_adaptive(
-            source, (SCREEN_WIDTH, SCREEN_HEIGHT), args.mode, 1.20
-        )
-    except ValueError as exc:
-        print(f"[ERROR] {exc}")
-        sys.exit(1)
+        try:
+            fitted, content_size = resize_adaptive(
+                source, (SCREEN_WIDTH, SCREEN_HEIGHT), args.mode, 1.20
+            )
+        except ValueError as exc:
+            print(f"[ERROR] {exc}")
+            sys.exit(1)
 
-    data = rgb888_to_rgb565(fitted, "little").tobytes(order="C")
+        data = rgb888_to_rgb565(fitted, "little").tobytes(order="C")
 
     if args.mode in ("fit", "contain") and content_size != (SCREEN_WIDTH, SCREEN_HEIGHT):
         note = "（补黑边）"
@@ -194,9 +223,12 @@ def main():
     else:
         note = ""
 
-    print(f"屏幕       : {SCREEN_WIDTH} x {SCREEN_HEIGHT}")
-    print(f"适配模式   : {args.mode}   有效内容 {content_size[0]} x {content_size[1]}{note}")
-    print(f"数据大小   : {len(data)} Byte ({len(data) / 1024 / 1024:.3f} MiB)")
+    if args.config_only:
+        print(f"画面       : 不变（这一帧没有数据，板端不会切屏）")
+    else:
+        print(f"屏幕       : {SCREEN_WIDTH} x {SCREEN_HEIGHT}")
+        print(f"适配模式   : {args.mode}   有效内容 {content_size[0]} x {content_size[1]}{note}")
+        print(f"数据大小   : {len(data)} Byte ({len(data) / 1024 / 1024:.3f} MiB)")
 
     if args.save:
         save_abs = os.path.abspath(args.save)
@@ -214,8 +246,13 @@ def main():
     if frame_id is None:
         frame_id = int(time.time()) & 0xFFFF
 
+    if args.auto_cycle is not None and not (0 <= args.auto_cycle <= 0xFFFF):
+        print("[ERROR] --auto-cycle 必须在 0..65535 之间")
+        sys.exit(1)
+
     packets, total_pkts, total_bytes = build_packets(
-        data, slot, frame_id, args.auto_swap, args.ack, chunk_size, args.dbuf
+        data, slot, frame_id, args.auto_swap, args.ack, chunk_size, args.dbuf,
+        args.auto_cycle
     )
 
     print(f"目标       : {args.ip}:{args.port}")
@@ -226,6 +263,12 @@ def main():
         print(f"目标槽位   : {slot}  (DDR 偏移 0x{slot * SLOT_SIZE:08X})")
     print(f"整帧切屏   : {'是（等 VSYNC 切过去）' if (args.auto_swap or args.dbuf) else '否（只写槽位）'}")
     print(f"板端回执   : {'要' if args.ack else '不要'}")
+    if args.auto_cycle is not None:
+        if args.auto_cycle == 0:
+            print("自动轮播   : 关闭")
+        else:
+            print(f"自动轮播   : 每 {args.auto_cycle} 帧切一张"
+                  f"（约 {60.0 / args.auto_cycle:.1f} 张/秒）")
     print(f"总包数     : {total_pkts} 个 DATA 包 + START/END，共 {len(packets)} 包")
 
     # 校验和提前算，--dry-run 时也能看到
@@ -266,7 +309,7 @@ def main():
             frame_id = (frame_id + 1) & 0xFFFF
             packets, _, _ = build_packets(
                 data, slot, frame_id, args.auto_swap, args.ack,
-                chunk_size, args.dbuf
+                chunk_size, args.dbuf, args.auto_cycle
             )
 
         print()
