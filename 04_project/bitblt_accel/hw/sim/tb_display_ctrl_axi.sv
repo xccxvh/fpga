@@ -69,16 +69,71 @@ module tb_display_ctrl_axi;
             stride !== 7680 || format !== 0)
             $fatal(1, "reset defaults incorrect");
 
-        // Enable and request FB_B. It must not switch before vertical blank.
+        // Legacy V0.2 is fixed at 1080p: a larger aligned stride is invalid.
         axi_write(32'hE110_002C, 32'h7);
+        axi_write(32'hE110_0018, 32'd7696);
+        axi_write(32'hE110_000C, 32'h0180_0000);
+        axi_write(32'hE110_0000, 32'h3);
+        if (pending || !dut.error_reg)
+            $fatal(1, "non-exact legacy stride was accepted");
+
+        // Restore the fixed legacy geometry while disabled.
+        axi_write(32'hE110_0000, 32'h0);
+        axi_write(32'hE110_0018, 32'd7680);
+        axi_write(32'hE110_0000, 32'h4);
+
+        // Geometry/format writes while enabled must fail without changing state.
+        axi_write(32'hE110_0000, 32'h1);
+        axi_write(32'hE110_0010, 32'd1280);
+        axi_write(32'hE110_0014, 32'd720);
+        axi_write(32'hE110_0018, 32'd2560);
+        axi_write(32'hE110_001C, 32'd1);
+        if (width !== 1920 || height !== 1080 || stride !== 7680 ||
+            format !== 0 || !dut.error_reg)
+            $fatal(1, "enabled geometry write changed active configuration");
+        axi_write(32'hE110_0000, 32'h5);
+
+        // Enable and request FB_B. It must not switch before vertical blank.
         axi_write(32'hE110_000C, 32'h0180_0000);
         axi_write(32'hE110_0000, 32'h3);
         if (!enable || !pending || front !== 32'h0100_0000)
             $fatal(1, "swap request state incorrect");
-        pulse_vblank();
+
+        // PENDING forbids disabling display and retargeting NEXT_ADDR.
+        axi_write(32'hE110_0000, 32'h0);
+        if (!enable || !pending || !dut.error_reg)
+            $fatal(1, "display disable was accepted while swap pending");
+        axi_write(32'hE110_000C, 32'h0100_0000);
+        if (dut.next_addr_reg !== 32'h0180_0000)
+            $fatal(1, "NEXT_ADDR changed while swap pending");
+
+        pulse_vblank;
         repeat (2) @(posedge clk);
         if (front !== 32'h0180_0000 || pending || !irq)
             $fatal(1, "vblank swap did not complete");
+
+        // CLEAR removes prior sticky state while preserving ENABLE.
+        axi_write(32'hE110_0000, 32'h5);
+        if (irq || !enable)
+            $fatal(1, "clear before stale-DONE test failed");
+
+        // Complete one clean swap so SWAP_DONE is sticky.
+        axi_write(32'hE110_000C, 32'h0100_0000);
+        axi_write(32'hE110_0000, 32'h3);
+        pulse_vblank;
+        repeat (2) @(posedge clk);
+        if (front !== 32'h0100_0000 || !dut.swap_done_reg || !irq)
+            $fatal(1, "setup swap for stale-DONE test failed");
+
+        // A newly accepted request must clear stale SWAP_DONE automatically.
+        axi_write(32'hE110_000C, 32'h0180_0000);
+        axi_write(32'hE110_0000, 32'h3);
+        if (!pending || dut.swap_done_reg || irq)
+            $fatal(1, "accepted swap request did not clear stale SWAP_DONE");
+        pulse_vblank;
+        repeat (2) @(posedge clk);
+        if (front !== 32'h0180_0000 || pending || !irq)
+            $fatal(1, "second vblank swap did not complete");
 
         // Underflow is sticky and counted; CLEAR resets sticky state/counter.
         @(posedge clk); underflow <= 1;
@@ -96,7 +151,7 @@ module tb_display_ctrl_axi;
         if (!dut.error_reg || pending)
             $fatal(1, "invalid swap was accepted");
 
-        $display("PASS: display control registers and vblank swap");
+        $display("PASS: display control write guards, pending lock and vblank swap");
         $finish;
     end
 endmodule

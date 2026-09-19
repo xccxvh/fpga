@@ -40,6 +40,11 @@ B 禁止：
 
 这些结果可以作为回归基线，但其像素格式、显示时序和 VERSION 均不符合联合 V1.1。
 
+2026-09-19 已对历史 `display_ctrl_axi.v` 做控制语义加固并加入仿真回归：显示开启时拒绝
+几何/格式写，PENDING 时拒绝关闭显示和改写 NEXT_ADDR，请求接受时锁存 PENDING_ADDR 并
+自动清旧 `SWAP_DONE`，历史固定模式的 stride 校验由“至少 7680”收紧为“等于 7680”。
+这只是 V0.2/1080p/XRGB8888 回归基线加固，不代表 Display V3.0 已完成。
+
 ## 3. 当前不符合统一协议的地方
 
 1. `framebuffer_layout.h` 仍定义 1920×1080、4 B/pixel、148.75 MHz。
@@ -47,7 +52,7 @@ B 禁止：
 3. `display_regs.h` 仍只有 XRGB8888 格式，旧 VERSION 命名与编码规则不一致。
 4. Display 复位几何、合法性检查和像素拆包仍是 1080p/XRGB8888。
 5. 写仲裁器只有 CPU 和 BitBlt，没有 UDP 第三写主机。
-6. 旧 Display 接受新请求时不会自动清 `SWAP_DONE`，软件可能读到陈旧完成位。
+6. 旧 Display AXI 写响应仍固定为 OKAY，尚未按 V3.0 对拒绝的 PENDING 写返回 `SLVERR`。
 7. 旧显示初始化若向复位 FRONT=FB_A 再请求 FB_A，会因 NEXT==FRONT 失败。
 
 ## 4. 必须按顺序完成的工作
@@ -62,7 +67,7 @@ B 禁止：
 ### B-P1：BitBlt V2.0
 
 - Fill/Copy/Color Key 改为每 beat 8 个 RGB565 像素。
-- COLOR 只接受低 16 位，高 16 位非 0 必须报参数错误。
+- FILL/COLOR_KEY 的 COLOR 只接受低 16 位，高 16 位非 0 必须报参数错误；COPY 忽略 COLOR。
 - WIDTH 粒度改为 8；地址/stride 16 B 对齐，stride `>= width×2`。
 - 非法参数在发出任何 DDR 请求前以 `DONE|ERROR` 完成。
 - 保持源目标不重叠、4 KiB 拆分、ID/RESP/RLAST 和哨兵回归。

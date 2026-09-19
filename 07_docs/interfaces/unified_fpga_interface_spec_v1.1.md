@@ -383,7 +383,7 @@ latest-snapshot，不是 FIFO；软件可能跳过中间 SEQ。
 | `0x14` | `HEIGHT` | RW | 0 | 行数 |
 | `0x18` | `SRC_STRIDE` | RW | 0 | 字节；FILL 忽略 |
 | `0x1C` | `DST_STRIDE` | RW | 0 | 字节 |
-| `0x20` | `COLOR` | RW | 0 | `[15:0]` RGB565；`[31:16]` 必须为 0 |
+| `0x20` | `COLOR` | RW | 0 | FILL/COLOR_KEY 使用 `[15:0]` RGB565，且 `[31:16]` 必须为 0；COPY 忽略 |
 | `0x24` | `OPERATION` | RW | 0 | 0 FILL；1 COPY；2 COLOR_KEY |
 | `0x28` | `VERSION` | RO | `0x00020000` | V2.0 |
 
@@ -401,6 +401,8 @@ CLEAR 不取消正在运行的命令；软件不得依赖 CLEAR 实现 abort。
 - 源矩形与目标矩形的完整尾后地址必须按 §3 的 65 bit/checked-64 规则计算，并各自完整落在
   一个合法区域内；不得依赖 32 bit 回绕、跨区域或跨 DDR 末端的结果。
 - COPY/COLOR_KEY 源目标区域禁止重叠，不提供 memmove 语义。
+- FILL/COLOR_KEY 的 `COLOR[31:16]` 非 0 属于非法参数，硬件必须在任何 DDR 请求前以
+  `DONE=1, ERROR=1` 拒绝；COPY 不读取也不校验 COLOR。
 - FILL：向目标矩形写 `COLOR[15:0]`。
 - COPY：逐像素复制 RGB565，行尾 padding 不得修改。
 - COLOR_KEY：源像素等于 `COLOR[15:0]` 时保留目标像素；不等时复制。透明像素对应的

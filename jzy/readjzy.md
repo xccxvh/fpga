@@ -337,6 +337,8 @@ DDR 布局。C 侧新增的明确约束是：
 - UDP AUTH_PENDING/RX_ACTIVE 期间禁止提交 Display swap；硬件仍会在 ARM 和 START 时通过
   `display_front_addr` 侧带复核，软件不能依赖硬件兜底代替所有权状态机；
 - Display PENDING 期间不得改写 NEXT_ADDR；完成条件仍是 SWAP_DONE 与 FRONT_ADDR 同时正确；
+- BitBlt FILL/COLOR_KEY 必须令 `COLOR[31:16]=0`，V2.0 硬件对非零高位按非法参数拒绝；
+  COPY 完全忽略 COLOR，避免无关的旧寄存器值阻塞复制命令；
 - PLIC 30 是 BitBlt/Display 的共享电平源，ISR 必须处理并清除两个来源，退出前确认源已撤销；
 - BitBlt/Display 驱动只能使用统一规范和权威头文件定义的控制窗口，不得访问窗口外或
   未定义偏移。
@@ -355,6 +357,12 @@ Display 初始化和换帧还必须按统一规范修正两处风险：初始化
 一次同地址 swap；每次新请求前必须清旧 `SWAP_DONE`，请求完成后再核对 FRONT_ADDR。
 硬件接受请求后会锁存 `PENDING_ADDR`，但软件在 PENDING 期间仍禁止写 NEXT_ADDR；若写入
 返回 `SLVERR`，必须进入失败恢复，不能继续猜测实际换帧目标。
+
+历史 `display_ctrl_axi.v` 已完成一轮不改版本的语义加固：enabled 时几何/格式写不生效并
+置 ERROR，PENDING 时保持 ENABLE 且拒绝 NEXT_ADDR 改写，接受请求时锁存目标并自动清旧
+`SWAP_DONE`；其固定 stride 已从 `>=7680` 收紧为 `==7680`。它仍是 V0.2 的
+1920×1080/XRGB8888 控制器，不得因为这些修复就通过 Display V3.0 探测；V3.0 仍必须实现
+1280×720、RGB565、`STRIDE==2560` 和拒绝写的 `SLVERR` 响应。
 
 ### 待板测（不能用软件测试代替的项）
 

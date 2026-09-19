@@ -48,7 +48,7 @@ module display_ctrl_axi #(
     reg [31:0] rdata_reg;
     reg display_enable_reg, swap_pending_reg;
     reg swap_done_reg, underflow_reg, error_reg;
-    reg [31:0] front_addr_reg, next_addr_reg;
+    reg [31:0] front_addr_reg, next_addr_reg, pending_addr_reg;
     reg [31:0] width_reg, height_reg, stride_reg, format_reg;
     reg [31:0] frame_count_reg, underflow_count_reg, irq_enable_reg;
 
@@ -84,8 +84,7 @@ module display_ctrl_axi #(
                            (candidate_next[3:0] == 4'h0) &&
                            (width_reg == 32'd1920) &&
                            (height_reg == 32'd1080) &&
-                           (stride_reg >= 32'd7680) &&
-                           (stride_reg[3:0] == 4'h0) &&
+                           (stride_reg == 32'd7680) &&
                            (format_reg == 32'd0);
         end
     endfunction
@@ -130,6 +129,7 @@ module display_ctrl_axi #(
             error_reg <= 0;
             front_addr_reg <= FB_A_ADDR;
             next_addr_reg <= FB_B_ADDR;
+            pending_addr_reg <= FB_B_ADDR;
             width_reg <= 32'd1920;
             height_reg <= 32'd1080;
             stride_reg <= 32'd7680;
@@ -151,7 +151,10 @@ module display_ctrl_axi #(
                 if (&axi_wstrb && axi_wlast) begin
                     case (awaddr_reg[7:2])
                         6'h00: begin
-                            display_enable_reg <= axi_wdata[0];
+                            if (swap_pending_reg && !axi_wdata[0])
+                                error_reg <= 1;
+                            else
+                                display_enable_reg <= axi_wdata[0];
                             if (axi_wdata[2]) begin
                                 swap_done_reg <= 0;
                                 underflow_reg <= 0;
@@ -160,17 +163,45 @@ module display_ctrl_axi #(
                             end
                             if (axi_wdata[1]) begin
                                 if (!swap_pending_reg &&
-                                    config_valid(next_addr_reg))
+                                    config_valid(next_addr_reg)) begin
+                                    pending_addr_reg <= next_addr_reg;
                                     swap_pending_reg <= 1;
-                                else
+                                    swap_done_reg <= 0;
+                                end else begin
                                     error_reg <= 1;
+                                end
                             end
                         end
-                        6'h03: next_addr_reg <= axi_wdata;
-                        6'h04: width_reg <= axi_wdata;
-                        6'h05: height_reg <= axi_wdata;
-                        6'h06: stride_reg <= axi_wdata;
-                        6'h07: format_reg <= axi_wdata;
+                        6'h03: begin
+                            if (swap_pending_reg)
+                                error_reg <= 1;
+                            else
+                                next_addr_reg <= axi_wdata;
+                        end
+                        6'h04: begin
+                            if (display_enable_reg)
+                                error_reg <= 1;
+                            else
+                                width_reg <= axi_wdata;
+                        end
+                        6'h05: begin
+                            if (display_enable_reg)
+                                error_reg <= 1;
+                            else
+                                height_reg <= axi_wdata;
+                        end
+                        6'h06: begin
+                            if (display_enable_reg)
+                                error_reg <= 1;
+                            else
+                                stride_reg <= axi_wdata;
+                        end
+                        6'h07: begin
+                            if (display_enable_reg)
+                                error_reg <= 1;
+                            else
+                                format_reg <= axi_wdata;
+                        end
                         6'h0B: irq_enable_reg <= axi_wdata & 32'h7;
                         default: error_reg <= 1;
                     endcase
@@ -198,7 +229,7 @@ module display_ctrl_axi #(
             if (vblank_pulse && display_enable_reg) begin
                 frame_count_reg <= frame_count_reg + 1'b1;
                 if (swap_pending_reg) begin
-                    front_addr_reg <= next_addr_reg;
+                    front_addr_reg <= pending_addr_reg;
                     swap_pending_reg <= 0;
                     swap_done_reg <= 1;
                 end

@@ -51,6 +51,9 @@ DDR Copy burst readback: PASSED (240 pixels)
 - `SYSTEM_AXI_A` 按 `0xE100_0000` / `0xE110_0000` 隔离 BitBlt 与显示控制；
   未映射访问返回 `DECERR`。
 - 显示控制器实现双缓冲、VBlank 原子换帧、帧计数、欠载计数和中断。
+- 历史显示控制器已补控制面保护：enabled 时拒绝几何/格式改写，PENDING 时拒绝关闭显示
+  或改写 NEXT_ADDR，请求时锁存目标并自动清旧 `SWAP_DONE`；固定 stride 只接受 7680 B。
+  这些修改不改变其 V0.2/1080p/XRGB8888 身份。
 - 128-bit DDR 读 DMA 支持二维 stride、最多 64 beat Burst、4 KiB 边界拆包。
 - 512×128-bit 异步 FIFO 可缓存 2048 像素，跨越 100 MHz DDR 与
   约148.75 MHz像素时钟域。
