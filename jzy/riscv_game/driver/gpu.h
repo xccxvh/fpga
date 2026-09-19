@@ -35,13 +35,15 @@
  *   当前 CPU 只有 4 KiB 指令缓存、没有数据缓存，CPU 写过源数据后
  *   执行 fence rw,rw 即可，不需要 data_cache_invalidate_address()。
  *
- * 硬件格式事实（2026-09-17 确认，仍然有效）：
- *   Pixel format        XRGB8888
- *   Pixel size          32 bit
+ * 硬件格式事实（2026-09-18 更新）：
+ *   统一目标            RGB565 / 1280x720@60，2 Byte/像素，8 像素/128-bit beat
+ *   当前位流（V0.4）    XRGB8888 / 1920x1080@60，4 Byte/像素，4 像素/beat
  *   RISC-V control AXI  32 bit
  *   DDR AXI data width  128 bit
- *   Pixels per DDR beat 4
- *   Stride              width × 4 Byte
+ *
+ * 位流实际是哪个格式属于运行期事实，用 render_fpga_set_hw_format() 声明；
+ * 本文件不假定其中任何一个。详见 render/renderer.h 顶部与
+ * driver/framebuffer_format.h。
  */
 
 

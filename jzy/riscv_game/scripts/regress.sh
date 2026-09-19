@@ -16,7 +16,8 @@ usage()
 Usage: scripts/regress.sh {quick|contract|build|full}
 
 Modes:
-  quick     host tests + mutation tests + make check + two RISC-V builds
+  quick     host tests（RGB565 + XRGB8888 两种格式）+ mutation tests
+            + make check + two RISC-V builds
   contract  quick + authoritative BitBlt/framebuffer compile-time contract
   build     contract + M1/M2 board ELF builds.  No hardware, no board attached:
             everything reachable without a board must be green here.
@@ -185,6 +186,12 @@ run_quick()
             BITBLT_INC_DIR="$BITBLT_INC_DIR" || true
     run_step "RISC-V hardware-path build" 05_riscv_build_hw.log \
         make -C "$RISCV_GAME_ROOT" riscv-build-hw CROSS_CC="$CROSS_CC" \
+            BITBLT_INC_DIR="$BITBLT_INC_DIR" || true
+    # 回退格式回归：整套 host 测试在 XRGB8888 下再跑一遍。
+    # B 组 RGB565 位流落地前，那是唯一能上板的路径，不能让它烂掉。
+    run_step "host tests (XRGB8888 legacy format)" 06_host_tests_legacy.log \
+        env "ASAN_OPTIONS=${ASAN_OPTIONS:+$ASAN_OPTIONS:}detect_leaks=0" \
+        make -C "$RISCV_GAME_ROOT" test-legacy CC="$HOST_CC" \
             BITBLT_INC_DIR="$BITBLT_INC_DIR" || true
 }
 

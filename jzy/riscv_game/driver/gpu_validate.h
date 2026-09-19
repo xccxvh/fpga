@@ -11,7 +11,11 @@
  * 内存布局全部通过 gpu_limits_t 参数传入。这样校验器可以在本机完整单测，
  * 而"不能自行填写尚未确定的地址"这条约束在代码结构上就成立。
  *
- * 约束来源：07_docs/interfaces/bitblt_interface_v0.1.md 第 2、4 节。
+ * 约束来源：07_docs/interfaces/bitblt_interface_v0.2.md §4（现行，V0.4）
+ *
+ * 像素宽度【不是】编译期常量：B 组当前位流是 XRGB8888（4 Byte/像素、
+ * 宽度 4 像素倍数），统一目标 RGB565 是 （2 Byte/像素、宽度 8 像素倍数）。
+ * 两者都由 gpu_limits_t 在运行期传入，校验器对两种格式同等成立。
  */
 
 /* OPERATION 编码，与接口约定第 2 节一致。
@@ -19,33 +23,32 @@
 #define GPU_OP_FILL 0u
 #define GPU_OP_COPY 1u
 
-/* 像素格式已确认：XRGB8888，1 pixel = 32 bit = 4 Byte。
- * DDR AXI 数据宽度 128 bit，每 beat 4 个像素。stride = width × 4 Byte。 */
-#define GPU_HW_PIXEL_BYTES 4u
-
 /* ------------------------------------------------------------------ *
- * 以下两条是当前 BitBlt V0.1 的【硬件约束】，不是最终游戏规则。
+ * 对齐与宽度粒度是 BitBlt 的【硬件约束】，不是游戏规则。
  *
- * 16 Byte 对齐、WIDTH % 4 == 0 都还没有冻结：
- * 后续需要和 B 组单独确认是否要在硬件侧放宽（放宽可以解除对矩形起点
- * 必须是 4 的倍数这一限制，从而不再约束字体字宽、精灵宽度和 UI 面板位置）。
+ * 16 Byte 对齐是两种像素格式共同的约定。
+ * 宽度粒度随像素宽度变化：16 Byte / 每像素字节数。
+ *   4 Byte/像素（XRGB8888）-> 4 像素
+ *   2 Byte/像素（RGB565）  -> 8 像素
+ * 因此不在这里写死，由 gpu_limits_t.width_granularity 传入。
  *
- * 在 B 组确认之前，校验器继续按 V0.1 的严格口径拒绝，不要在这里放松。
+ * 目前没有出现任何"放宽"的接口记录；B 组若要放宽需改接口约定。
+ * 在 B 组确认之前，校验器继续按严格口径拒绝，不要在这里放松。
  * ------------------------------------------------------------------ */
 
-/* 地址与 stride 必须 16 字节对齐（V0.1 §4） */
+/* 地址与 stride 必须 16 字节对齐（接口约定 §4） */
 #define GPU_ALIGN_BYTES 16u
-
-/* RTL 要求 width[1:0] == 0，即宽度必须是 4 像素的倍数（V0.1 §4） */
-#define GPU_WIDTH_GRANULARITY 4u
 
 
 /*
- * DDR 可访问窗口与保留区。
+ * DDR 可访问窗口、保留区与硬件像素格式。
  *
  * ddr_size == 0 表示平台尚未填写这套布局，校验一律返回 RENDER_ERR_NOT_READY。
  * reserved_lo == reserved_hi 表示没有保留区。
  * 保留区用来防止加速器踩到 CPU 正在运行的代码/数据（链接器 ram 窗口）。
+ *
+ * bytes_per_pixel == 0 或 width_granularity == 0 表示当前位流的像素格式
+ * 尚未声明，校验返回 RENDER_ERR_NOT_READY —— 不猜默认值。
  */
 typedef struct
 {
@@ -53,13 +56,19 @@ typedef struct
     uint32_t ddr_size;
     uint32_t reserved_lo;
     uint32_t reserved_hi;
+
+    /* 硬件位流实现的像素格式：2 = RGB565，4 = XRGB8888，0 = 未声明 */
+    unsigned bytes_per_pixel;
+
+    /* 矩形宽度必须是的倍数：4（XRGB8888）或 8（RGB565），0 = 未声明 */
+    unsigned width_granularity;
 } gpu_limits_t;
 
 
 /*
  * 一条 BitBlt 命令的完整参数。
  *
- * 地址和 stride 单位都是【字节】。width 是像素数（硬件 32-bit 像素）。
+ * 地址和 stride 单位都是【字节】。width 是像素数。
  * FILL 忽略 src_addr_bytes / src_stride_bytes，填 0 即可。
  */
 typedef struct

@@ -35,21 +35,47 @@
 #define FB_STRIDE 20          /* > FB_W，专门验证行尾 padding 没被误写 */
 #define FB_ROWS   16          /* > FB_H，底部保护行 */
 
+/*
+ * 颜色常量按【当前像素格式】构造，不能直接写字面量。
+ * 0x00FF0000 在 XRGB8888 里是纯红，在 RGB565 里高 16 位会被丢掉变成 0。
+ */
+#if RENDER_PIXEL_FORMAT_RGB565
+/* RGB565 小端：R[15:11] G[10:5] B[4:0] */
+#define COLOR_BG    0x0000u   /* 黑 */
+#define COLOR_RED   0xF800u
+#define COLOR_GREEN 0x07E0u
+#define COLOR_BLUE  0x001Fu
+
+/* 保护区哨兵。任何合法绘制都不会写出这个值，
+   所以它一旦被改写就说明越界。 */
+#define COLOR_GUARD 0xDEADu
+
+/* 源图：故意让 stride 既不等于宽度，也不等于目标 stride */
+#define SPR_W      5
+#define SPR_H      4
+#define SPR_STRIDE 8
+#define SPR_BASE   0x4000u   /* 每个像素 SPR_BASE + sy*STRIDE + sx，互不相同 */
+
+/* 逐行唯一标记：只用于检验"每一行落在自己的 stride 上"，不表示真实颜色。
+   基址刻意避开 COLOR_* 与 SPR_BASE。 */
+#define ROW_MARK(y) ((pixel_t)(0x0100u + (uint32_t)(y)))
+
+#else
 /* XRGB8888 颜色 */
 #define COLOR_BG    0x00000000u   /* 背景：黑，高 8 位恒为 0 */
 #define COLOR_RED   0x00FF0000u
 #define COLOR_GREEN 0x0000FF00u
 #define COLOR_BLUE  0x000000FFu
 
-/* 保护区哨兵。任何合法绘制都不会写出这个值，
-   所以它一旦被改写就说明越界。 */
 #define COLOR_GUARD 0x00ABCDEFu
 
-/* 源图：故意让 stride 既不等于宽度，也不等于目标 stride */
 #define SPR_W      5
 #define SPR_H      4
 #define SPR_STRIDE 8
-#define SPR_BASE   0x00010000u   /* 每个像素 SPR_BASE + sy*STRIDE + sx，互不相同 */
+#define SPR_BASE   0x00010000u
+
+#define ROW_MARK(y) ((pixel_t)(0x00010000u * (uint32_t)((y) + 1)))
+#endif
 
 #define MAX_DIAG_PER_TEST 8
 
@@ -357,9 +383,19 @@ static void test_t1_pixel_size(void)
 
     t_begin();
 
-    if (sizeof(pixel_t) != 4u)
+    /*
+     * pixel_t 宽度必须与当前格式一致。
+     * 期望值是 RENDER_PIXEL_BYTES（由 pixel_t 派生），不是写死的 4 ——
+     * RGB565 下 4 反而是错的。
+     */
+    if (sizeof(pixel_t) != RENDER_PIXEL_BYTES)
     {
-        fail_text(name, "4 bytes", "other");
+        fail_text(name, "sizeof(pixel_t) == RENDER_PIXEL_BYTES", "mismatch");
+    }
+
+    if (RENDER_PIXEL_BYTES != 2u && RENDER_PIXEL_BYTES != 4u)
+    {
+        fail_text(name, "RENDER_PIXEL_BYTES is 2 or 4", "other");
     }
 
     if (RENDER_PIXEL_BYTES != sizeof(pixel_t))
@@ -581,7 +617,7 @@ static void test_t7_stride_not_equal_width(void)
 
     for (int y = 0; y < FB_H; y++)
     {
-        uint32_t c = 0x00010000u * (uint32_t)(y + 1);
+        pixel_t c = ROW_MARK(y);
 
         st = render_fill_rect(&s, make_rect(FB_W - 1, y, 1, 1), c);
         expect_status(name, st, RENDER_OK);
@@ -589,9 +625,7 @@ static void test_t7_stride_not_equal_width(void)
 
     for (int y = 0; y < FB_H; y++)
     {
-        uint32_t c = 0x00010000u * (uint32_t)(y + 1);
-
-        expect_color(name, FB_W - 1, y, c);
+        expect_color(name, FB_W - 1, y, ROW_MARK(y));
     }
 
     for (int y = 0; y < FB_H; y++)
@@ -786,8 +820,8 @@ void main(void)
     reset_canvas();
 
     bsp_printf("\r\n=== M1 Renderer Board Smoke Test ===\r\n");
-    bsp_printf("pixel_t = %d bytes (expect 4), RENDER_PIXEL_BYTES = %d\r\n",
-               (int)sizeof(pixel_t), (int)RENDER_PIXEL_BYTES);
+    bsp_printf("pixel_t = %d bytes (expect %d), RENDER_PIXEL_BYTES = %d\r\n",
+               (int)sizeof(pixel_t), (int)RENDER_PIXEL_BYTES, (int)RENDER_PIXEL_BYTES);
     bsp_printf("canvas %dx%d stride_px=%d (%d guard cols) rows=%d (%d guard rows)\r\n",
                FB_W, FB_H, FB_STRIDE, FB_STRIDE - FB_W, FB_ROWS, FB_ROWS - FB_H);
     bsp_printf("backend = CPU only; no BitBlt register access in this build\r\n\r\n");

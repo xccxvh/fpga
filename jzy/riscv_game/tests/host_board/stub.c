@@ -30,9 +30,12 @@
 
 #include "bitblt_api.h"
 #include "bitblt_platform.h"
+#include "framebuffer_format.h"
+#include "protocol_frozen.h"
 
 /*
- * 只为拿 BITBLT_BASE / BITBLT_VERSION / SCRATCH_BASE 来布置替身内存。
+ * 只为拿 BITBLT_BASE / BITBLT_VERSION / SCRATCH_BASE 来布置替身内存，
+ * 以及从 protocol_frozen.h 取当前冻结的期望版本。
  * 用的就是板端那一份权威头文件，不另抄一份地址常量。
  */
 #include "bitblt_regs.h"
@@ -79,6 +82,23 @@ static enum stub_fault g_fault = FAULT_NONE;
 static uint64_t g_ticks = 0;
 static uint64_t (*g_now_ticks)(void) = 0;
 static uint32_t g_last_status = 0;
+
+
+/*
+ * 替身模型的像素宽度 —— 必须与当前位流的像素格式一致。
+ * 模型按 32 位写、被测代码按 16 位读，会让"注错却抓不到"，
+ * 那比没有模型更危险。
+ */
+#define TEST_MODEL_PIXEL_BYTES FMT_BYTES_PER_PIXEL
+
+#if RENDER_PIXEL_FORMAT_RGB565
+typedef uint16_t stub_pixel_t;
+#else
+typedef uint32_t stub_pixel_t;
+#endif
+
+typedef char assert_stub_pixel_type_matches[
+    sizeof(stub_pixel_t) == TEST_MODEL_PIXEL_BYTES ? 1 : -1];
 
 
 /* ------------------------------------------------------------------ */
@@ -137,8 +157,15 @@ void bsp_init(void)
     stub_map((uintptr_t)SCRATCH_BASE, (size_t)SCRATCH_SIZE, "scratch");
     stub_map((uintptr_t)BITBLT_BASE, 0x1000u, "bitblt regs");
 
+    /*
+     * 正常路径回显当前联合工程冻结的 RGB565 版本；
+     * 注错时回一个不同的值（用旧 XRGB8888 版本号，正好模拟
+     * "板上烧的还是老位流"这个真实场景）。
+     */
     *(volatile uint32_t *)(uintptr_t)(BITBLT_BASE + BITBLT_VERSION) =
-        (g_fault == FAULT_VERSION) ? 0x00010002u : 0x00010003u;
+        (g_fault == FAULT_VERSION)
+            ? BITBLT_VERSION_V0_4
+            : PROTO_BITBLT_VERSION_RGB565;
 }
 
 
@@ -271,7 +298,10 @@ bitblt_result_t bitblt_fill(uint32_t dst_addr,
 
     if (g_fault == FAULT_PAD)
     {
-        pixels = dst_stride / 4u;          /* 铺满 stride，越写行尾 padding */
+        /* 铺满 stride，越写行尾 padding。
+           每像素字节数必须跟当前位流格式走 —— 以前写死 /4 等于假设
+           XRGB8888，RGB565 下注错工况会失效（注了错却抓不到）。 */
+        pixels = dst_stride / TEST_MODEL_PIXEL_BYTES;
     }
     if (g_fault == FAULT_OVERRUN)
     {
@@ -284,12 +314,12 @@ bitblt_result_t bitblt_fill(uint32_t dst_addr,
 
     for (y = 0u; y < rows; ++y)
     {
-        volatile uint32_t *row =
-            (volatile uint32_t *)(uintptr_t)(dst_addr + y * dst_stride);
+        volatile stub_pixel_t *row =
+            (volatile stub_pixel_t *)(uintptr_t)(dst_addr + y * dst_stride);
 
         for (x = 0u; x < pixels; ++x)
         {
-            row[x] = color;
+            row[x] = (stub_pixel_t)color;
         }
     }
 

@@ -46,31 +46,50 @@
 #include "bitblt_regs.h"
 
 #include "framebuffer_layout.h"
+#include "framebuffer_format.h"
+#include "protocol_frozen.h"
 
 
 /* ------------------------------------------------------------------ */
 /* 预期与区域参数                                                      */
 /* ------------------------------------------------------------------ */
 
-/* 与 hw/rtl/bitblt_ctrl_axi.v 的 localparam VERSION 一致 */
-#define BITBLT_EXPECTED_VERSION 0x00010003u
+/*
+ * 期望的 BitBlt VERSION。
+ *
+ * 联合工程已冻结：RGB565 属于不兼容升级，BitBlt 进 V2.0，
+ * 所以期望 PROTO_BITBLT_VERSION_RGB565（0x00020000）。
+ *
+ * 值来自 driver/protocol_frozen.h 这一个代持点，不在本文件另写数字。
+ * 等 B 更新 bitblt_regs.h 之后，那一层会改成直接引用 B 的宏。
+ *
+ * ⚠ 待板测：已有的位流是 XRGB8888 的 V0.4（0x00010004），RGB565 版 RTL
+ * 尚未完成验证。所以在拿到 RGB565 位流之前，T1 一定会 fail-fast ——
+ * 那是【正确行为】，不是缺陷。不要为了让它"变绿"而把期望值改回旧版本。
+ */
+#define BITBLT_EXPECTED_VERSION PROTO_BITBLT_VERSION_RGB565
 
 /*
- * 首个区域：64x64 XRGB8888。
+ * 首个区域：64x64。
  *
- * 硬件约束（V0.1，见 04_project/bitblt_accel/README.md）：
- *   SRC / DST / STRIDE 必须 16 字节对齐；WIDTH 必须是 4 的倍数。
- * 下面三条静态断言把它们钉死，改错常量会直接编译失败。
+ * 硬件约束（接口约定 §4）：
+ *   SRC / DST / STRIDE 必须 16 字节对齐；
+ *   WIDTH 必须是 16 Byte / 每像素字节数 的倍数。
+ * 下面几条静态断言把它们钉死，改错常量会直接编译失败。
  *
  *   row bytes = 64 × 4 = 256 B，16 的倍数
  *   stride    = 320 B（80 像素），16 的倍数且 > 256
  *   → 每行行尾自然留下 64 B 的 padding，正好拿来放 guard
+ *
+ * 被测位流的像素格式 —— 联合工程已冻结为 RGB565，2 Byte/像素。
+ * 宽度粒度随之是 8（16 Byte / 2 Byte）；64 是 8 的倍数，TEST_WIDTH 不用改。
+ * 几何与 TEST_PIXEL_BYTES 都从 framebuffer_format.h 取，本文件不另写。
  */
 #define TEST_WIDTH        64u
 #define TEST_HEIGHT       64u
-#define TEST_PIXEL_BYTES  4u
-#define TEST_ROW_BYTES    (TEST_WIDTH * TEST_PIXEL_BYTES)   /* 256 B */
-#define TEST_STRIDE       320u                              /* 80 px */
+#define TEST_PIXEL_BYTES  FMT_BYTES_PER_PIXEL
+#define TEST_ROW_BYTES    (TEST_WIDTH * TEST_PIXEL_BYTES)   /* 128 B */
+#define TEST_STRIDE       320u                              /* 160 px */
 #define TEST_STRIDE_PX    (TEST_STRIDE / TEST_PIXEL_BYTES)  /* 80 px */
 
 /* guard：区域上下各 8 行，加上每行的行尾 padding */
@@ -93,14 +112,28 @@
 
 typedef char assert_test_stride_16b_aligned[(TEST_STRIDE % 16u == 0u) ? 1 : -1];
 typedef char assert_test_row_bytes_16b_aligned[(TEST_ROW_BYTES % 16u == 0u) ? 1 : -1];
-typedef char assert_test_width_multiple_of_4[(TEST_WIDTH % 4u == 0u) ? 1 : -1];
+typedef char assert_test_width_multiple_of_granularity[
+    (TEST_WIDTH % (16u / TEST_PIXEL_BYTES)) == 0u ? 1 : -1];
 typedef char assert_test_region_16b_aligned[(TEST_REGION_BASE % 16u == 0u) ? 1 : -1];
 typedef char assert_test_guard_base_16b_aligned[(TEST_GUARD_BASE % 16u == 0u) ? 1 : -1];
 
-/* 三种互不相同的取值：guard 色、填充前的脏值、填充色 */
-#define TEST_GUARD_COLOR 0x00ABCDEFu
-#define TEST_DIRTY_COLOR 0x00000000u
-#define TEST_FILL_COLOR  0x00A5C3F0u
+/*
+ * 三种互不相同的取值：guard 色、填充前的脏值、填充色。
+ *
+ * 像素是 16-bit RGB565，字面量必须落在 16 位内且互不相同 ——
+ * 原来按 XRGB8888 写的 0x00ABCDEF 那种值在 RGB565 下会被截断，
+ * 截断之后可能和别的常量撞上，测试就会"通过"但什么都没验到。
+ */
+#define TEST_GUARD_COLOR 0xADEFu
+#define TEST_DIRTY_COLOR 0x0000u
+#define TEST_FILL_COLOR  0xA5C3u
+
+typedef char assert_test_colors_distinct[
+    (TEST_GUARD_COLOR != TEST_DIRTY_COLOR
+     && TEST_GUARD_COLOR != TEST_FILL_COLOR
+     && TEST_DIRTY_COLOR != TEST_FILL_COLOR) ? 1 : -1];
+typedef char assert_test_colors_fit_rgb565[
+    ((TEST_GUARD_COLOR | TEST_DIRTY_COLOR | TEST_FILL_COLOR) <= 0xFFFFu) ? 1 : -1];
 
 /*
  * 超时：直接由 CLINT 频率推出来，不写魔数。
@@ -361,18 +394,35 @@ static int test_bitblt_version(void)
 /* 区域准备与 guard 校验                                               */
 /* ------------------------------------------------------------------ */
 
+/*
+ * 测试直接读写 DDR 上像素时用的类型。
+ *
+ * 必须与当前位流的像素宽度一致：以前写死 uint32_t，等于假设了
+ * 4 Byte/像素 —— RGB565 下那样读会把相邻两个像素当成一个，
+ * guard 检查会全错但看起来"有在检查"。
+ */
+#if RENDER_PIXEL_FORMAT_RGB565
+typedef uint16_t test_pixel_t;
+#else
+typedef uint32_t test_pixel_t;
+#endif
+
+typedef char assert_test_pixel_type_matches_format[
+    sizeof(test_pixel_t) == TEST_PIXEL_BYTES ? 1 : -1];
+
+
 /* 区域内 (x, y) 的像素，y 以区域本体左上角为 0 */
-static volatile uint32_t *region_pixel(uint32_t x, uint32_t y)
+static volatile test_pixel_t *region_pixel(uint32_t x, uint32_t y)
 {
-    volatile uint32_t *base = (volatile uint32_t *)TEST_REGION_BASE;
+    volatile test_pixel_t *base = (volatile test_pixel_t *)TEST_REGION_BASE;
 
     return base + y * TEST_STRIDE_PX + x;
 }
 
 /* 整块可写范围（含上下 guard 行）的起始像素 */
-static volatile uint32_t *guard_base(void)
+static volatile test_pixel_t *guard_base(void)
 {
-    return (volatile uint32_t *)TEST_GUARD_BASE;
+    return (volatile test_pixel_t *)TEST_GUARD_BASE;
 }
 
 /*
@@ -385,7 +435,7 @@ static volatile uint32_t *guard_base(void)
  */
 static void prepare_region(void)
 {
-    volatile uint32_t *p = guard_base();
+    volatile test_pixel_t *p = guard_base();
     uint32_t row;
     uint32_t x;
 
@@ -420,10 +470,10 @@ static void prepare_region(void)
  */
 static int guard_violations(const char *name)
 {
-    volatile uint32_t *p = guard_base();
+    volatile test_pixel_t *p = guard_base();
     uint32_t row;
     uint32_t x;
-    uint32_t got;
+    test_pixel_t got;
     int bad = 0;
     int printed = 0;
 
@@ -509,7 +559,7 @@ static void test_bitblt_fill_readback(void)
     bitblt_result_t result;
     uint32_t x;
     uint32_t y;
-    uint32_t got;
+    test_pixel_t got;
     int bad = 0;
     int printed = 0;
 
@@ -602,10 +652,19 @@ void main(void)
     bsp_init();
 
     bsp_printf("\r\n=== M2 BitBlt Board Smoke Test ===\r\n");
-    bsp_printf("region %dx%d XRGB8888, row %d B, stride %d B, scratch+0x%X\r\n",
+    /* 格式与版本都从已冻结的协议常量取，不在字符串里写死。 */
+    bsp_printf("region %dx%d %s, row %d B (%d B/px), stride %d B, scratch+0x%X\r\n",
                (int)TEST_WIDTH, (int)TEST_HEIGHT,
-               (int)TEST_ROW_BYTES, (int)TEST_STRIDE,
+#if RENDER_PIXEL_FORMAT_RGB565
+               "RGB565",
+#else
+               "XRGB8888",
+#endif
+               (int)TEST_ROW_BYTES, (int)TEST_PIXEL_BYTES, (int)TEST_STRIDE,
                (int)TEST_REGION_OFFSET);
+    bsp_printf("expected BitBlt VERSION = 0x%08X, DISPLAY_FORMAT_RGB565 = %d\r\n",
+               (int)BITBLT_EXPECTED_VERSION,
+               (int)PROTO_DISPLAY_FORMAT_RGB565);
     bsp_printf("guard: %d rows above/below, %d B padding each row\r\n",
                (int)TEST_GUARD_ROWS,
                (int)(TEST_STRIDE - TEST_ROW_BYTES));

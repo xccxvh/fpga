@@ -87,8 +87,10 @@ run_case nohook    0 "BitBlt MMIO was NOT touched"
 run_case freeze    0 "tick did not advance"
 run_case slowclock 0 "10ms delta="
 
-# T1 门：版本不对就不下发 FILL
-run_case version   0 "expected=0x00010003 actual=0x00010002"
+# T1 门：版本不对就不下发 FILL。
+# 只匹配稳定的前缀，不把 VERSION 的具体数值抄进脚本 ——
+# 那个值属于 B 的权威头文件，抄一份到这里就又多了一个真相源。
+run_case version   0 "[FAIL] T1_bitblt_version expected=0x"
 run_case version   0 "fill tests were NOT run"
 
 # T2 / T3 的拦截能力

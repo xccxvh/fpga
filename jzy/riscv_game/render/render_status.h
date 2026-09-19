@@ -22,16 +22,18 @@ typedef enum
     /* 当前后端做不了这件事（骨架阶段的寄存器通路即返回此值） */
     RENDER_ERR_UNSUPPORTED,
 
-    /* 软件像素宽度与已确认的硬件格式不一致。
-       硬件格式已确认为 XRGB8888（32 bit）；当前 software pixel_t 仍是 16 bit，
-       所以 FPGA 后端一律返回此码。这是已确认的待执行迁移项，不是未决问题，
-       迁移步骤见 renderer.h 顶部。禁止用强制转换或截断绕过。 */
+    /* 软件像素宽度与当前位流实现的像素格式不一致。
+       软件侧由 pixel_t 决定（RGB565 = 2 Byte 默认，XRGB8888 = 4 Byte 回退），
+       硬件侧由位流决定，经 render_fpga_set_hw_format() 声明。
+       两边不一致时 FPGA 后端一律返回此码。
+       禁止用强制转换、截断或 reinterpret cast 绕过。 */
     RENDER_ERR_FORMAT_MISMATCH,
 
     /* OPERATION 取值非法 */
     RENDER_ERR_BAD_OPERATION,
 
-    /* width == 0 或 width 不是 4 的倍数（硬件约束） */
+    /* width == 0 或 width 不是宽度粒度的倍数
+       （XRGB8888 需 4 像素倍数，RGB565 需 8 像素倍数；硬件约束） */
     RENDER_ERR_BAD_WIDTH,
 
     /* height == 0（硬件约束） */
@@ -40,7 +42,7 @@ typedef enum
     /* 地址或 stride 未满足 16 字节对齐（硬件约束） */
     RENDER_ERR_BAD_ALIGN,
 
-    /* stride 小于 width * 4（硬件约束） */
+    /* stride 小于 width * 每像素字节数（硬件约束） */
     RENDER_ERR_BAD_STRIDE,
 
     /* COPY 的源与目标区间相交，硬件没有 memmove 语义 */
