@@ -74,8 +74,8 @@ CONTRACT_ASSERT(ddr_free_size,          DDR_FREE_SIZE == 0x0B000000u);
 CONTRACT_ASSERT(reserved_below_fb,
                 SYSTEM_RESERVED_BASE + SYSTEM_RESERVED_SIZE <= FB_A_BASE);
 
-/* ---- 现行统一目标：几何数值必须与迁移文档一致 ---- */
-/* 见 07_docs/interfaces/rgb565_720p_migration.md 的「已确认的跨组数据约定」 */
+/* ---- 现行统一目标：几何数值必须与统一规范一致 ---- */
+/* 见 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md 的固定系统参数 */
 #if RENDER_PIXEL_FORMAT_RGB565
 CONTRACT_ASSERT(fmt_width,              FMT_WIDTH == 1280u);
 CONTRACT_ASSERT(fmt_height,             FMT_HEIGHT == 720u);
@@ -116,7 +116,7 @@ CONTRACT_ASSERT(fmt_frame_fits_slot,    FMT_FRAME_BYTES <= FB_SLOT_SIZE);
 
 /*
  * B 的 framebuffer_layout.h 目前【仍是 XRGB8888/1080p 历史值】——
- * 迁移文档明写「B组尚未迁移」。下面这组断言把这个事实钉住：
+ * B 组权威头文件尚未迁移。下面这组断言把这个事实钉住：
  *
  *   - B 一旦迁移完，这些断言会失败，提醒把 FMT_* 的几何改为直接引用 B 的
  *     头文件（driver/framebuffer_format.h 顶部的 UNFROZEN_PROTOCOL 注记）。

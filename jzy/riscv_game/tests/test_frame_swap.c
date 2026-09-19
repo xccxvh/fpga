@@ -1,7 +1,7 @@
 /*
  * 换帧状态机测试 —— C 组软件作为唯一 SWAP 提交者的强制顺序。
  *
- * 依据：07_docs/interfaces/rgb565_720p_migration.md
+ * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.0.md
  *       「单一换帧控制与缓冲区所有权」
  *
  * 本文件要钉住的不是"能不能换成功"，而是【顺序不许被绕过】：
@@ -10,8 +10,7 @@
  *   2. 坏帧绝不提交换帧，前台一个字节都不动
  *   3. 提交之后、回读确认 FRONT_ADDR 之前，旧前台不能被任何人拿到
  *   4. 只有回读 FRONT_ADDR 才算确认，SWAP_DONE 单独出现不算数
- *   5. 未冻结的协议项（UDP 完成通知、RGB565 的 FORMAT 枚举）一律走
- *      能力检测，不猜数字、不去读猜出来的地址
+ *   5. 已冻结但尚未接入的 UDP V2.0 必须走能力检测，不能把旧原型当成可用
  *
  * 地址取 B 权威头文件里的 FB_A_BASE / FB_B_BASE，不另编数字。
  *
@@ -375,7 +374,7 @@ static void test_udp_completion_still_unfrozen(void)
 
     protocol_caps_reset(0);
 
-    printf("[PASS] UDP 完成通知仍未冻结，一律走能力检测\n");
+    printf("[PASS] UDP V2.0 尚未接入时一律走能力检测\n");
 }
 
 

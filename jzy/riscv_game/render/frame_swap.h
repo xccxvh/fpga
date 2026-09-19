@@ -6,8 +6,8 @@
 /*
  * 换帧状态机 —— C 组软件是【唯一】的 SWAP 提交者。
  *
- * 依据：07_docs/interfaces/rgb565_720p_migration.md
- *       「单一换帧控制与缓冲区所有权（已选规则，联合RTL待实现）」
+ * 依据：07_docs/interfaces/unified_fpga_interface_spec_v1.0.md
+ *       「帧缓冲所有权状态机」
  *
  * 硬件（A 组的 UDP 接收、B 组的 BitBlt 引擎）都【不允许】直接改显示控制器的
  * 前台基址。它们只能：
@@ -35,7 +35,7 @@
  *   READY ──submit()──> FAILED                失败/超时：保留原前台与错误供诊断
  *   FAILED ──resolve_failure()──> IDLE        重新读 FRONT_ADDR 判定实际状态
  *
- * 坏帧【绝不】提交换帧：这是迁移文档第 3 条的硬要求
+ * 坏帧【绝不】提交换帧：这是统一规范的硬要求
  * （字节数、包序号、FIFO 溢出、全部 BRESP 都对了才算"完整可显示"）。
  */
 
@@ -198,13 +198,13 @@ uint32_t frame_swap_last_display_version(void);
 /*
  * A 组 UDP 通路报告"这一帧完整可显示"。
  *
- * 当前 UDP 完成通知的寄存器/中断地址尚未分配（迁移文档明写"尚未分配"），
- * 所以本函数在能力表声明为可用之前一律返回 FRAME_SWAP_ERR_NOT_READY，
- * 而不是去读一个猜出来的地址。
+ * UDP Frame RX V2.0 已由统一规范冻结，但本软件尚未实现正式 MMIO 驱动。
+ * 在平台完成版本探测并声明硬件可用之前，本函数一律返回
+ * FRAME_SWAP_ERR_NOT_READY，不能把旧 V1 原型当成兼容实现。
  *
  * 注意：这个函数只是把"UDP 说它写完了"翻译成一次 producer_done，
  * 前提是软件【已经】通过 frame_swap_acquire_back() 把这块后台授权给了
- * UDP —— 迁移文档要求"网络包自带 slot 不能覆盖软件授权"。
+ * UDP；统一规范禁止网络字段覆盖软件授权。
  */
 frame_swap_status_t frame_swap_udp_frame_ready(frame_swap_t *fs,
                                                uintptr_t reported_base,

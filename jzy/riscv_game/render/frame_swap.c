@@ -148,7 +148,7 @@ frame_swap_status_t frame_swap_producer_done(frame_swap_t *fs,
     {
         /*
          * 坏帧：释放后台，前台一个字节都不动，也【不】提交换帧。
-         * 迁移文档第 3 条：字节数、包序号、FIFO、BRESP 全对才算完整可显示，
+         * 统一规范：字节数、包序号、FIFO、BRESP 全对才算完整可显示，
          * 失败帧不得提交换帧。
          */
         fs->dropped_count++;
@@ -192,7 +192,7 @@ frame_swap_status_t frame_swap_submit(frame_swap_t *fs, uint64_t timeout_ticks)
     if (!display_bus_path_is_axi())
     {
         /*
-         * 显示控制一定走 SYSTEM_AXI_A（迁移文档已选定）。
+         * 显示控制一定走 SYSTEM_AXI_A（统一规范已冻结）。
          * 没声明就说明平台没初始化，不要猜路径。
          */
         return FRAME_SWAP_ERR_NOT_READY;
@@ -303,7 +303,7 @@ frame_swap_status_t frame_swap_display_init(uintptr_t initial_front)
         return FRAME_SWAP_ERR_INVALID_ARG;
 
     /*
-     * 统一走 SYSTEM_AXI_A。迁移文档已明确否掉 A 组草案里的
+     * 统一走 SYSTEM_AXI_A。统一规范不采用 A 组早期草案里的
      * APB 0xF8100000 那一套，本工程不提供那条路的开关。
      *
      * 必须先声明路径，否则下面读 VERSION 会返回 0（读不到寄存器），
@@ -350,9 +350,9 @@ frame_swap_status_t frame_swap_udp_frame_ready(frame_swap_t *fs,
         return FRAME_SWAP_ERR_INVALID_ARG;
 
     /*
-     * UDP 完成通知的寄存器/中断地址尚未分配。
-     * 能力表没声明"可用"之前，这条通路整个不存在 ——
-     * 既不去读猜出来的地址，也不假装 Udp 帧已经就绪。
+     * UDP V2.0 协议已经冻结，但正式驱动/硬件尚未接入。
+     * 能力表没声明“已探测可用”之前，这条通路整个不存在，
+     * 不能把旧 V1 原型或地址可读误当成协议兼容。
      */
     if (!protocol_udp_completion_available())
         return FRAME_SWAP_ERR_NOT_READY;
@@ -365,7 +365,7 @@ frame_swap_status_t frame_swap_udp_frame_ready(frame_swap_t *fs,
 
     /*
      * 硬件报回来的实际写入基址必须等于软件授权的那一块。
-     * 迁移文档：「网络包自带 slot 或旧 active_slot^1 不能覆盖软件授权」——
+     * 统一规范禁止网络包字段或旧 active_slot^1 覆盖软件授权；
      * 对不上就说明有人在写没被授权的 buffer，直接按坏帧处理。
      */
     if (reported_base != fs->back)

@@ -34,7 +34,7 @@
  * 参数含义、裁剪行为都与 sw_blit 完全一致。
  *
  * key 的比较是【精确相等】，不做容差、不做通道级近似——
- * 迁移文档要求"Color Key 按 16-bit RGB565 精确比较"。
+ * 统一规范要求“Color Key 按 16-bit RGB565 精确比较”。
  */
 void sw_color_key_blit(
     pixel_t *framebuffer,

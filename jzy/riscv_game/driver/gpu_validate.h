@@ -11,7 +11,7 @@
  * 内存布局全部通过 gpu_limits_t 参数传入。这样校验器可以在本机完整单测，
  * 而"不能自行填写尚未确定的地址"这条约束在代码结构上就成立。
  *
- * 约束来源：07_docs/interfaces/bitblt_interface_v0.2.md §4（现行，V0.4）
+ * 约束来源：07_docs/interfaces/unified_fpga_interface_spec_v1.0.md §7（BitBlt V2.0）
  *
  * 像素宽度【不是】编译期常量：B 组当前位流是 XRGB8888（4 Byte/像素、
  * 宽度 4 像素倍数），统一目标 RGB565 是 （2 Byte/像素、宽度 8 像素倍数）。

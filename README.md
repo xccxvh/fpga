@@ -19,8 +19,9 @@
 | RISC-V 基础功能 | 已验证 | GPIO、CLINT、DDR 16 MiB、UART Echo、FreeRTOS 已运行 |
 | RISC-V AXI4 | 已验证（补全硬件） | 接入 2 KiB AXI RAM 后，官方读写比较与中断测试均通过 |
 | RISC-V APB3 | 待修正硬件设计 | 官方软件已运行，厂家 Hard-JTAG 位流缺少示例要求的 LFSR 外设 |
-| BitBlt 控制与 Solid Fill | 已验证 | 配置寄存器、状态转换、PLIC 中断及 DDR Burst 写入均通过板测 |
-| BitBlt Block Copy | 已验证（核心链路） | 128-bit AXI Burst 读写、二维 stride 和 240 像素逐项回读通过；显示/双缓冲尚未集成 |
+| BitBlt/Display 历史路径 | 已验证 | XRGB8888/1080p V0.4 的 Fill/Copy/Color Key、双缓冲和 3600 帧老化已板测 |
+| 三方统一接口 V1.0 | 已冻结 | RGB565/720p、UDP/BitBlt/Display、所有权及错误恢复已统一 |
+| 联合 RGB565 位流 | 未完成 | A/B/C 仍需按统一规范迁移、联合仿真并完成目标板验收 |
 
 ## 协作规则
 
@@ -32,16 +33,24 @@
 6. 合并前必须记录编译结果、WNS/WHS 和板上测试现象。
 7. 测试代码依赖 `assert` 判定，测试构建禁止定义 `NDEBUG`——断言会被整体移除，测试将假通过
    （打印 `[FAIL]` 但不中止，退出码仍为 0）。CPU 渲染器测试见 `jzy/riscv_game/tests/`。
+8. 三方跨模块接口只能由
+   [`unified_fpga_interface_spec_v1.0.md`](07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)
+   定义；个人进度文档不得另建寄存器表、地址表或协议草案。
+9. 跨角色协议修改必须先更新统一规范并提升版本，经 A/B/C 三方审阅后，再同步修改
+   共享头文件、RTL、驱动和契约测试。单方代码先行不视为接口已变更。
+10. “协议冻结”“模块仿真通过”“联合仿真通过”“目标板通过”是四种不同状态，
+    进度记录必须明确写出，禁止用其中一种替代另一种。
 
 详细使用方法见 `07_docs/notes/FPGA开发使用手册.md`。
 
-赛题二软硬件基线见 `07_docs/interfaces/bitblt_interface_v0.2.md`，B 组当前进度与计划见
-`07_docs/progress/B_role_progress_and_plan.md`。
+赛题二三方唯一接口基线见
+[`07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
+该规范已经冻结 RGB565/720p、DDR、UDP、BitBlt、Display、所有权和验收规则；
+当前联合实现仍未完成，独立 Demo 或旧位流通过不等于联合协议通过。
 
-团队联合目标与已选DDR/寄存器/换帧规则见
-`07_docs/interfaces/rgb565_720p_migration.md`。当前各独立Demo不等于联合位流已验证。
+角色进度入口：
 
-UDP 帧完成通知（`0xF8100100` 窗口）的寄存器协议草案见
-`07_docs/interfaces/udp_frame_status_v2_draft.md`。**该文件仍是草案**，其中的
-offset、FRAME_STATUS bit 定义、VERSION 均未冻结，待 A/B 回复确认后才会成为基线，
-C 侧尚未按它实现任何驱动。
+- A：`rwj/udp_image_demo/A_进度总览.md`
+- B：`07_docs/progress/B_role_progress_and_plan.md`
+- C：`jzy/readjzy.md`
+- 团队职责与协议治理：`08_team/README.md`

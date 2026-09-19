@@ -7,11 +7,13 @@
 Copy 及 XRGB8888 Color Key Copy。CPU 与引擎分别通过读、写两组 2-to-1 AXI
 仲裁器共享 DDR 数据通路。
 
-团队后续统一目标为 RGB565、1280×720@60 Hz，详见
-`../../07_docs/interfaces/rgb565_720p_migration.md`。本目录当前 RTL、位流和测试
-仍是历史 XRGB8888/1080p 实现，不能按 RGB565/720p 使用。
+团队联合接口以
+[`../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)
+为唯一依据。本目录当前 RTL、位流和大部分测试仍是历史 XRGB8888/1080p V0.4 实现，
+不能按规范中的 RGB565/720p BitBlt V2.0、Display V3.0 使用。
 
-完整软硬件约定见 `../../07_docs/interfaces/bitblt_interface_v0.2.md`。
+迁移时必须保持旧回归可运行，但不得从旧 RTL/头文件反向修改统一协议。完成标志是共享头文件、
+RTL、C 驱动、模块仿真、联合仿真和目标板结果同时符合规范，而不是只修改 VERSION 常量。
 
 ## 当前板测结果
 

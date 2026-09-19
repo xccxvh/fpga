@@ -1,7 +1,7 @@
 /*
  * 像素格式、几何参数与软件参考绘制（Color Key / Alpha）的测试。
  *
- * 覆盖 07_docs/interfaces/rgb565_720p_migration.md 里 C 侧要落地的部分：
+ * 覆盖 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md 里 C 侧要落地的部分：
  *   - RGB888/XRGB8888 -> RGB565 打包，RGB565 -> 通道值解包
  *   - 几何：宽高、stride、整帧字节数、宽度粒度、16 B 对齐
  *   - Color Key 按 16-bit 精确比较
@@ -210,7 +210,7 @@ static void test_color_register_mapping(void)
     }
 
 #if RENDER_PIXEL_FORMAT_RGB565
-    /* RGB565：高 16 位必须清零（迁移文档要求，避免新旧驱动误配） */
+    /* RGB565：高 16 位必须清零（统一规范要求，避免新旧驱动误配） */
     assert(fmt_color_to_hw((pixel_t)0xFFFFu) == 0x0000FFFFu);
     assert((fmt_color_to_hw((pixel_t)0xFFFFu) & 0xFFFF0000u) == 0u);
 #endif
@@ -226,7 +226,7 @@ static void test_color_register_mapping(void)
 static void test_geometry(void)
 {
 #if RENDER_PIXEL_FORMAT_RGB565
-    /* 统一目标：1280x720@60，RGB565 —— 数值直接来自迁移文档 */
+    /* 统一目标：1280x720@60，RGB565 —— 数值直接来自统一规范 */
     assert(FMT_WIDTH == 1280u);
     assert(FMT_HEIGHT == 720u);
     assert(FMT_BYTES_PER_PIXEL == 2u);
@@ -262,7 +262,7 @@ static void test_geometry(void)
     /* 一整帧必须装得进一个 8 MiB slot */
     assert(FMT_FRAME_BYTES <= FB_SLOT_SIZE);
 
-    printf("[PASS] 几何参数与迁移文档一致\n");
+    printf("[PASS] 几何参数与统一规范一致\n");
 }
 
 

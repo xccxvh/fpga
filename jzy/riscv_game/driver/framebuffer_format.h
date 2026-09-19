@@ -12,7 +12,7 @@
  *
  * ┌─ UNFROZEN_PROTOCOL ───────────────────────────────────────────────┐
  * │ 本文件的【几何参数】来自团队 2026-09-18 的决定：                   │
- * │   07_docs/interfaces/rgb565_720p_migration.md                     │
+ * │   07_docs/interfaces/unified_fpga_interface_spec_v1.0.md         │
  * │                                                                   │
  * │ 那份文档同时写明「B组尚未迁移」——B 的权威 framebuffer_layout.h    │
  * │ 里仍然是 XRGB8888/1080p 的几何。所以几何参数暂时只能由本文件持有， │
@@ -115,7 +115,7 @@ typedef char fmt_frame_fits_slot[(FMT_FRAME_BYTES <= FB_SLOT_SIZE) ? 1 : -1];
  *
  * RGB565 是 16-bit 格式，从 24-bit 通道值转换时必须明确舍入方式。
  * 这里统一用【高位截断】（取通道的高 5/6 位），解包用【位复制】
- * （R8 = {R5, R5[4:2]}），与迁移文档 4.2 建议的显示侧扩展一致。
+ * （R8 = {R5, R5[4:2]}），与统一规范的显示侧扩展一致。
  *
  * 位复制的性质：0 → 0，满量程 → 满量程（R5=31 → 255），
  * 且不做浮点/除法，适合当前没有硬件乘法器的场景。
@@ -135,7 +135,7 @@ void fmt_rgb565_unpack(uint16_t rgb565, uint8_t *r, uint8_t *g, uint8_t *b);
 
 /* 把 32 位软件颜色值折算成硬件 COLOR 寄存器值：
    RGB565 下取低 16 位，XRGB8888 下原样返回。
-   高 16 位必须为 0，避免新旧驱动误配（迁移文档 §联合控制寄存器）。 */
+   高 16 位必须为 0，避免新旧驱动误配（统一规范 §7）。 */
 uint32_t fmt_color_to_hw(pixel_t c);
 
 /* 硬件 COLOR 寄存器值还原成软件像素值。与 fmt_color_to_hw 互逆。 */

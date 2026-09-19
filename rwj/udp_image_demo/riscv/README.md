@@ -2,6 +2,11 @@
 
 角色 A（系统平台与显示集成）的 RISC-V 侧工作目录。
 
+> 本文记录 A 的 bring-up 环境和历史测试。涉及 DDR 布局、UDP APB、BitBlt/Display、
+> framebuffer 所有权的内容，必须以
+> [`../../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../../../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)
+> 为准。下文早期地址建议不能用于联合工程。
+
 板子：Efinix Titanium Ti60F225，片上 Sapphire SoC（RV32IM，100 MHz，无 FPU/C 扩展）。
 
 ---

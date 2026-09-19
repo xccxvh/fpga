@@ -2,65 +2,39 @@
 
 本文件（`jzy/readjzy.md`）是 `jzy/` 目录的 README，负责记录**本目录内部**的工程结构、开发环境、版本基准、编译调试步骤与目录说明。
 
-## 团队统一目标与本目录当前状态（2026-09-19）
+## C 组统一接口接入要求（2026-09-19）
 
-### 已统一的图像与总线参数
+三方唯一协议是
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
+本文件只记录 C 工作区的实现与验证状态，不再复制完整地址表、寄存器表或协议草案。
 
-| 项目 | 统一值 |
-|---|---|
-| 显示模式 | `1280×720 @60 Hz`，像素时钟74.25 MHz |
-| 像素格式 | RGB565小端，`R[15:11] G[10:5] B[4:0]`，2 Byte/像素 |
-| 行与帧大小 | stride=`2560 B`；有效帧=`1,843,200 B` |
-| DDR数据面 | 128-bit AXI4 INCR；每beat 16 B，即8个RGB565像素 |
-| 控制路径 | 沿用B组`SYSTEM_AXI_A`：BitBlt=`0xE1000000`，显示=`0xE1100000` |
-| 换帧控制 | C组软件是唯一提交者；通过`NEXT_ADDR`和`SWAP_REQUEST`请求VBlank切换 |
+C 是联合系统唯一的 framebuffer 所有权管理者和换帧提交者，必须负责：
 
-### 已选择的统一DDR布局
+1. 启动时精确检查 BitBlt V2.0、Display V3.0、UDP Frame RX V2.0；
+2. 任一版本不匹配时 fail-fast，且不写配置寄存器；
+3. 同一时间只把后台授权给 UDP 或 BitBlt 中的一个；
+4. UDP 授权前 resync SEQ，按 `AUTH_BASE → ARM → AUTH_PENDING` 顺序执行；
+5. 用 seqlock 读取 snapshot，核对 `FRAME_OK/BASE_ADDR/RX_BYTES/EXPECT_BYTES`；
+6. 好帧、坏帧都写 matching `ACK_SEQ`，但只对好帧提交换帧；
+7. Display 请求前清旧 `SWAP_DONE`，完成后必须回读 `FRONT_ADDR`；
+8. 换帧失败时重新读取真实前台，未确认前禁止复用任何 buffer；
+9. BitBlt 非 16 B 对齐或非 8 像素宽度时，V1 默认整项 CPU 回退；
+10. 所有轮询都有 100 MHz CLINT tick 超时，禁止无限等待。
 
-板载DDR3物理容量按256 MiB，即`0x00000000–0x0FFFFFFF`。联合工程统一使用
-B组布局，不再使用A组UDP独立Demo从地址0开始的2 MiB图片槽：
+当前 C 的 RGB565 软件模型、渲染层和所有权状态机已有 host 测试，但 UDP V2.0 驱动、
+Display 陈旧完成位修复以及与真实 RGB565 联合位流的板测仍未完成。B 当前共享头文件仍是
+旧 XRGB8888/1080p，因此 C 的临时代持定义只能作为迁移措施，B 更新后必须删除。
 
-| 区域 | 起始地址 | 结束地址 | 预留大小 | 用途与约束 |
-|---|---:|---:|---:|---|
-| 系统/程序保留区 | `0x00000000` | `0x00FFFFFF` | 16 MiB | CPU程序、数据和堆栈；禁止存放图片 |
-| Framebuffer A | `0x01000000` | `0x017FFFFF` | 8 MiB | 前台或后台；RGB565有效帧只占前1,843,200 B |
-| Framebuffer B | `0x01800000` | `0x01FFFFFF` | 8 MiB | 前台或后台；RGB565有效帧只占前1,843,200 B |
-| 图片素材区 | `0x02000000` | `0x03FFFFFF` | 32 MiB | 原始图片、Sprite等；不能直接作为正在扫描的前台 |
-| Scratch | `0x04000000` | `0x04FFFFFF` | 16 MiB | 测试、临时数据和中间结果 |
-| 后续保留区 | `0x05000000` | `0x0FFFFFFF` | 176 MiB | 当前不得自行分配 |
-
-所有地址只能从B组权威`framebuffer_layout.h`取得，C组代码不得另复制一套
-数字常量。UDP与BitBlt每次只能有一个生产者写获授权的后台；不得写当前
-`FRONT_ADDR`。生产者成功后由C软件提交换帧，确认`SWAP_DONE`和新的
-`FRONT_ADDR`之后，原前台才可重新作为后台使用。
-
-- A组UDP集成时必须把低地址slot映射改为上述Framebuffer A/B，并补充完整帧
-  通知；字节数、包序号、FIFO状态及所有DDR `BRESP`均正确才算可显示。
-- C组需要读取UDP完成状态或BitBlt `DONE && !ERROR`，但UDP完成通知的具体
-  寄存器/中断地址仍待A/C落实，不能假定旧Demo已经具备该软件接口。
-- `FORMAT=RGB565`及新BitBlt/显示VERSION值仍需随联合RTL实现后冻结。
-
-- **注意：下面的XRGB8888章节是C组既有实现和验证记录，不是新目标。**
-  `jzy/riscv_game`的`pixel_t`、CPU参考渲染、FPGA适配层和测试目前仍按
-  XRGB8888/32 bit工作；B组当前V0.4 RTL/位流也仍是XRGB8888/1080p。
-  不能仅改宏、强制转换或复用旧位流就宣称RGB565已联调通过。
-- 新格式的软件迁移需与B组RGB565 RTL及A组UDP/显示链路同步，完成
-  16-bit像素、stride、Color Key、图案/素材、边界与板端回归。控制寄存器和
-  新格式枚举仍需按联合接口文档实现。
-- 集成版已选用B组`SYSTEM_AXI_A` BitBlt/显示寄存器路径；**C组软件是唯一
-  换帧提交者**。UDP或BitBlt只写获授权的后台，完成后由软件写`NEXT_ADDR`
-  和`SWAP_REQUEST`，确认VBlank切换后再复用旧前台。UDP向CPU报告完整帧
-  的具体寄存器/中断仍待A/C实现，当前旧Demo不能直接用于此流程。
-
-统一接口与待确认项见[`../07_docs/interfaces/rgb565_720p_migration.md`](../07_docs/interfaces/rgb565_720p_migration.md)；
-旧版XRGB8888已测合同见[`../07_docs/interfaces/bitblt_interface_v0.2.md`](../07_docs/interfaces/bitblt_interface_v0.2.md)。
+所有地址只能从模块所有者的权威头文件取得。MMIO 访问只允许出现在对应驱动 `.c` 中；
+游戏、渲染和状态机层不得硬编码地址或直接 include 寄存器头文件。
 
 ## 文档分工约定
 
-- **本文 `jzy/readjzy.md`**：负责 `jzy/` 文件夹**内部**的内容。
-- **外层仓库 README（`../README.md`）**：负责**对外接口**相关的内容，包括外部端口、管脚分配、接口协议、板级对接约定等。
+- **本文 `jzy/readjzy.md`**：负责 `jzy/` 文件夹内部的实现、环境和测试状态。
+- **统一接口规范**：负责所有跨角色端口、地址、协议、状态机和验收要求。
+- **外层仓库 README（`../README.md`）**：负责仓库入口和协作规则。
 
-即：内部实现与开发流程写在这里；凡是涉及**外部端口和协议**的部分，统一写在外层 README，本文件不重复维护。
+即：内部实现与开发流程写在这里；跨角色接口只写入统一规范，本文件只链接和列出 C 的接入任务。
 
 ---
 
@@ -323,7 +297,8 @@ CPU 参考实现已从 16-bit 迁移到 XRGB8888 / 32-bit。当前 `pixel_t` 是
 ### RGB565：C 侧代码迁移已完成，硬件尚未联调
 
 **2026-09-19：C 侧软件已迁移到 RGB565 / 1280x720@60**，作为默认格式。
-团队统一目标与依据见 `../07_docs/interfaces/rgb565_720p_migration.md`。
+团队统一目标与依据见
+[`../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md`](../07_docs/interfaces/unified_fpga_interface_spec_v1.0.md)。
 
 改动的落点：
 
@@ -346,48 +321,25 @@ CPU 参考实现已从 16-bit 迁移到 XRGB8888 / 32-bit。当前 `pixel_t` 是
 B 组 RGB565 位流落地前，那是唯一能上板的路径。
 
 **未完成（等 B 组）**：B 的 `framebuffer_layout.h` 仍是 XRGB8888/1080p 几何，
-RGB565 版 BitBlt/显示 RTL 与联合位流尚未完成、未板测。详见下面的待确认清单。
+RGB565 版 BitBlt/显示 RTL 与联合位流尚未完成、未板测。详见下面的待板测清单。
 
-### 协议冻结状态
+### 协议冻结与 C 的迁移状态
 
-**2026-09-19 已正式冻结两项**，定义集中在 `driver/protocol_frozen.h`（全工程唯一定义点）：
+统一规范已经冻结三块 IP：BitBlt V2.0、Display V3.0、UDP Frame RX V2.0；
+UDP MVP 使用 polling。C 侧不得再把 UDP 地址、ACK 或授权方式标记为“未冻结”。
 
-| 项 | 冻结值 | 说明 |
-|---|---|---|
-| `DISPLAY_FORMAT_XRGB8888` | `0` | 历史兼容枚举，仍有效，但**不是**当前联合工程默认格式 |
-| `DISPLAY_FORMAT_RGB565` | `1` | **当前默认** |
-| `BITBLT_VERSION_RGB565` | `0x00020000` | V2.0 |
-| `DISPLAY_VERSION_RGB565` | `0x00030000` | V3.0 |
+现有 `driver/protocol_frozen.*` 和 `driver/protocol_unfrozen.*` 是统一前的临时结构：
 
-版本编码：**高 16 位主版本、低 16 位次版本**。RGB565 属于不兼容升级，
-所以 BitBlt 进 V2.0、Display 进 V3.0。比较时比的是**完整 32 位**，不是只比主版本
-—— 主版本对、次版本不同的位流仍是未验证组合，宁可 fail-fast。
+- 在 B 的权威头文件尚未升级前，原有 BitBlt/Display 代持可以暂时保留，但必须由契约测试
+  盯住，并在 B 同步后删除；
+- `protocol_unfrozen.*` 中关于 UDP 未分配的能力模型已经过期，下一步必须由正式
+  `udp_frame_rx` 驱动和唯一共享头文件取代；
+- 禁止仅修改能力表让旧 A RTL 看起来可用。驱动必须先读 `VERSION=0x00020000`，
+  并实现 snapshot、AUTH、ABORT、ACK 和错误位的完整语义；
+- 初始化必须依次探测三块 VERSION，任何不匹配都不允许继续配置硬件。
 
-换帧初始化顺序（`frame_swap_display_init()`）：
-
-1. 读显示控制器 VERSION，必须等于 `DISPLAY_VERSION_RGB565`
-2. 不匹配就返回 `FRAME_SWAP_ERR_VERSION_MISMATCH`，**一个配置寄存器都不写**，
-   后续也不允许提交任何换帧
-3. 版本对了才写几何与 `FORMAT = DISPLAY_FORMAT_RGB565 (= 1)`
-
-> 按 RGB565 去配置一个 XRGB8888 位流不会报错，只会画一屏乱码 —— 所以版本必须
-> 在写配置之前拦住。**这不代表 RGB565 位流已经存在或已板测。**
-> 注意数值巧合：B 现有的 `DISPLAY_VERSION_V0_2` 同样是 `0x00020000`，
-> 但那是显示控制器 V0.2 的旧版本号，与 BitBlt V2.0 是两回事。
-
-**代持说明**：B 的权威头文件（`bitblt_regs.h` / `display_regs.h`）目前**尚未同步**
-这几个宏，所以 `protocol_frozen.h` 暂时持有它们。`tests/test_contract.c` 里有一段
-检测：**B 一同步，那边会编译失败**并提示把代持改成直接引用 B 的宏。
-不允许两套版本定义长期并存。
-
-### 仍未冻结：只剩 UDP 完成通知
-
-`driver/protocol_unfrozen.h` 现在只剩这一项 —— 文件名保留是为了不做纯改名的
-全树重构，但里面**只应存在还没冻结的东西**：
-
-| 项 | 状态 | C 侧做法 |
-|---|---|---|
-| UDP 完成通知的寄存器地址 / 中断号 / ACK 方式 | 迁移文档写"尚未分配"，A 组草案提过的 APB 那一套已被否掉 | `protocol_udp_completion_available()` 在未声明时返回 0；`frame_swap_udp_frame_ready()` 直接 `NOT_READY`，不去读猜出来的地址 |
+Display 初始化和换帧还必须按统一规范修正两处风险：初始化时不能向复位 FRONT 再提交
+一次同地址 swap；每次新请求前必须清旧 `SWAP_DONE`，请求完成后再核对 FRONT_ADDR。
 
 ### 待板测（不能用软件测试代替的项）
 
@@ -403,15 +355,13 @@ RGB565 版 BitBlt/显示 RTL 与联合位流尚未完成、未板测。详见下
 5. 板端 `rendererM1Demo` 在 RGB565 下的 smoke test（`test_render_board.c` 已按
    格式参数化并通过交叉编译，但未上板）。
 
-### 对齐约束：当前是硬件约束，尚未冻结为游戏规则
+### 对齐约束：V1 已冻结 CPU 回退
 
-`16 Byte 对齐`、`WIDTH % 4 == 0`（以及由此推出的矩形起点 `x % 4 == 0`）**只是
-BitBlt V0.1 的硬件约束**，还没有冻结成最终游戏规则。
+BitBlt V2.0 固定要求地址和 stride 16 B 对齐、WIDTH 为 8 像素倍数。它是硬件命令约束，
+不是游戏坐标规则：任意精灵位置仍可使用，但 C 在命令不满足约束时必须整项回退 CPU。
 
-后续要和 B 组单独确认是否需要在硬件侧放宽——放宽可以解除对矩形起点必须是 4 的
-倍数这一限制，从而不再约束字体字宽、精灵宽度和 UI 面板位置。
-
-在 B 组确认之前，`gpu_validate.c` 继续按 V0.1 的严格口径拒绝，不要放松。
+`gpu_validate.c` 必须按 RGB565 的 8 像素粒度更新。禁止通过截断坐标、扩大矩形或忽略
+左右边缘来“适配”硬件；未来若实现硬件 partial beat，需要提升协议版本并补回归。
 
 ---
 
@@ -700,17 +650,5 @@ bitblt_result_t bitblt_copy(uint32_t src_addr, uint32_t dst_addr,
 - **缓存**：当前 CPU 只有 4 KiB 指令缓存、**没有数据缓存**，CPU 写过源数据后
   执行 `fence rw,rw` 即可，不需要 `data_cache_invalidate_address()`。
   （B 的旧 demo 里仍有 invalidate 调用，那是防御性写法，本次未擅自删除。）
-- 本次**不实现** `display_api.h`（显示初始化与换帧），只做 BitBlt。
-
-### 当前代码格式（历史实现，非团队新目标）
-
-截至本次记录，现有C组代码仍采用：
-
-- XRGB8888
-- 32 bit / pixel
-- 4 Byte / pixel
-- DDR AXI 128 bit
-- 4 pixels / beat
-
-当前 B 的对齐要求（16 Byte 对齐、`WIDTH % 4 == 0`）**仍属于 BitBlt V0.1 硬件限制，
-不冻结成最终游戏规则**，后续要和 B 组单独确认是否需要在硬件侧放宽。
+- `display_api.*` 和 `frame_swap.*` 已有软件实现与 host 模型，但仍需按统一规范修复
+  初始化同地址 swap、陈旧 `SWAP_DONE` 和 UDP V2.0 接入，再进行真实联合板测。

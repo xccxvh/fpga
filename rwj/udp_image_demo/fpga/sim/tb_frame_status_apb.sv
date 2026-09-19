@@ -3,16 +3,17 @@
 // tb_frame_status_apb.sv —— 帧完成状态寄存器回归测试
 //
 // 被测：frame_status_apb.v（内核）+ frame_status_apb_slave.v（64KB 窗口包装）
-// 协议：07_docs/interfaces/udp_frame_status_v2_draft.md（C 的冻结草案）
+// 历史 V1 原型；联合目标见 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md。
+// 本 TB 通过不代表 V2.0 联合协议通过。
 //
 // 覆盖：
 //   基础   复位值、VERSION、地址译码（含未映射区的 PREADY 必须为 1）
 //   授权   AUTH_BASE + ARM → START 锁存 → 快照 BASE_ADDR
-//   AUTH   AUTH_ERR 六点完整语义（草案「待 A 确认无实现冲突」那一项）
+//   AUTH   历史 V1 AUTH_ERR 六点语义
 //   快照   好帧/各种坏帧、字段、SEQ 递增
 //   ACK    匹配清 / 不匹配保留
 //   G.2    ACK 与同拍发布的【坏帧】
-//   G.3    ACK 与同拍发布的【好帧】—— 旧错误必须保留（草案 G.3 的推论）
+//   ACK    ACK 与同拍发布的【好帧】—— 旧错误必须保留
 //   回绕   SEQ 32-bit 回绕
 //   并发   事件域连发帧的同时按 seqlock 读
 //
@@ -352,7 +353,7 @@ initial begin
 
     //------------------------------------------------------------------
     $display("-- 用例 9：AUTH_ERR 完整语义（C 侧确认的 6 点）--");
-    // 草案「待 A 确认无实现冲突」要求的完整语义，逐点验证：
+    // 历史 V1 原型的完整语义，逐点验证：
     //   ① 拒绝本帧（不写 DDR，BASE_ADDR=0）
     //   ② AUTH_ERR = 1
     //   ③ FRAME_OK = 0

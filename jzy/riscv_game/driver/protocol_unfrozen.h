@@ -4,30 +4,19 @@
 #include <stdint.h>
 
 /*
- * 尚未冻结的协议项。
+ * 统一协议之前留下的能力探测兼容层。
  *
- * ┌─ 本文件现在只剩一项 ──────────────────────────────────────────────┐
- * │ 文件名保留 protocol_unfrozen，但里面【已经只剩 UDP 完成通知】。     │
- * │                                                                   │
- * │ 原先放在这里的另外两项已经正式冻结，搬去了 protocol_frozen.h：      │
- * │   DISPLAY_FORMAT 的 RGB565 枚举值  -> PROTO_DISPLAY_FORMAT_RGB565  │
- * │   BitBlt / Display 的新版 VERSION  -> PROTO_BITBLT_VERSION_RGB565  │
- * │                                      PROTO_DISPLAY_VERSION_RGB565  │
- * │                                                                   │
- * │ 之所以保留旧文件名，是为了不做一次纯改名的全树重构；              │
- * │ 但这个文件里【只应存在还没冻结的东西】—— 新增任何已冻结的常量      │
- * │ 都应该放进 protocol_frozen.h，不要塞回这里。                       │
- * └───────────────────────────────────────────────────────────────────┘
+ * UDP Frame RX 地址和 V2.0 语义已经由
+ * 07_docs/interfaces/unified_fpga_interface_spec_v1.0.md 冻结；本文件名和
+ * UNFROZEN_PROTOCOL 宏仅为避免在正式 UDP 驱动落地前破坏现有 host 测试，
+ * 【不再表示协议仍待确认】。
  *
- * 还没冻结的：UDP 帧完成通知的寄存器地址、中断号、ACK 方式。
- * 迁移文档写"尚未分配"，要 A/C 在接入 SoC 时确定；A 组草案提过的 APB
- * 那一套已被迁移文档明确否掉，那份草案的地址同样不能拿来用。
- *
- * 需要一个尚未冻结的值时，用下面的 protocol_caps_t 表达"还没确认"，
- * 让调用方走降级分支；【不要】在这里写死任何数字。
+ * 当前默认 UNKNOWN 的含义是“本软件尚未接入符合 V2.0 的硬件/驱动”，不是
+ * “团队没有决定地址”。A 创建 udp_frame_rx_regs.h 且 C 完成正式驱动后，
+ * 必须删除本兼容层；禁止向这里加入任何新协议常量。
  */
 
-/* 出现在本文件里的每个值都还没冻结。grep 这个宏即可找到全部未冻结点。 */
+/* 过渡期绊线；正式 UDP V2.0 驱动接入后连同本文件删除。 */
 #define UNFROZEN_PROTOCOL 1
 
 
@@ -40,7 +29,7 @@
 
 typedef enum
 {
-    /* 还没确认 —— 默认值。所有依赖它的功能必须走降级分支 */
+    /* 尚未接入/探测 —— 默认值。所有依赖它的功能必须走降级分支 */
     PROTOCOL_CAP_UNKNOWN = 0,
 
     /* 三方已确认，对应数值可用 */
@@ -54,12 +43,12 @@ typedef enum
 /*
  * 平台在初始化时填写。
  *
- * 全 0（= UNKNOWN）是安全默认：任何"能不能用某个未冻结接口"的判断
+ * 全 0（= UNKNOWN）是安全默认：任何“当前是否接入该硬件”的判断
  * 都会得到"不能"，而不是"假装能"。
  */
 typedef struct
 {
-    /* UDP 帧完成通知接口是否已分配 */
+    /* UDP Frame RX V2.0 实现是否已接入并通过版本探测 */
     protocol_cap_t udp_completion;
 
     /* 仅当 udp_completion == PROTOCOL_CAP_YES 时有效。
