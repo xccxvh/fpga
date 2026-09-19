@@ -19,8 +19,10 @@
  * bitblt_*，所以这里不再对外。保留它只为不打断既有引用与测试；
  * 所有下发路径都返回 RENDER_ERR_UNSUPPORTED，没有任何寄存器访问。
  *
- * 寄存器访问（含 fence 与 STATUS 轮询）现在只存在于 driver/bitblt_api.c，
- * 由 make check-hw-isolation 机械保证。
+ * 寄存器访问（含 fence 与 STATUS 轮询）在生产代码里只存在于
+ * driver/bitblt_api.c，由 make check-hw-isolation 机械保证。
+ * 板级验证代码（tests/test_bitblt_board.c）允许只读引用 bitblt_regs.h
+ * 做硬件契约检查，那不是生产路径，也不在本检查范围内。
  *
  * 渲染层不再使用本文件：render/renderer_fpga.c 直接调 bitblt_*。
  *

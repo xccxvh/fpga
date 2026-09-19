@@ -5,7 +5,8 @@
 #   make api-test           统一渲染层 + BitBlt 驱动/适配层
 #   make riscv-build        RISC-V 交叉编译验证
 #   make riscv-build-hw     额外开启 BITBLT_ENABLE_HW_ACCESS 做编译检查
-#   make check              静态约束检查（寄存器引用隔离、无硬编码地址）
+#   make check              静态约束检查（寄存器引用隔离、无硬编码地址、
+#                           板端 printf 转换符）
 #   make clean
 #
 # 完整回归请统一从 scripts/regress.sh {quick|contract|full} 进入；
@@ -28,7 +29,14 @@ LIB_SRCS    := $(wildcard $(RENDER_DIR)/*.c) $(wildcard $(DRIVER_DIR)/*.c)
 TEST_API    := $(TESTS_DIR)/test_render_api.c
 TEST_BITBLT := $(TESTS_DIR)/test_bitblt_api.c
 TEST_CONTRACT := $(TESTS_DIR)/test_contract.c
+TEST_BOARD  := $(TESTS_DIR)/test_bitblt_board.c
 MUTATION_TEST := $(TESTS_DIR)/run_mutation_tests.sh
+
+# 板端测试的 host 替身环境（见 tests/host_board/ 的说明）。
+# 它把 test_bitblt_board.c 原样编到宿主机上跑，用来在没有板子的时候
+# 验证测试自己的判定逻辑 —— 不是真硬件的替代品。
+BOARD_LOGIC_DIR   := $(TESTS_DIR)/host_board
+BOARD_LOGIC_BUILD := $(API_BUILD)/board_logic
 
 
 # ---- B 组权威头文件 ----
@@ -68,9 +76,9 @@ RV_ABI  ?= ilp32
 CROSS_CFLAGS := -std=c99 -Os -g $(WARNFLAGS) -march=$(RV_ARCH) -mabi=$(RV_ABI) $(INCFLAGS)
 
 
-.PHONY: all test native-test api-test mutation-test contract-test FORCE \
+.PHONY: all test native-test api-test board-logic-test mutation-test contract-test FORCE \
         riscv-build riscv-build-api riscv-build-hw \
-        check check-hw-isolation check-no-addresses check-cross clean
+        check check-hw-isolation check-no-addresses check-board-printf check-cross clean
 
 # 交叉编译器存在性检查；所有交叉编译目标都依赖它
 check-cross:
@@ -84,7 +92,7 @@ all: test
 
 # ---- 本机测试 ----
 
-test: native-test api-test
+test: native-test api-test board-logic-test
 
 native-test:
 	@$(MAKE) -C $(TESTS_DIR) native-test
@@ -108,6 +116,40 @@ $(API_BUILD)/test_render_api: $(TEST_API) $(LIB_SRCS)
 $(API_BUILD)/test_bitblt_api: $(TEST_BITBLT) $(LIB_SRCS)
 	@mkdir -p $(API_BUILD)
 	$(CC) $(CFLAGS) $(TEST_BITBLT) $(LIB_SRCS) -o $@
+
+
+# ---- 板端测试逻辑的 host 验证 ----
+#
+# 把 tests/test_bitblt_board.c 【原样】编到宿主机上跑：替身 bsp.h 提供
+# BSP 符号，stub.c 在真实地址上 mmap 一片假内存并给一个 BitBlt 行为模型。
+# test_bitblt_board.c 里的 main() 用 -Dmain=board_main 让位给 runner.c。
+#
+# 跑两边：正常路径必须 PASS，注入故障后必须 FAIL。
+# 没接板子的时候，这是唯一能确认 T0~T3 判定逻辑没写错的办法。
+#
+# 不加 ASan/UBSan：替身要 mmap 固定的低位地址（SCRATCH_BASE 等），
+# 会跟 sanitizer 的 shadow 映射打架。
+#
+# -Wno-int-to-pointer-cast：B 的 bitblt_regs.h 是按 RV32 写的，
+# 里面是 (volatile uint32_t *)0xE1000000 这种 32 位常量转指针。
+# 在 64 位宿主机上这必然报警，但那是"目标机是 32 位"的表达方式，
+# 不是缺陷 —— 替身就是靠 mmap 到这些常量地址上工作的。其余警告照旧当错误。
+BOARD_LOGIC_CFLAGS := -std=gnu99 -O1 -g -Wall -Wextra $(WERROR) \
+                      -Wno-int-to-pointer-cast $(INCFLAGS) -I$(BOARD_LOGIC_DIR)
+
+$(BOARD_LOGIC_BUILD)/m2_board_logic: $(TEST_BOARD) \
+                                     $(BOARD_LOGIC_DIR)/stub.c \
+                                     $(BOARD_LOGIC_DIR)/runner.c
+	@mkdir -p $(BOARD_LOGIC_BUILD)
+	$(CC) $(BOARD_LOGIC_CFLAGS) -c $(BOARD_LOGIC_DIR)/stub.c -o $(BOARD_LOGIC_BUILD)/stub.o
+	$(CC) $(BOARD_LOGIC_CFLAGS) -c $(BOARD_LOGIC_DIR)/runner.c -o $(BOARD_LOGIC_BUILD)/runner.o
+	$(CC) $(BOARD_LOGIC_CFLAGS) -Dmain=board_main -c $(TEST_BOARD) -o $(BOARD_LOGIC_BUILD)/board.o
+	$(CC) $(BOARD_LOGIC_BUILD)/stub.o $(BOARD_LOGIC_BUILD)/runner.o \
+	    $(BOARD_LOGIC_BUILD)/board.o -o $@
+
+board-logic-test: $(BOARD_LOGIC_BUILD)/m2_board_logic
+	@echo "== 运行板端测试逻辑的 host 场景（正常路径 + 故障注入）=="
+	@$(BOARD_LOGIC_DIR)/run_scenarios.sh $(BOARD_LOGIC_BUILD)/m2_board_logic
 
 
 # ---- RISC-V 交叉编译验证（只证明能编能链，产物不在本机运行）----
@@ -167,11 +209,39 @@ FORCE:
 
 # ---- 静态约束检查 ----
 
-check: check-hw-isolation check-no-addresses
+check: check-hw-isolation check-no-addresses check-board-printf
 
-# 全树只允许一个文件引用 B 组的寄存器定义，杜绝第二份寄存器真相源。
-# 寄存器访问现在集中在真正的驱动 bitblt_api.c 里；旧的 gpu.c 已降级为兼容层，
+# 板端测试用的是 BSP 的 lite 版 bsp_printf（bsp.h 里 ENABLE_BSP_PRINTF_FULL = 0），
+# 只认 c / s / d / x / X 五种转换符。
+#
+# 用了它不认识的转换符【不会编译报错】，但板上会出两种坏结果：
+# 整行剩余内容被吞掉，且那个参数不会被取走 —— 后面所有参数整体错位。
+# 这种错只有真板才看得出来，所以在编译期就机械挡住。
+#
+# 黑名单而不是白名单：源文件里 `TEST_STRIDE % 16u == 0u` 这类取模表达式
+# 长得也像格式符，白名单扫描会误报。这里只抓"标准 printf 有、BSP 没有"
+# 的那几个（无符号转换符、长度修饰符、指针、八进制、科学计数法）。
+BOARD_TEST_SRCS := $(TESTS_DIR)/test_bitblt_board.c $(TESTS_DIR)/test_render_board.c
+
+check-board-printf:
+	@bad=$$(grep -nE '%((l|h|z|j|t)*(u|i|o|p|e|g|n)|(l|h|z|j|t)+d)' \
+	    $(BOARD_TEST_SRCS) 2>/dev/null || true); \
+	if [ -n "$$bad" ]; then \
+	  echo "失败：板端测试用了 BSP lite bsp_printf 不支持的转换符"; \
+	  printf '%s\n' "$$bad"; \
+	  echo "只支持 c / s / d / x / X；无符号量请先转 int 再按 d 打印"; \
+	  exit 1; \
+	fi
+	@echo "通过：板端测试只用 c / s / d / x / X 转换符"
+
+# 【生产代码】里只允许一个文件引用 B 组的寄存器定义，杜绝第二份寄存器真相源。
+# 寄存器访问集中在真正的驱动 bitblt_api.c；旧的 gpu.c 已降级为兼容层，
 # 不再包含任何寄存器分支。
+#
+# 范围刻意只覆盖 render/ 与 driver/：板级验证代码（tests/test_bitblt_board.c）
+# 允许【只读】引用 bitblt_regs.h，用于 VERSION 这类硬件契约检查。
+# 为读一个版本号去封装 bitblt_get_version() 反而不如直接读寄存器干净，
+# 但那只属于"验证"，不属于生产路径。
 check-hw-isolation:
 	@files=$$(grep -rlE '^[[:space:]]*#[[:space:]]*include[[:space:]]*"bitblt_regs\.h"' \
 	    $(RENDER_DIR) $(DRIVER_DIR) || true); \
@@ -182,7 +252,7 @@ check-hw-isolation:
 	  exit 1; \
 	fi; \
 	case "$$files" in \
-	  */driver/bitblt_api.c) echo "通过：只有 driver/bitblt_api.c 引用 bitblt_regs.h";; \
+	  */driver/bitblt_api.c) echo "通过：生产代码里只有 driver/bitblt_api.c 引用 bitblt_regs.h";; \
 	  *) echo "失败：引用点是 $$files，应为 driver/bitblt_api.c"; exit 1;; \
 	esac
 
